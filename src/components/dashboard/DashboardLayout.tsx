@@ -1,6 +1,6 @@
 
 import { Link, useLocation } from "react-router-dom";
-import { Home, Wallet, ArrowLeftRight, BarChart3, Settings, LogOut } from "lucide-react";
+import { Home, Wallet, ArrowLeftRight, ListOrdered, Settings, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -71,8 +71,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               <SidebarLink href="/dashboard/trade" icon={<ArrowLeftRight size={20} />} isActive={isActive('/dashboard/trade')}>
                 Trade
               </SidebarLink>
-              <SidebarLink href="/dashboard/history" icon={<BarChart3 size={20} />} isActive={isActive('/dashboard/history')}>
-                History
+              <SidebarLink href="/dashboard/orders" icon={<ListOrdered size={20} />} isActive={isActive('/dashboard/orders')}>
+                Orders
               </SidebarLink>
               <SidebarLink href="/dashboard/settings" icon={<Settings size={20} />} isActive={isActive('/dashboard/settings')}>
                 Settings

@@ -24,35 +24,65 @@ const DashboardHome = () => {
   );
 };
 
-// Wallet Page (Placeholder)
+// Wallet Page
 const WalletPage = () => (
   <div>
-    <h1 className="text-2xl font-bold text-gray-900 mb-6">Wallet</h1>
-    <p className="text-gray-600">This is the wallet page. Full implementation coming soon.</p>
+    <h1 className="text-2xl font-bold text-gray-900 mb-6">My Wallet</h1>
+    <WalletOverview />
+    <div className="mt-6">
+      <h2 className="text-xl font-semibold text-gray-900 mb-4">Transaction History</h2>
+      <RecentTransactions showViewAll={false} />
+    </div>
   </div>
 );
 
-// Trade Page (Placeholder)
+// Trade Page
 const TradePage = () => (
   <div>
     <h1 className="text-2xl font-bold text-gray-900 mb-6">Trade</h1>
-    <p className="text-gray-600">This is the trade page. Full implementation coming soon.</p>
+    <p className="text-gray-600 mb-4">Buy and sell cryptocurrencies using KES or USDT.</p>
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <h2 className="text-lg font-semibold mb-4">Order Book</h2>
+        <p className="text-sm text-gray-500">This feature will be available when connected to the database.</p>
+      </div>
+      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <h2 className="text-lg font-semibold mb-4">Create Order</h2>
+        <p className="text-sm text-gray-500">This feature will be available when connected to the database.</p>
+      </div>
+    </div>
   </div>
 );
 
-// History Page (Placeholder)
-const HistoryPage = () => (
+// Orders History Page
+const OrdersPage = () => (
   <div>
-    <h1 className="text-2xl font-bold text-gray-900 mb-6">History</h1>
-    <p className="text-gray-600">This is the history page. Full implementation coming soon.</p>
+    <h1 className="text-2xl font-bold text-gray-900 mb-6">My Orders</h1>
+    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+      <div className="flex border-b border-gray-200 mb-4">
+        <button className="px-4 py-2 text-fortunesly-primary border-b-2 border-fortunesly-primary font-medium">
+          Active Orders
+        </button>
+        <button className="px-4 py-2 text-gray-500 hover:text-gray-700">
+          Completed Orders
+        </button>
+        <button className="px-4 py-2 text-gray-500 hover:text-gray-700">
+          Cancelled Orders
+        </button>
+      </div>
+      <p className="text-sm text-gray-500">Your order history will appear here when connected to the database.</p>
+    </div>
   </div>
 );
 
-// Settings Page (Placeholder)
+// Settings Page
 const SettingsPage = () => (
   <div>
-    <h1 className="text-2xl font-bold text-gray-900 mb-6">Settings</h1>
-    <p className="text-gray-600">This is the settings page. Full implementation coming soon.</p>
+    <h1 className="text-2xl font-bold text-gray-900 mb-6">Account Settings</h1>
+    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+      <h2 className="text-lg font-semibold mb-4">Profile Information</h2>
+      <p className="text-sm text-gray-500">Account settings will be available when connected to the database.</p>
+    </div>
   </div>
 );
 
@@ -76,7 +106,7 @@ const Dashboard = () => {
         <Route path="/" element={<DashboardHome />} />
         <Route path="/wallet" element={<WalletPage />} />
         <Route path="/trade" element={<TradePage />} />
-        <Route path="/history" element={<HistoryPage />} />
+        <Route path="/orders" element={<OrdersPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Routes>
     </DashboardLayout>

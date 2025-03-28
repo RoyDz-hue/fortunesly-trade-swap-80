@@ -1,0 +1,176 @@
+
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { Coin } from "@/types";
+
+interface CryptoWithdrawDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  coin: Coin;
+  maxAmount: number;
+  onSuccess?: () => void;
+}
+
+const CryptoWithdrawDialog = ({ isOpen, onClose, coin, maxAmount, onSuccess }: CryptoWithdrawDialogProps) => {
+  const { toast } = useToast();
+  const [amount, setAmount] = useState("");
+  const [withdrawalAddress, setWithdrawalAddress] = useState("");
+  const [taxAmount, setTaxAmount] = useState(0);
+  const [netAmount, setNetAmount] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const taxRate = coin.taxRate || 10; // Default 10% if not specified
+  
+  useEffect(() => {
+    if (amount && !isNaN(parseFloat(amount))) {
+      const amountValue = parseFloat(amount);
+      const calculatedTax = (amountValue * taxRate) / 100;
+      const calculatedNet = amountValue - calculatedTax;
+      
+      setTaxAmount(calculatedTax);
+      setNetAmount(calculatedNet);
+    } else {
+      setTaxAmount(0);
+      setNetAmount(0);
+    }
+  }, [amount, taxRate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const parsedAmount = parseFloat(amount);
+    
+    if (!amount || !withdrawalAddress || isNaN(parsedAmount)) {
+      toast({
+        title: "Missing information",
+        description: "Please enter the amount and withdrawal address",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (parsedAmount <= 0) {
+      toast({
+        title: "Invalid amount",
+        description: "Please enter a valid amount greater than zero",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (parsedAmount > maxAmount) {
+      toast({
+        title: "Insufficient balance",
+        description: `Maximum available withdrawal is ${maxAmount} ${coin.symbol}`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    // This would be replaced with actual API call to submit the withdrawal request
+    try {
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      toast({
+        title: "Withdrawal request submitted",
+        description: `Your ${netAmount.toFixed(8)} ${coin.symbol} withdrawal request has been submitted for approval.`,
+      });
+      
+      if (onSuccess) {
+        onSuccess();
+      }
+      onClose();
+    } catch (error) {
+      console.error("Withdrawal error:", error);
+      toast({
+        title: "Request failed",
+        description: "An error occurred while submitting your withdrawal request",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Withdraw {coin.symbol}</DialogTitle>
+          <DialogDescription>
+            Enter the address and amount to withdraw. A {taxRate}% fee will be applied.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="withdrawalAddress" className="text-right">
+                Address
+              </Label>
+              <Input
+                id="withdrawalAddress"
+                value={withdrawalAddress}
+                onChange={(e) => setWithdrawalAddress(e.target.value)}
+                placeholder={`Enter ${coin.symbol} address`}
+                className="col-span-3 font-mono text-xs"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="amount" className="text-right">
+                Amount
+              </Label>
+              <Input
+                id="amount"
+                type="number"
+                min="0.00000001"
+                max={maxAmount}
+                step="0.00000001"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder={`Enter ${coin.symbol} amount`}
+                className="col-span-3"
+              />
+              <div className="col-span-4 text-xs text-gray-500 text-right">
+                Available: {maxAmount.toFixed(8)} {coin.symbol}
+              </div>
+            </div>
+            
+            {parseFloat(amount) > 0 && (
+              <div className="col-span-4 border rounded-md p-3 bg-gray-50">
+                <div className="flex justify-between text-sm mb-1">
+                  <span>Amount:</span>
+                  <span>{parseFloat(amount).toFixed(8)} {coin.symbol}</span>
+                </div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span>Fee ({taxRate}%):</span>
+                  <span>{taxAmount.toFixed(8)} {coin.symbol}</span>
+                </div>
+                <div className="flex justify-between text-sm font-medium">
+                  <span>You will receive:</span>
+                  <span>{netAmount.toFixed(8)} {coin.symbol}</span>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Processing..." : "Withdraw"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default CryptoWithdrawDialog;

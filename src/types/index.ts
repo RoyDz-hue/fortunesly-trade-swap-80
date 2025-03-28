@@ -4,6 +4,9 @@ export interface User {
   username: string;
   email: string;
   role: 'user' | 'admin';
+  createdAt?: string;
+  updatedAt?: string;
+  status?: 'active' | 'suspended';
 }
 
 export interface Wallet {
@@ -11,6 +14,7 @@ export interface Wallet {
   userId: string;
   currency: string;
   balance: number;
+  updatedAt?: string;
 }
 
 export interface Coin {
@@ -20,6 +24,9 @@ export interface Coin {
   depositAddress?: string;
   taxRate?: number;
   image?: string;
+  status?: 'active' | 'inactive';
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Transaction {
@@ -30,6 +37,7 @@ export interface Transaction {
   amount: number;
   status: 'pending' | 'approved' | 'rejected' | 'forfeited';
   createdAt: string;
+  updatedAt?: string;
   proof?: string;
   withdrawalAddress?: string;
 }
@@ -45,6 +53,7 @@ export interface Order {
   filled: number;
   status: 'open' | 'partially_filled' | 'filled' | 'cancelled';
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface Trade {
@@ -109,4 +118,50 @@ export interface PayHeroTransactionStatus {
     SUCCESS: string;
     FAILED: string;
   };
+}
+
+// Database-ready interfaces for future Supabase migration
+export interface TradingPair {
+  id: string;
+  baseCurrency: string;  // e.g., "BTC" in BTC/KES
+  quoteCurrency: string; // e.g., "KES" in BTC/KES
+  minOrderSize: number;
+  maxOrderSize: number;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface UserSettings {
+  userId: string;
+  emailNotifications: boolean;
+  twoFactorEnabled?: boolean;
+  lastLoginAt?: string;
+  updatedAt?: string;
+}
+
+export interface CryptoDepositRequest {
+  id: string;
+  userId: string;
+  coinId: string;
+  amount: number;
+  proofImageUrl: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+  updatedAt?: string;
+  transactionId?: string;
+}
+
+export interface CryptoWithdrawalRequest {
+  id: string;
+  userId: string;
+  coinId: string;
+  amount: number;
+  withdrawalAddress: string;
+  taxAmount: number;
+  netAmount: number;
+  status: 'pending' | 'approved' | 'rejected' | 'forfeited';
+  createdAt: string;
+  updatedAt?: string;
+  transactionId?: string;
 }
