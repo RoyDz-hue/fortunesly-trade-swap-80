@@ -3,8 +3,9 @@ import { useState, useEffect } from "react";
 import { Transaction } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { generateTransactions } from "@/data/mockData";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const statusColors = {
   pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
@@ -20,24 +21,43 @@ const typeColors = {
 
 const RecentTransactions = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const { user } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { user, isAuthenticated } = useAuth();
   
-  // Mock loading transactions from API
   useEffect(() => {
-    if (user) {
-      // Simulate API delay
-      const fetchData = setTimeout(() => {
-        const userTransactions = generateTransactions(user.id);
-        // Sort by date (newest first)
-        userTransactions.sort((a, b) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        setTransactions(userTransactions.slice(0, 5)); // Get only 5 most recent
-      }, 700);
+    const fetchTransactions = async () => {
+      if (!isAuthenticated || !user) {
+        setIsLoading(false);
+        return;
+      }
       
-      return () => clearTimeout(fetchData);
-    }
-  }, [user]);
+      try {
+        setIsLoading(true);
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(5);
+          
+        if (error) {
+          console.error('Error fetching transactions:', error);
+          setError('Failed to load transactions');
+          return;
+        }
+        
+        setTransactions(data as Transaction[]);
+      } catch (err) {
+        console.error('Unexpected error:', err);
+        setError('An unexpected error occurred');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchTransactions();
+  }, [user, isAuthenticated]);
   
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
@@ -49,15 +69,48 @@ const RecentTransactions = () => {
     }).format(date);
   };
   
+  // Loading skeletons
+  const renderSkeletons = () => (
+    <div className="divide-y divide-gray-200">
+      {[...Array(3)].map((_, i) => (
+        <div key={i} className="p-4">
+          <div className="flex justify-between items-start mb-2">
+            <div className="flex items-center space-x-2">
+              <Skeleton className="h-6 w-20" />
+              <Skeleton className="h-6 w-24" />
+            </div>
+            <Skeleton className="h-5 w-32" />
+          </div>
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-5 w-28" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+  
   return (
     <Card className="border border-gray-200">
       <CardHeader className="p-4 border-b border-gray-200">
         <CardTitle className="text-lg font-semibold">Recent Transactions</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        {transactions.length === 0 ? (
+        {isLoading ? (
+          renderSkeletons()
+        ) : error ? (
+          <div className="p-8 text-center text-red-500">
+            <p>{error}</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="mt-2 text-sm text-fortunesly-primary hover:underline"
+            >
+              Try again
+            </button>
+          </div>
+        ) : transactions.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
-            Loading transactions...
+            No transactions found. Your recent transactions will appear here.
           </div>
         ) : (
           <div className="divide-y divide-gray-200">

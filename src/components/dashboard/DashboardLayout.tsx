@@ -1,18 +1,25 @@
 
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Wallet, ArrowLeftRight, ListOrdered, Settings, LogOut } from "lucide-react";
+import { Home, Wallet, ArrowLeftRight, ListOrdered, Settings, LogOut, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
+import { 
+  Sheet, 
+  SheetContent, 
+  SheetTrigger 
+} from "@/components/ui/sheet";
 
 interface SidebarLinkProps {
   href: string;
   icon: React.ReactNode;
   children: React.ReactNode;
   isActive: boolean;
+  onClick?: () => void;
 }
 
-const SidebarLink = ({ href, icon, children, isActive }: SidebarLinkProps) => (
+const SidebarLink = ({ href, icon, children, isActive, onClick }: SidebarLinkProps) => (
   <Link
     to={href}
     className={cn(
@@ -21,6 +28,7 @@ const SidebarLink = ({ href, icon, children, isActive }: SidebarLinkProps) => (
         ? "bg-fortunesly-primary text-white"
         : "text-gray-600 hover:bg-gray-100"
     )}
+    onClick={onClick}
   >
     <div className="mr-3">{icon}</div>
     {children}
@@ -34,6 +42,7 @@ interface DashboardLayoutProps {
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const location = useLocation();
   const { logout, user } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
   
   const isActive = (path: string) => {
     if (path === '/dashboard' && location.pathname === '/dashboard') {
@@ -45,9 +54,63 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     return false;
   };
 
+  const closeMobileMenu = () => {
+    setIsOpen(false);
+  };
+
+  const handleLogout = () => {
+    logout();
+    closeMobileMenu();
+  };
+
+  const renderNavLinks = (isMobile: boolean = false) => (
+    <nav className="space-y-2">
+      <SidebarLink 
+        href="/dashboard" 
+        icon={<Home size={20} />} 
+        isActive={isActive('/dashboard')}
+        onClick={isMobile ? closeMobileMenu : undefined}
+      >
+        Dashboard
+      </SidebarLink>
+      <SidebarLink 
+        href="/dashboard/wallet" 
+        icon={<Wallet size={20} />} 
+        isActive={isActive('/dashboard/wallet')}
+        onClick={isMobile ? closeMobileMenu : undefined}
+      >
+        Wallet
+      </SidebarLink>
+      <SidebarLink 
+        href="/dashboard/trade" 
+        icon={<ArrowLeftRight size={20} />} 
+        isActive={isActive('/dashboard/trade')}
+        onClick={isMobile ? closeMobileMenu : undefined}
+      >
+        Trade
+      </SidebarLink>
+      <SidebarLink 
+        href="/dashboard/orders" 
+        icon={<ListOrdered size={20} />} 
+        isActive={isActive('/dashboard/orders')}
+        onClick={isMobile ? closeMobileMenu : undefined}
+      >
+        Orders
+      </SidebarLink>
+      <SidebarLink 
+        href="/dashboard/settings" 
+        icon={<Settings size={20} />} 
+        isActive={isActive('/dashboard/settings')}
+        onClick={isMobile ? closeMobileMenu : undefined}
+      >
+        Settings
+      </SidebarLink>
+    </nav>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
+      {/* Desktop Sidebar */}
       <div className="hidden md:flex md:flex-col md:w-64 md:fixed md:inset-y-0 bg-white border-r border-gray-200">
         <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
           <div className="flex items-center justify-center px-4">
@@ -61,23 +124,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               <div className="text-sm text-gray-500 mb-1">Welcome,</div>
               <div className="font-medium text-gray-900">{user?.username}</div>
             </div>
-            <nav className="space-y-2">
-              <SidebarLink href="/dashboard" icon={<Home size={20} />} isActive={isActive('/dashboard')}>
-                Dashboard
-              </SidebarLink>
-              <SidebarLink href="/dashboard/wallet" icon={<Wallet size={20} />} isActive={isActive('/dashboard/wallet')}>
-                Wallet
-              </SidebarLink>
-              <SidebarLink href="/dashboard/trade" icon={<ArrowLeftRight size={20} />} isActive={isActive('/dashboard/trade')}>
-                Trade
-              </SidebarLink>
-              <SidebarLink href="/dashboard/orders" icon={<ListOrdered size={20} />} isActive={isActive('/dashboard/orders')}>
-                Orders
-              </SidebarLink>
-              <SidebarLink href="/dashboard/settings" icon={<Settings size={20} />} isActive={isActive('/dashboard/settings')}>
-                Settings
-              </SidebarLink>
-            </nav>
+            {renderNavLinks()}
           </div>
         </div>
         <div className="p-4 border-t border-gray-200">
@@ -94,21 +141,61 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
       {/* Main content */}
       <div className="md:pl-64 flex flex-col flex-1">
+        {/* Mobile header */}
         <div className="sticky top-0 z-10 flex-shrink-0 flex bg-white border-b border-gray-200 md:hidden">
           <div className="flex-1 flex justify-between px-4 py-3">
             <Link to="/" className="flex items-center">
               <span className="text-xl font-bold text-fortunesly-primary">Fortunesly</span>
               <span className="text-xl font-bold text-fortunesly-secondary">.shop</span>
             </Link>
+            
             {/* Mobile menu button */}
-            <button type="button" className="text-gray-500 hover:text-gray-600 focus:outline-none">
-              <span className="sr-only">Open sidebar</span>
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
+            <Sheet open={isOpen} onOpenChange={setIsOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="md:hidden">
+                  <Menu className="h-6 w-6" />
+                  <span className="sr-only">Open menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[80%] sm:w-[350px] p-0">
+                <div className="flex flex-col h-full">
+                  <div className="border-b border-gray-200 p-4">
+                    <div className="flex items-center justify-between mb-6">
+                      <Link to="/" className="flex items-center" onClick={closeMobileMenu}>
+                        <span className="text-xl font-bold text-fortunesly-primary">Fortunesly</span>
+                        <span className="text-xl font-bold text-fortunesly-secondary">.shop</span>
+                      </Link>
+                      <Button variant="ghost" size="icon" onClick={closeMobileMenu}>
+                        <X className="h-5 w-5" />
+                      </Button>
+                    </div>
+                    
+                    <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                      <div className="text-sm text-gray-500 mb-1">Welcome,</div>
+                      <div className="font-medium text-gray-900">{user?.username}</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex-1 overflow-auto p-4">
+                    {renderNavLinks(true)}
+                  </div>
+                  
+                  <div className="p-4 border-t border-gray-200">
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-red-500 hover:text-red-700 hover:bg-red-50"
+                      onClick={handleLogout}
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Log out
+                    </Button>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
+        
         <main className="flex-1 pb-8">
           <div className="py-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">

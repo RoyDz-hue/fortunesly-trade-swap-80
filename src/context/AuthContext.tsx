@@ -1,6 +1,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface AuthContextType {
   user: User | null;
@@ -9,6 +11,7 @@ interface AuthContextType {
   logout: () => void;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,76 +31,121 @@ interface AuthProviderProps {
 const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   
   useEffect(() => {
-    // Check if user is logged in from localStorage
-    const storedUser = localStorage.getItem('fortunesly_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-      setIsAuthenticated(true);
-    }
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setIsLoading(true);
+        
+        if (session && session.user) {
+          fetchUserProfile(session.user.id);
+        } else {
+          setUser(null);
+          setIsAuthenticated(false);
+          setIsLoading(false);
+        }
+      }
+    );
+
+    // Check for existing session
+    const initAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session && session.user) {
+        fetchUserProfile(session.user.id);
+      } else {
+        setIsLoading(false);
+      }
+    };
+
+    initAuth();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
-  const login = async (email: string, password: string) => {
-    // Mock login function - in a real app, this would be an API call
-    if (email === 'cyntoremix@gmail.com' && password === 'admin123') {
-      const adminUser: User = {
-        id: 'admin-1',
-        username: 'admin',
-        email: 'cyntoremix@gmail.com',
-        role: 'admin',
-      };
-      setUser(adminUser);
-      setIsAuthenticated(true);
-      localStorage.setItem('fortunesly_user', JSON.stringify(adminUser));
-      return;
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        setUser(null);
+        setIsAuthenticated(false);
+      } else if (data) {
+        setUser({
+          id: data.id,
+          username: data.username,
+          email: data.email,
+          role: data.role as 'user' | 'admin',
+        });
+        setIsAuthenticated(true);
+      }
+    } catch (error) {
+      console.error('Error in fetchUserProfile:', error);
+      setUser(null);
+      setIsAuthenticated(false);
+    } finally {
+      setIsLoading(false);
     }
-    
-    if (email && password) {
-      // Mock user login
-      const mockUser: User = {
-        id: 'user-' + Math.floor(Math.random() * 1000),
-        username: email.split('@')[0],
+  };
+
+  const login = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        role: 'user',
-      };
-      setUser(mockUser);
-      setIsAuthenticated(true);
-      localStorage.setItem('fortunesly_user', JSON.stringify(mockUser));
-    } else {
-      throw new Error('Invalid email or password');
+        password,
+      });
+
+      if (error) throw error;
+      
+      return;
+    } catch (error: any) {
+      console.error('Login error:', error);
+      toast.error(error.message || 'Failed to login');
+      throw error;
     }
   };
 
   const register = async (username: string, email: string, password: string) => {
-    // Mock register function - in a real app, this would be an API call
-    if (email === 'cyntoremix@gmail.com') {
-      const adminUser: User = {
-        id: 'admin-1',
-        username,
+    try {
+      const { data, error } = await supabase.auth.signUp({
         email,
-        role: 'admin',
-      };
-      setUser(adminUser);
-      setIsAuthenticated(true);
-      localStorage.setItem('fortunesly_user', JSON.stringify(adminUser));
-    } else {
-      const newUser: User = {
-        id: 'user-' + Math.floor(Math.random() * 1000),
-        username,
-        email,
-        role: 'user',
-      };
-      setUser(newUser);
-      setIsAuthenticated(true);
-      localStorage.setItem('fortunesly_user', JSON.stringify(newUser));
+        password,
+        options: {
+          data: {
+            username,
+          },
+        },
+      });
+
+      if (error) throw error;
+      
+      toast.success('Registration successful! Please check your email for verification.');
+      return;
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      toast.error(error.message || 'Failed to register');
+      throw error;
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    setIsAuthenticated(false);
-    localStorage.removeItem('fortunesly_user');
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setIsAuthenticated(false);
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Failed to logout');
+    }
   };
 
   const isAdmin = user?.role === 'admin';
@@ -111,6 +159,7 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         logout,
         isAuthenticated,
         isAdmin,
+        isLoading,
       }}
     >
       {children}
