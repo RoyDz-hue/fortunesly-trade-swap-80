@@ -56,7 +56,7 @@ const TradePage = () => {
         
         setTradingPairs(pairs);
         
-        // In a real implementation, fetch user balances
+        // Fetch user balances
         const { data: session } = await supabase.auth.getSession();
         if (session.session) {
           const { data: wallets, error: walletsError } = await supabase
