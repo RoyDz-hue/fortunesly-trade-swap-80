@@ -4,10 +4,15 @@ import { Wallet, Coin } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { mockCoins, generateWallets } from "@/data/mockData";
 import { useAuth } from "@/context/AuthContext";
+import DepositDialog from "./DepositDialog";
+import WithdrawDialog from "./WithdrawDialog";
 
 const WalletOverview = () => {
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const { user } = useAuth();
+  const [isDepositOpen, setIsDepositOpen] = useState(false);
+  const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+  const [selectedWallet, setSelectedWallet] = useState<Wallet | null>(null);
   
   // Mock loading wallets from API
   useEffect(() => {
@@ -23,6 +28,26 @@ const WalletOverview = () => {
   
   const findCoin = (symbol: string): Coin | undefined => {
     return mockCoins.find(coin => coin.symbol === symbol);
+  };
+
+  const handleDepositClick = (wallet: Wallet) => {
+    setSelectedWallet(wallet);
+    setIsDepositOpen(true);
+  };
+
+  const handleWithdrawClick = (wallet: Wallet) => {
+    setSelectedWallet(wallet);
+    setIsWithdrawOpen(true);
+  };
+
+  const handleTransactionSuccess = () => {
+    // In a real app, you would refresh the wallet balances
+    // For now, we'll just simulate a refresh after a short delay
+    setTimeout(() => {
+      if (user) {
+        setWallets(generateWallets(user.id));
+      }
+    }, 1000);
   };
   
   return (
@@ -59,10 +84,16 @@ const WalletOverview = () => {
                   <div className="font-medium">{wallet.balance.toLocaleString()} {wallet.currency}</div>
                 </div>
                 <div className="mt-6 grid grid-cols-2 gap-2">
-                  <button className="py-2 text-xs font-medium text-center text-white bg-fortunesly-primary rounded-md hover:bg-fortunesly-primary/90 transition-colors">
+                  <button 
+                    className="py-2 text-xs font-medium text-center text-white bg-fortunesly-primary rounded-md hover:bg-fortunesly-primary/90 transition-colors"
+                    onClick={() => handleDepositClick(wallet)}
+                  >
                     Deposit
                   </button>
-                  <button className="py-2 text-xs font-medium text-center text-fortunesly-primary bg-white border border-fortunesly-primary rounded-md hover:bg-gray-50 transition-colors">
+                  <button 
+                    className="py-2 text-xs font-medium text-center text-fortunesly-primary bg-white border border-fortunesly-primary rounded-md hover:bg-gray-50 transition-colors"
+                    onClick={() => handleWithdrawClick(wallet)}
+                  >
                     Withdraw
                   </button>
                 </div>
@@ -71,6 +102,24 @@ const WalletOverview = () => {
           );
         })}
       </div>
+
+      {selectedWallet && (
+        <>
+          <DepositDialog
+            isOpen={isDepositOpen}
+            onClose={() => setIsDepositOpen(false)}
+            currency={selectedWallet.currency}
+            onSuccess={handleTransactionSuccess}
+          />
+          <WithdrawDialog
+            isOpen={isWithdrawOpen}
+            onClose={() => setIsWithdrawOpen(false)}
+            currency={selectedWallet.currency}
+            maxAmount={selectedWallet.balance}
+            onSuccess={handleTransactionSuccess}
+          />
+        </>
+      )}
     </div>
   );
 };

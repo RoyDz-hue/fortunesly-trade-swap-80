@@ -59,3 +59,54 @@ export interface Trade {
   total: number;
   createdAt: string;
 }
+
+// PayHero API Types
+export interface PayHeroCredentials {
+  apiUsername: string;
+  apiPassword: string;
+}
+
+export interface PayHeroStkPushRequest {
+  amount: number;
+  phone_number: string;
+  channel_id: number; 
+  provider: string;
+  external_reference: string;
+  customer_name: string;
+  callback_url: string;
+}
+
+export interface PayHeroWithdrawRequest {
+  external_reference: string;
+  amount: number;
+  phone_number: string;
+  network_code: string;
+  callback_url: string;
+  channel: string;
+  channel_id: number;
+  payment_service: string;
+}
+
+export interface PayHeroTransactionStatus {
+  status: boolean;
+  transaction: {
+    Amount: number;
+    Reference: string;
+    MerchantRequestID: string;
+    Phone: string;
+    RecipientAccountNumber?: string;
+    MpesaReceiptNumber?: string;
+    TransactionID: string;
+    CheckoutRequestID: string;
+    Provider: string;
+    TransactionDate: string;
+    ResultCode: number;
+    ResultDesc: string;
+    Status: "QUEUED" | "SUCCESS" | "FAILED";
+  };
+  possible_status: {
+    QUEUED: string;
+    SUCCESS: string;
+    FAILED: string;
+  };
+}
