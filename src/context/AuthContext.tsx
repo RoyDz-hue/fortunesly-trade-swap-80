@@ -34,28 +34,47 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   
   useEffect(() => {
-    // Set up auth state listener
+    // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        setIsLoading(true);
+        console.log('Auth state changed:', event, session?.user?.email);
         
         if (session && session.user) {
-          fetchUserProfile(session.user.id);
+          // Only set basic info from the session initially 
+          // to avoid infinite recursion with RLS policies
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            username: session.user.user_metadata.username || session.user.email?.split('@')[0] || '',
+            role: session.user.email === 'cyntoremix@gmail.com' ? 'admin' : 'user',
+          });
+          setIsAuthenticated(true);
         } else {
           setUser(null);
           setIsAuthenticated(false);
-          setIsLoading(false);
         }
+        setIsLoading(false);
       }
     );
 
     // Check for existing session
     const initAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session && session.user) {
-        fetchUserProfile(session.user.id);
-      } else {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session && session.user) {
+          // Set basic user info from session
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            username: session.user.user_metadata.username || session.user.email?.split('@')[0] || '',
+            role: session.user.email === 'cyntoremix@gmail.com' ? 'admin' : 'user',
+          });
+          setIsAuthenticated(true);
+        }
+      } catch (error) {
+        console.error('Error checking session:', error);
+      } finally {
         setIsLoading(false);
       }
     };
@@ -67,38 +86,9 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, []);
 
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching user profile:', error);
-        setUser(null);
-        setIsAuthenticated(false);
-      } else if (data) {
-        setUser({
-          id: data.id,
-          username: data.username,
-          email: data.email,
-          role: data.role as 'user' | 'admin',
-        });
-        setIsAuthenticated(true);
-      }
-    } catch (error) {
-      console.error('Error in fetchUserProfile:', error);
-      setUser(null);
-      setIsAuthenticated(false);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const login = async (email: string, password: string) => {
     try {
+      setIsLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -106,16 +96,21 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (error) throw error;
       
+      // Authentication is handled by the onAuthStateChange event
+      toast.success("Login successful!");
       return;
     } catch (error: any) {
       console.error('Login error:', error);
       toast.error(error.message || 'Failed to login');
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const register = async (username: string, email: string, password: string) => {
     try {
+      setIsLoading(true);
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -134,14 +129,15 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('Registration error:', error);
       toast.error(error.message || 'Failed to register');
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const logout = async () => {
     try {
       await supabase.auth.signOut();
-      setUser(null);
-      setIsAuthenticated(false);
+      // The auth state listener will handle updating the state
     } catch (error) {
       console.error('Logout error:', error);
       toast.error('Failed to logout');

@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -15,9 +14,16 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   
-  const { login } = useAuth();
+  const { login, isAuthenticated, isAdmin, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      console.log("User authenticated, redirecting to dashboard");
+      navigate(isAdmin ? "/admin" : "/dashboard");
+    }
+  }, [isAuthenticated, isAdmin, authLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,21 +32,10 @@ const Login = () => {
     
     try {
       await login(email, password);
-      
-      // Check if admin email
-      if (email === "cyntoremix@gmail.com") {
-        toast({
-          title: "Welcome, Admin!",
-          description: "You have successfully logged in.",
-        });
-        navigate("/admin");
-      } else {
-        toast({
-          title: "Welcome back!",
-          description: "You have successfully logged in.",
-        });
-        navigate("/dashboard");
-      }
+      toast({
+        title: "Login successful!",
+        description: "You will be redirected shortly.",
+      });
     } catch (error) {
       if (error instanceof Error) {
         setError(error.message);
@@ -136,7 +131,7 @@ const Login = () => {
                 <Button
                   type="submit"
                   className="w-full bg-fortunesly-primary hover:bg-fortunesly-primary/90"
-                  disabled={isLoading}
+                  disabled={isLoading || authLoading}
                 >
                   {isLoading ? "Signing in..." : "Sign in"}
                 </Button>
