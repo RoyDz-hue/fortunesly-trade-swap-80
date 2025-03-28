@@ -59,15 +59,17 @@ const TradePage = () => {
         // In a real implementation, fetch user balances
         const { data: session } = await supabase.auth.getSession();
         if (session.session) {
-          const { data: wallets } = await supabase
+          const { data: wallets, error: walletsError } = await supabase
             .from('wallets')
             .select('currency, balance')
             .eq('user_id', session.session.user.id);
             
-          if (wallets) {
+          if (walletsError) {
+            console.error('Error fetching wallets:', walletsError);
+          } else if (wallets) {
             const balances: Record<string, number> = {};
             wallets.forEach(wallet => {
-              balances[wallet.currency] = wallet.balance;
+              balances[wallet.currency] = wallet.balance || 0;
             });
             setAvailableBalances(balances);
           }

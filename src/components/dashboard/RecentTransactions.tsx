@@ -47,7 +47,21 @@ const RecentTransactions = () => {
           return;
         }
         
-        setTransactions(data as Transaction[]);
+        // Map the Supabase data (snake_case) to our Transaction type (camelCase)
+        const formattedTransactions: Transaction[] = data.map(item => ({
+          id: item.id,
+          userId: item.user_id,
+          type: item.type as 'deposit' | 'withdrawal',
+          currency: item.currency,
+          amount: item.amount,
+          status: item.status as 'pending' | 'approved' | 'rejected' | 'forfeited',
+          createdAt: item.created_at,
+          updatedAt: item.updated_at,
+          proof: item.proof,
+          withdrawalAddress: item.withdrawal_address
+        }));
+        
+        setTransactions(formattedTransactions);
       } catch (err) {
         console.error('Unexpected error:', err);
         setError('An unexpected error occurred');
