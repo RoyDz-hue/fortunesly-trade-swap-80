@@ -31,7 +31,7 @@ const WalletPage = () => (
     <WalletOverview />
     <div className="mt-6">
       <h2 className="text-xl font-semibold text-gray-900 mb-4">Transaction History</h2>
-      <RecentTransactions showViewAll={false} />
+      <RecentTransactions />
     </div>
   </div>
 );
