@@ -47,9 +47,11 @@ const RecentTransactions = () => {
         }
         
         // Map the Supabase data (snake_case) to our Transaction type (camelCase)
-        const formattedTransactions = data.map(item => ({
+        const formattedTransactions: Transaction[] = data.map(item => ({
           id: item.id,
-          type: item.type,
+          userId: item.user_id, // Include userId property
+          type: item.type as 'deposit' | 'withdrawal',
+          currency: item.currency, // Include currency property
           amount: item.amount,
           status: item.status as 'pending' | 'approved' | 'rejected' | 'forfeited',
           createdAt: item.created_at,
@@ -81,7 +83,6 @@ const RecentTransactions = () => {
     }).format(date);
   };
   
-  // Loading skeletons
   const renderSkeletons = () => (
     <div className="divide-y divide-gray-200">
       {[...Array(3)].map((_, i) => (
