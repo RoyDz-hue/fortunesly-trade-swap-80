@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Transaction } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,18 +47,16 @@ const RecentTransactions = () => {
         }
         
         // Map the Supabase data (snake_case) to our Transaction type (camelCase)
-        const formattedTransactions: Transaction[] = data.map(item => ({
+        const formattedTransactions = data.map(item => ({
           id: item.id,
-          userId: item.user_id,
-          type: item.type as 'deposit' | 'withdrawal',
-          currency: item.currency,
+          type: item.type,
           amount: item.amount,
           status: item.status as 'pending' | 'approved' | 'rejected' | 'forfeited',
           createdAt: item.created_at,
-          // Only add optional properties if they exist in the item
-          updatedAt: new Date().toISOString(), // Default to current time since updated_at isn't available
-          proof: '', // Default empty since proof isn't available
-          withdrawalAddress: '' // Default empty since withdrawal_address isn't available
+          // Provide default values for properties that don't exist in the data
+          updatedAt: item.created_at, // Use created_at as fallback
+          proof: '', // Default empty string since proof isn't available
+          withdrawalAddress: '' // Default empty string since withdrawal_address isn't available
         }));
         
         setTransactions(formattedTransactions);
