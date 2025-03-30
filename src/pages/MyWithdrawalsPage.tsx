@@ -2,271 +2,148 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import CryptoWithdrawDialog from "@/components/dashboard/CryptoWithdrawDialog";
-import WithdrawDialog from "@/components/dashboard/WithdrawDialog";
-import { Coin } from "@/types";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, ArrowUpRight } from "lucide-react";
-
-// Import withdrawal status enum type from Supabase types
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Database } from "@/integrations/supabase/types";
+
 type WithdrawalStatus = Database["public"]["Enums"]["withdrawal_status"];
+
+// Function to format date
+const formatDate = (dateString: string | null) => {
+  if (!dateString) return 'N/A';
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
 
 interface Withdrawal {
   id: string;
   currency: string;
   amount: number;
   status: WithdrawalStatus;
-  createdAt: string;
-  userAddress: string;
+  date: string;
+  address: string;
   userId: string;
 }
 
-// Define a simpler interface for raw data from database to avoid deep type instantiation
+// Define a simpler interface to avoid excessive type instantiation
 interface RawWithdrawal {
   id: string;
   currency: string;
   amount: number;
-  status: string | null;
+  status: string;
   created_at: string | null;
   user_address: string;
   user_id: string | null;
 }
 
 const MyWithdrawalsPage = () => {
-  const { user } = useAuth();
-  const { toast } = useToast();
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
-  const [isCryptoWithdrawDialogOpen, setIsCryptoWithdrawDialogOpen] = useState(false);
-  const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
-  const [availableCoins, setAvailableCoins] = useState<Coin[]>([]);
-  const [availableBalances, setAvailableBalances] = useState<Record<string, number>>({});
-  
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const { user } = useAuth();
+
   useEffect(() => {
-    if (user) {
-      fetchData();
-    }
-  }, [user]);
-  
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-      // Fetch withdrawals
-      const { data: withdrawalData, error: withdrawalError } = await supabase
-        .from('withdrawals')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false });
-        
-      if (withdrawalError) throw withdrawalError;
-      
-      // Format withdrawals with explicit casting to avoid deep type instantiation
-      const formattedWithdrawals: Withdrawal[] = (withdrawalData as RawWithdrawal[]).map(item => ({
-        id: item.id,
-        currency: item.currency,
-        amount: item.amount,
-        status: (item.status || 'pending') as WithdrawalStatus,
-        createdAt: item.created_at || '',
-        userAddress: item.user_address,
-        userId: item.user_id || ''
-      }));
-      
-      setWithdrawals(formattedWithdrawals);
-      
-      // Fetch available coins
-      const { data: coinData, error: coinError } = await supabase
-        .from('coins')
-        .select('*')
-        .eq('status', 'active');
-        
-      if (coinError) throw coinError;
-      
-      const formattedCoins: Coin[] = coinData.map(coin => ({
-        id: coin.id,
-        name: coin.name,
-        symbol: coin.symbol,
-        taxRate: 10, // Default tax rate since it's not in database
-        status: 'active',
-        depositAddress: coin.deposit_address,
-        image: coin.image
-      }));
-      
-      setAvailableCoins(formattedCoins);
-      
-      // Fetch user balances
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('balance_crypto, balance_fiat')
-        .eq('id', user?.id)
-        .single();
-        
-      if (userError) throw userError;
-      
-      // Set balances
-      const balances: Record<string, number> = {
-        KES: userData.balance_fiat || 0
-      };
-      
-      if (userData.balance_crypto) {
-        Object.entries(userData.balance_crypto as Record<string, number>).forEach(
-          ([currency, amount]) => {
-            balances[currency] = amount;
-          }
-        );
+    const fetchWithdrawals = async () => {
+      if (!user) {
+        setWithdrawals([]);
+        setIsLoading(false);
+        return;
       }
       
-      setAvailableBalances(balances);
-      
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      toast({
-        title: "Error loading data",
-        description: "Could not load your withdrawals and balances",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  const handleCryptoWithdraw = (coin: Coin) => {
-    setSelectedCoin(coin);
-    setIsCryptoWithdrawDialogOpen(true);
-  };
-  
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
-  };
-  
-  const getStatusBadgeStyles = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'approved':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'rejected':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'forfeited':
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-  
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">My Withdrawals</h1>
+      try {
+        setIsLoading(true);
         
-        <div className="flex space-x-2">
-          <Button 
-            variant="outline"
-            onClick={() => setIsWithdrawDialogOpen(true)}
-          >
-            <Wallet className="mr-2 h-4 w-4" />
-            KES Withdrawal
-          </Button>
-          
-          <Button onClick={() => {
-            if (availableCoins.length > 0) {
-              handleCryptoWithdraw(availableCoins[0]);
-            } else {
-              toast({
-                title: "No coins available",
-                description: "There are currently no cryptocurrencies available for withdrawal",
-                variant: "destructive"
-              });
-            }
-          }}>
-            <ArrowUpRight className="mr-2 h-4 w-4" />
-            Crypto Withdrawal
-          </Button>
+        const { data: withdrawalData, error: withdrawalError } = await supabase
+          .from('withdrawals')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        
+        if (withdrawalError) throw withdrawalError;
+        
+        // Format withdrawals using the simpler interface to avoid excessive type instantiation
+        const formattedWithdrawals = (withdrawalData as unknown as RawWithdrawal[]).map(item => ({
+          id: item.id,
+          currency: item.currency,
+          amount: item.amount,
+          status: item.status as WithdrawalStatus,
+          date: formatDate(item.created_at),
+          address: item.user_address,
+          userId: item.user_id || ""
+        }));
+        
+        setWithdrawals(formattedWithdrawals);
+      } catch (error) {
+        console.error('Error fetching withdrawals:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchWithdrawals();
+  }, [user]);
+
+  // Get status badge color
+  const getStatusColor = (status: WithdrawalStatus) => {
+    switch (status) {
+      case "approved":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "rejected":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "forfeited":
+        return "bg-purple-100 text-purple-800 border-purple-200";
+      default:
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+    }
+  };
+
+  if (isLoading) {
+    return <div>Loading withdrawals...</div>;
+  }
+
+  return (
+    <div className="container mx-auto py-8">
+      <h1 className="text-2xl font-bold mb-6">My Withdrawals</h1>
+      
+      {withdrawals.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-gray-500">You have not made any withdrawal requests yet.</p>
         </div>
-      </div>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Withdrawal History</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="p-8 text-center">
-              <p>Loading withdrawals...</p>
-            </div>
-          ) : withdrawals.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              <p>No withdrawal requests found</p>
-              <p className="text-sm mt-2">Your withdrawal history will appear here</p>
-            </div>
-          ) : (
-            <div className="border rounded-md overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Currency</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Address/Phone</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {withdrawals.map((withdrawal) => (
-                    <TableRow key={withdrawal.id}>
-                      <TableCell>{formatDate(withdrawal.createdAt)}</TableCell>
-                      <TableCell>{withdrawal.currency}</TableCell>
-                      <TableCell>{withdrawal.amount}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={getStatusBadgeStyles(withdrawal.status)}>
-                          {withdrawal.status.charAt(0).toUpperCase() + withdrawal.status.slice(1)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-mono text-xs truncate max-w-[150px] inline-block">
-                          {withdrawal.userAddress}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      
-      {/* KES Withdrawal Dialog */}
-      <WithdrawDialog 
-        isOpen={isWithdrawDialogOpen}
-        onClose={() => setIsWithdrawDialogOpen(false)}
-        currency="KES"
-        maxAmount={availableBalances.KES || 0}
-        onSuccess={() => {
-          fetchData();
-          setIsWithdrawDialogOpen(false);
-        }}
-      />
-      
-      {/* Crypto Withdrawal Dialog */}
-      {selectedCoin && (
-        <CryptoWithdrawDialog
-          isOpen={isCryptoWithdrawDialogOpen}
-          onClose={() => setIsCryptoWithdrawDialogOpen(false)}
-          coin={selectedCoin}
-          maxAmount={availableBalances[selectedCoin.symbol] || 0}
-          onSuccess={() => {
-            fetchData();
-            setIsCryptoWithdrawDialogOpen(false);
-          }}
-        />
+      ) : (
+        <div className="grid gap-4">
+          {withdrawals.map(withdrawal => (
+            <Card key={withdrawal.id}>
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-semibold text-lg">{withdrawal.amount} {withdrawal.currency}</h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {withdrawal.date}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-2 font-mono break-all">
+                      Address: {withdrawal.address}
+                    </p>
+                  </div>
+                  <Badge className={getStatusColor(withdrawal.status)}>
+                    {withdrawal.status}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
+      
+      <div className="mt-6">
+        <Button asChild variant="outline">
+          <Link to="/dashboard/wallet">Back to Wallet</Link>
+        </Button>
+      </div>
     </div>
   );
 };
