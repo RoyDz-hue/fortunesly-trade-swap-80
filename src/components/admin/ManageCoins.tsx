@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Edit, Coins } from "lucide-react";
+import { Plus, Edit, Coins, AlertCircle } from "lucide-react";
 
 const ManageCoins = () => {
   const { toast } = useToast();
@@ -113,26 +113,8 @@ const ManageCoins = () => {
     try {
       let imageUrl = selectedCoin?.image || '';
       
-      // If there's a new image, upload it to storage
-      if (coinImage) {
-        // Create storage bucket if it doesn't exist (would be done in SQL setup)
-        const { error: uploadError, data } = await supabase.storage
-          .from('coin-icons')
-          .upload(`${symbol.toLowerCase()}.png`, coinImage, {
-            contentType: 'image/png',
-            upsert: true
-          });
-          
-        if (uploadError) {
-          throw uploadError;
-        }
-        
-        const { data: { publicUrl } } = supabase.storage
-          .from('coin-icons')
-          .getPublicUrl(`${symbol.toLowerCase()}.png`);
-          
-        imageUrl = publicUrl;
-      }
+      // Skip image upload for now due to storage bucket issues
+      // We'll just use the existing image URL or an empty string
       
       if (isEditing && selectedCoin) {
         // Update existing coin
@@ -142,7 +124,7 @@ const ManageCoins = () => {
             name,
             symbol,
             deposit_address: depositAddress,
-            image: imageUrl
+            image: imageUrl // Use existing image URL
           })
           .eq('id', selectedCoin.id);
           
@@ -160,7 +142,7 @@ const ManageCoins = () => {
             name,
             symbol,
             deposit_address: depositAddress,
-            image: imageUrl
+            image: imageUrl // Empty string or placeholder
           });
           
         if (error) throw error;
@@ -402,20 +384,12 @@ const ManageCoins = () => {
               </div>
               
               <div className="col-span-2 space-y-2">
-                <Label htmlFor="image">Coin Image</Label>
-                <Input 
-                  id="image" 
-                  type="file" 
-                  accept="image/png,image/jpeg,image/svg+xml"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      setCoinImage(e.target.files[0]);
-                    }
-                  }}
-                />
-                <p className="text-xs text-gray-500">
-                  Upload an image for this cryptocurrency (PNG, JPG, or SVG).
-                </p>
+                <div className="flex items-center space-x-2 text-amber-500">
+                  <AlertCircle className="h-4 w-4" />
+                  <p className="text-xs">
+                    Image upload functionality is temporarily disabled.
+                  </p>
+                </div>
               </div>
             </div>
             
