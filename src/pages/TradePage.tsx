@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import OrderBook from "@/components/dashboard/OrderBook";
 import TradeForm from "@/components/dashboard/TradeForm";
 import { supabase } from "@/integrations/supabase/client";
-import { TradingPair } from "@/types";
+import { TradingPair, Coin } from "@/types";
 
 const TradePage = () => {
   const [selectedPair, setSelectedPair] = useState({
@@ -19,38 +19,45 @@ const TradePage = () => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // In a real implementation, we would fetch actual trading pairs
-        // For now we'll create a simple mock as we don't have a trading_pairs table yet
-        const coins = await supabase.from('coins').select('symbol').order('symbol');
+        // Fetch all available coins from the database
+        const { data: coinsData, error: coinsError } = await supabase
+          .from('coins')
+          .select('*')
+          .order('symbol');
         
-        if (coins.error) throw coins.error;
+        if (coinsError) throw coinsError;
         
         // Create trading pairs from available coins
         const pairs: TradingPair[] = [];
-        if (coins.data?.length) {
-          const symbols = coins.data.map(coin => coin.symbol);
-          
-          // Create trading pairs (e.g., BTC/KES, BTC/USDT)
-          if (symbols.includes('KES')) {
+        const coins = coinsData || [];
+        
+        // KES is the default quote currency
+        // Create trading pairs with all other coins as base currency
+        for (const coin of coins) {
+          // Skip KES as a base currency
+          if (coin.symbol !== 'KES') {
+            // Create a pair with KES
             pairs.push({
-              id: 'btc-kes',
-              baseCurrency: 'BTC',
+              id: `${coin.symbol.toLowerCase()}-kes`,
+              baseCurrency: coin.symbol,
               quoteCurrency: 'KES',
               minOrderSize: 0.0001,
               maxOrderSize: 100,
               isActive: true
             });
-          }
-          
-          if (symbols.includes('USDT')) {
-            pairs.push({
-              id: 'btc-usdt',
-              baseCurrency: 'BTC',
-              quoteCurrency: 'USDT',
-              minOrderSize: 0.0001,
-              maxOrderSize: 100,
-              isActive: true
-            });
+            
+            // If USDT is available, create pairs with USDT too
+            const usdtCoin = coins.find(c => c.symbol === 'USDT');
+            if (usdtCoin && coin.symbol !== 'USDT') {
+              pairs.push({
+                id: `${coin.symbol.toLowerCase()}-usdt`,
+                baseCurrency: coin.symbol,
+                quoteCurrency: 'USDT',
+                minOrderSize: 0.0001,
+                maxOrderSize: 100,
+                isActive: true
+              });
+            }
           }
         }
         

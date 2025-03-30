@@ -1,10 +1,103 @@
 
+import { useState, useEffect } from "react";
 import { ArrowRight } from "lucide-react";
-import { mockCoins } from "@/data/mockData";
+import { supabase } from "@/integrations/supabase/client";
+import { Coin } from "@/types";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const TradingPairsSection = () => {
-  // Get all currencies except KES (which is the base currency)
-  const tradingCoins = mockCoins.filter(coin => coin.symbol !== 'KES');
+  const [tradingCoins, setTradingCoins] = useState<Coin[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    const fetchCoins = async () => {
+      try {
+        setIsLoading(true);
+        const { data, error } = await supabase
+          .from('coins')
+          .select('*')
+          .order('symbol');
+          
+        if (error) {
+          throw error;
+        }
+        
+        // Convert to Coin type and filter out KES
+        const coins: Coin[] = data
+          .map(coin => ({
+            id: coin.id,
+            name: coin.name,
+            symbol: coin.symbol,
+            depositAddress: coin.deposit_address,
+            image: coin.image || `https://via.placeholder.com/40/6E59A5/ffffff?text=${coin.symbol}`,
+          }))
+          .filter(coin => coin.symbol !== 'KES');
+          
+        setTradingCoins(coins);
+      } catch (error) {
+        console.error("Error fetching coins:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchCoins();
+  }, []);
+  
+  if (isLoading) {
+    return (
+      <section className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-fortunesly-dark mb-4">
+              Available Trading Pairs
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Trade these emerging cryptocurrencies with KES or USDT on our secure P2P platform.
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="bg-white rounded-lg shadow-md border border-gray-100 overflow-hidden p-6">
+                <div className="flex items-center mb-4">
+                  <Skeleton className="w-10 h-10 rounded-full mr-3" />
+                  <div>
+                    <Skeleton className="h-5 w-24" />
+                    <Skeleton className="h-3 w-12 mt-1" />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </div>
+                
+                <Skeleton className="h-8 w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+  
+  if (tradingCoins.length === 0) {
+    return (
+      <section className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl md:text-4xl font-bold text-fortunesly-dark mb-4">
+              Available Trading Pairs
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              No trading pairs available yet. Our admins are setting everything up.
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
   
   return (
     <section className="py-20">
