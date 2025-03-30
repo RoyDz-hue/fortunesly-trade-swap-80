@@ -9,36 +9,45 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      admin_settings: {
+        Row: {
+          id: number
+          payhero_channel_id: string | null
+          tax_percentage: number | null
+        }
+        Insert: {
+          id?: number
+          payhero_channel_id?: string | null
+          tax_percentage?: number | null
+        }
+        Update: {
+          id?: number
+          payhero_channel_id?: string | null
+          tax_percentage?: number | null
+        }
+        Relationships: []
+      }
       coins: {
         Row: {
-          created_at: string | null
-          deposit_address: string | null
+          deposit_address: string
           id: string
           image: string | null
           name: string
           symbol: string
-          tax_rate: number | null
-          updated_at: string | null
         }
         Insert: {
-          created_at?: string | null
-          deposit_address?: string | null
+          deposit_address: string
           id?: string
           image?: string | null
           name: string
           symbol: string
-          tax_rate?: number | null
-          updated_at?: string | null
         }
         Update: {
-          created_at?: string | null
-          deposit_address?: string | null
+          deposit_address?: string
           id?: string
           image?: string | null
           name?: string
           symbol?: string
-          tax_rate?: number | null
-          updated_at?: string | null
         }
         Relationships: []
       }
@@ -46,87 +55,39 @@ export type Database = {
         Row: {
           amount: number
           created_at: string | null
-          filled: number | null
-          from_currency: string
+          currency: string
           id: string
           price: number
-          status: string
-          to_currency: string
+          status: string | null
           type: string
-          updated_at: string | null
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           amount: number
           created_at?: string | null
-          filled?: number | null
-          from_currency: string
+          currency: string
           id?: string
           price: number
-          status: string
-          to_currency: string
+          status?: string | null
           type: string
-          updated_at?: string | null
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           amount?: number
           created_at?: string | null
-          filled?: number | null
-          from_currency?: string
+          currency?: string
           id?: string
           price?: number
-          status?: string
-          to_currency?: string
+          status?: string | null
           type?: string
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      trades: {
-        Row: {
-          amount: number
-          buyer_id: string
-          created_at: string | null
-          from_currency: string
-          id: string
-          order_id: string
-          price: number
-          seller_id: string
-          to_currency: string
-          total: number
-        }
-        Insert: {
-          amount: number
-          buyer_id: string
-          created_at?: string | null
-          from_currency: string
-          id?: string
-          order_id: string
-          price: number
-          seller_id: string
-          to_currency: string
-          total: number
-        }
-        Update: {
-          amount?: number
-          buyer_id?: string
-          created_at?: string | null
-          from_currency?: string
-          id?: string
-          order_id?: string
-          price?: number
-          seller_id?: string
-          to_currency?: string
-          total?: number
+          user_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "trades_order_id_fkey"
-            columns: ["order_id"]
+            foreignKeyName: "orders_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "orders"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -137,89 +98,102 @@ export type Database = {
           created_at: string | null
           currency: string
           id: string
-          proof: string | null
-          status: string
+          status: string | null
           type: string
-          updated_at: string | null
-          user_id: string
-          withdrawal_address: string | null
+          user_id: string | null
         }
         Insert: {
           amount: number
           created_at?: string | null
           currency: string
           id?: string
-          proof?: string | null
-          status: string
+          status?: string | null
           type: string
-          updated_at?: string | null
-          user_id: string
-          withdrawal_address?: string | null
+          user_id?: string | null
         }
         Update: {
           amount?: number
           created_at?: string | null
           currency?: string
           id?: string
-          proof?: string | null
-          status?: string
+          status?: string | null
           type?: string
-          updated_at?: string | null
-          user_id?: string
-          withdrawal_address?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          balance_crypto: Json | null
+          balance_fiat: number | null
+          email: string
+          id: string
+          password: string
+          username: string
+        }
+        Insert: {
+          balance_crypto?: Json | null
+          balance_fiat?: number | null
+          email: string
+          id?: string
+          password: string
+          username: string
+        }
+        Update: {
+          balance_crypto?: Json | null
+          balance_fiat?: number | null
+          email?: string
+          id?: string
+          password?: string
+          username?: string
         }
         Relationships: []
       }
-      user_profiles: {
+      withdrawals: {
         Row: {
-          created_at: string | null
-          email: string | null
-          id: string
-          role: string | null
-          username: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          email?: string | null
-          id: string
-          role?: string | null
-          username?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          email?: string | null
-          id?: string
-          role?: string | null
-          username?: string | null
-        }
-        Relationships: []
-      }
-      wallets: {
-        Row: {
-          balance: number | null
+          amount: number
           created_at: string | null
           currency: string
           id: string
-          updated_at: string | null
-          user_id: string
+          status: string | null
+          user_address: string
+          user_id: string | null
         }
         Insert: {
-          balance?: number | null
+          amount: number
           created_at?: string | null
           currency: string
           id?: string
-          updated_at?: string | null
-          user_id: string
+          status?: string | null
+          user_address: string
+          user_id?: string | null
         }
         Update: {
-          balance?: number | null
+          amount?: number
           created_at?: string | null
           currency?: string
           id?: string
-          updated_at?: string | null
-          user_id?: string
+          status?: string | null
+          user_address?: string
+          user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "withdrawals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
