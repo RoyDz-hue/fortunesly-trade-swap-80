@@ -52,15 +52,15 @@ const MyWithdrawalsPage = () => {
         
       if (withdrawalError) throw withdrawalError;
       
-      // Format withdrawals
-      const formattedWithdrawals: Withdrawal[] = withdrawalData.map(item => ({
+      // Format withdrawals - using explicit type casting to avoid deep type instantiation issues
+      const formattedWithdrawals = withdrawalData.map(item => ({
         id: item.id,
         currency: item.currency,
         amount: item.amount,
-        status: item.status as "pending" | "approved" | "rejected" | "forfeited",
-        createdAt: item.created_at,
+        status: (item.status || 'pending') as "pending" | "approved" | "rejected" | "forfeited",
+        createdAt: item.created_at || '',
         userAddress: item.user_address,
-        userId: item.user_id
+        userId: item.user_id || ''
       }));
       
       setWithdrawals(formattedWithdrawals);

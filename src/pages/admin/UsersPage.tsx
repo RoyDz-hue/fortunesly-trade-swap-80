@@ -36,7 +36,7 @@ const UsersPage = () => {
         email: user.email,
         role: 'user', // Default role for now
         status: 'active', // Default status for now
-        createdAt: user.created_at
+        createdAt: new Date().toISOString() // Providing a default value since created_at doesn't exist
       }));
 
       setUsers(formattedUsers);
