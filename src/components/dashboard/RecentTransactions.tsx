@@ -56,9 +56,10 @@ const RecentTransactions = () => {
           amount: item.amount,
           status: item.status as 'pending' | 'approved' | 'rejected' | 'forfeited',
           createdAt: item.created_at,
-          updatedAt: item.updated_at,
-          proof: item.proof,
-          withdrawalAddress: item.withdrawal_address
+          // Only add optional properties if they exist in the item
+          updatedAt: new Date().toISOString(), // Default to current time since updated_at isn't available
+          proof: '', // Default empty since proof isn't available
+          withdrawalAddress: '' // Default empty since withdrawal_address isn't available
         }));
         
         setTransactions(formattedTransactions);

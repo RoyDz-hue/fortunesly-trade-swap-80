@@ -56,21 +56,31 @@ const TradePage = () => {
         
         setTradingPairs(pairs);
         
-        // Fetch user balances
+        // Fetch user balances from the user table
         const { data: session } = await supabase.auth.getSession();
         if (session.session) {
-          const { data: wallets, error: walletsError } = await supabase
-            .from('wallets')
-            .select('currency, balance')
-            .eq('user_id', session.session.user.id);
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('balance_crypto, balance_fiat')
+            .eq('id', session.session.user.id)
+            .single();
             
-          if (walletsError) {
-            console.error('Error fetching wallets:', walletsError);
-          } else if (wallets) {
-            const balances: Record<string, number> = {};
-            wallets.forEach(wallet => {
-              balances[wallet.currency] = wallet.balance || 0;
-            });
+          if (userError) {
+            console.error('Error fetching user balances:', userError);
+          } else if (userData) {
+            // Convert the stored JSON balance_crypto to our balances format
+            const balances: Record<string, number> = {
+              // Include fiat balance
+              KES: userData.balance_fiat || 0
+            };
+            
+            // Add crypto balances from the balance_crypto JSON field
+            if (userData.balance_crypto) {
+              Object.entries(userData.balance_crypto as Record<string, number>).forEach(([currency, balance]) => {
+                balances[currency] = balance;
+              });
+            }
+            
             setAvailableBalances(balances);
           }
         }
