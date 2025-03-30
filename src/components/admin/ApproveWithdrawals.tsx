@@ -54,7 +54,7 @@ const ApproveWithdrawals = () => {
         userId: item.user_id,
         currency: item.currency,
         amount: item.amount,
-        status: item.status,
+        status: item.status as "pending" | "approved" | "rejected" | "forfeited",
         createdAt: item.created_at,
         userAddress: item.user_address,
         username: item.users?.username

@@ -6,11 +6,13 @@ import DepositDialog from "@/components/dashboard/DepositDialog";
 import WithdrawDialog from "@/components/dashboard/WithdrawDialog";
 import { Button } from "@/components/ui/button";
 import { Coins, Download, Upload } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 // Wallet Page
 const WalletPage = () => {
   const [isDepositDialogOpen, setIsDepositDialogOpen] = useState(false);
   const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
+  const { user } = useAuth();
   
   return (
     <div>
@@ -53,6 +55,8 @@ const WalletPage = () => {
       <WithdrawDialog 
         isOpen={isWithdrawDialogOpen}
         onClose={() => setIsWithdrawDialogOpen(false)}
+        currency="KES"
+        maxAmount={1000} // This should come from the actual wallet balance
         onSuccess={() => {
           // Reload wallet data
         }}

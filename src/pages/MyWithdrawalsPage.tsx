@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { CryptoWithdrawDialog } from "@/components/dashboard/CryptoWithdrawDialog";
-import { WithdrawDialog } from "@/components/dashboard/WithdrawDialog";
+import CryptoWithdrawDialog from "@/components/dashboard/CryptoWithdrawDialog";
+import WithdrawDialog from "@/components/dashboard/WithdrawDialog";
 import { Coin } from "@/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Wallet, ArrowUpRight } from "lucide-react";
@@ -77,7 +77,7 @@ const MyWithdrawalsPage = () => {
         id: coin.id,
         name: coin.name,
         symbol: coin.symbol,
-        taxRate: coin.tax_rate || 10,
+        taxRate: 10, // Default tax rate since it's not in database
         status: 'active',
         depositAddress: coin.deposit_address,
         image: coin.image
@@ -231,6 +231,8 @@ const MyWithdrawalsPage = () => {
       <WithdrawDialog 
         isOpen={isWithdrawDialogOpen}
         onClose={() => setIsWithdrawDialogOpen(false)}
+        currency="KES"
+        maxAmount={availableBalances.KES || 0}
         onSuccess={() => {
           fetchData();
           setIsWithdrawDialogOpen(false);

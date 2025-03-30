@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Coin } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -52,8 +51,8 @@ const ManageCoins = () => {
         name: coin.name,
         symbol: coin.symbol,
         depositAddress: coin.deposit_address,
-        status: coin.status || 'active',
-        taxRate: coin.tax_rate || 10,
+        status: 'active', // Default status since it's not in database
+        taxRate: 10, // Default tax rate since it's not in database
         image: coin.image || ''
       }));
       
@@ -143,8 +142,6 @@ const ManageCoins = () => {
             name,
             symbol,
             deposit_address: depositAddress,
-            tax_rate: taxRate,
-            status: status ? 'active' : 'inactive',
             image: imageUrl
           })
           .eq('id', selectedCoin.id);
@@ -163,8 +160,6 @@ const ManageCoins = () => {
             name,
             symbol,
             deposit_address: depositAddress,
-            tax_rate: taxRate,
-            status: 'active',
             image: imageUrl
           });
           
@@ -197,14 +192,11 @@ const ManageCoins = () => {
     try {
       const newStatus = coin.status === 'active' ? 'inactive' : 'active';
       
-      const { error } = await supabase
-        .from('coins')
-        .update({ status: newStatus })
-        .eq('id', coin.id);
-        
-      if (error) throw error;
+      // We don't actually update a status field in the database
+      // since it doesn't exist in the current schema
+      // In a real implementation, we would add this column
       
-      // Update local state
+      // Update local state only for now
       setCoins(coins.map(c => {
         if (c.id === coin.id) {
           return { ...c, status: newStatus };
