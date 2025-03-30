@@ -13,14 +13,28 @@ import { Coin } from "@/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Wallet, ArrowUpRight } from "lucide-react";
 
+// Define a specific type for withdrawal status to avoid deep type instantiation
+type WithdrawalStatus = "pending" | "approved" | "rejected" | "forfeited";
+
 interface Withdrawal {
   id: string;
   currency: string;
   amount: number;
-  status: "pending" | "approved" | "rejected" | "forfeited";
+  status: WithdrawalStatus;
   createdAt: string;
   userAddress: string;
   userId: string;
+}
+
+// Raw data type from database to help with mapping
+interface RawWithdrawal {
+  id: string;
+  currency: string;
+  amount: number;
+  status: string | null;
+  created_at: string | null;
+  user_address: string;
+  user_id: string | null;
 }
 
 const MyWithdrawalsPage = () => {
@@ -52,12 +66,12 @@ const MyWithdrawalsPage = () => {
         
       if (withdrawalError) throw withdrawalError;
       
-      // Format withdrawals - using explicit type casting to avoid deep type instantiation issues
-      const formattedWithdrawals = withdrawalData.map(item => ({
+      // Format withdrawals - with explicit typing to avoid deep type instantiation
+      const formattedWithdrawals: Withdrawal[] = (withdrawalData as RawWithdrawal[]).map(item => ({
         id: item.id,
         currency: item.currency,
         amount: item.amount,
-        status: (item.status || 'pending') as "pending" | "approved" | "rejected" | "forfeited",
+        status: (item.status || 'pending') as WithdrawalStatus,
         createdAt: item.created_at || '',
         userAddress: item.user_address,
         userId: item.user_id || ''
