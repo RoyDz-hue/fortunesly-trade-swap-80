@@ -163,7 +163,7 @@ export type Database = {
           created_at: string | null
           currency: string
           id: string
-          status: string | null
+          status: Database["public"]["Enums"]["withdrawal_status"] | null
           user_address: string
           user_id: string | null
         }
@@ -172,7 +172,7 @@ export type Database = {
           created_at?: string | null
           currency: string
           id?: string
-          status?: string | null
+          status?: Database["public"]["Enums"]["withdrawal_status"] | null
           user_address: string
           user_id?: string | null
         }
@@ -181,7 +181,7 @@ export type Database = {
           created_at?: string | null
           currency?: string
           id?: string
-          status?: string | null
+          status?: Database["public"]["Enums"]["withdrawal_status"] | null
           user_address?: string
           user_id?: string | null
         }
@@ -203,7 +203,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      withdrawal_status: "pending" | "approved" | "rejected" | "forfeited"
     }
     CompositeTypes: {
       [_ in never]: never

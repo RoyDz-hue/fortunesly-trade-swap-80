@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
@@ -13,8 +12,9 @@ import { Coin } from "@/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Wallet, ArrowUpRight } from "lucide-react";
 
-// Define a specific type for withdrawal status to avoid deep type instantiation
-type WithdrawalStatus = "pending" | "approved" | "rejected" | "forfeited";
+// Import withdrawal status enum type from Supabase types
+import { Database } from "@/integrations/supabase/types";
+type WithdrawalStatus = Database["public"]["Enums"]["withdrawal_status"];
 
 interface Withdrawal {
   id: string;
@@ -31,7 +31,7 @@ interface RawWithdrawal {
   id: string;
   currency: string;
   amount: number;
-  status: string | null;
+  status: WithdrawalStatus | null;
   created_at: string | null;
   user_address: string;
   user_id: string | null;

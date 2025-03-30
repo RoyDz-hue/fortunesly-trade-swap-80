@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -8,13 +7,16 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { Check, X, Copy, AlertTriangle } from "lucide-react";
+import { Database } from "@/integrations/supabase/types";
+
+type WithdrawalStatus = Database["public"]["Enums"]["withdrawal_status"];
 
 interface Withdrawal {
   id: string;
   userId: string;
   currency: string;
   amount: number;
-  status: "pending" | "approved" | "rejected" | "forfeited";
+  status: WithdrawalStatus;
   createdAt: string;
   userAddress: string;
   username?: string;
@@ -26,7 +28,7 @@ const ApproveWithdrawals = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedWithdrawal, setSelectedWithdrawal] = useState<Withdrawal | null>(null);
   const [isActionDialogOpen, setIsActionDialogOpen] = useState(false);
-  const [actionType, setActionType] = useState<"approve" | "reject" | "forfeit" | null>(null);
+  const [actionType, setActionType] = useState<WithdrawalStatus | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   useEffect(() => {
@@ -36,7 +38,6 @@ const ApproveWithdrawals = () => {
   const fetchWithdrawals = async () => {
     setIsLoading(true);
     try {
-      // Fetch all pending withdrawals with user info
       const { data, error } = await supabase
         .from('withdrawals')
         .select(`
@@ -48,13 +49,12 @@ const ApproveWithdrawals = () => {
         
       if (error) throw error;
       
-      // Format withdrawals
       const formattedWithdrawals: Withdrawal[] = data.map(item => ({
         id: item.id,
         userId: item.user_id,
         currency: item.currency,
         amount: item.amount,
-        status: item.status as "pending" | "approved" | "rejected" | "forfeited",
+        status: item.status as WithdrawalStatus,
         createdAt: item.created_at,
         userAddress: item.user_address,
         username: item.users?.username
@@ -73,7 +73,7 @@ const ApproveWithdrawals = () => {
     }
   };
   
-  const handleWithdrawalAction = (withdrawal: Withdrawal, action: "approve" | "reject" | "forfeit") => {
+  const handleWithdrawalAction = (withdrawal: Withdrawal, action: WithdrawalStatus) => {
     setSelectedWithdrawal(withdrawal);
     setActionType(action);
     setIsActionDialogOpen(true);
@@ -85,7 +85,6 @@ const ApproveWithdrawals = () => {
     setIsSubmitting(true);
     
     try {
-      // Update withdrawal status
       const { error: updateError } = await supabase
         .from('withdrawals')
         .update({ status: actionType })
@@ -93,9 +92,7 @@ const ApproveWithdrawals = () => {
         
       if (updateError) throw updateError;
       
-      // If rejected, we need to refund the user
       if (actionType === "reject") {
-        // Fetch user's current balances
         const { data: userData, error: userError } = await supabase
           .from('users')
           .select('balance_crypto, balance_fiat')
@@ -105,7 +102,6 @@ const ApproveWithdrawals = () => {
         if (userError) throw userError;
         
         if (selectedWithdrawal.currency === "KES") {
-          // Update KES balance
           const currentBalance = userData.balance_fiat || 0;
           const newBalance = currentBalance + selectedWithdrawal.amount;
           
@@ -116,7 +112,6 @@ const ApproveWithdrawals = () => {
             
           if (balanceError) throw balanceError;
         } else {
-          // Update crypto balance
           let currentBalances = userData.balance_crypto || {};
           
           if (!currentBalances[selectedWithdrawal.currency]) {
@@ -134,17 +129,13 @@ const ApproveWithdrawals = () => {
         }
       }
       
-      // Remove withdrawal from local state
       setWithdrawals(withdrawals.filter(w => w.id !== selectedWithdrawal.id));
-      
-      // Close dialog
       setIsActionDialogOpen(false);
       setSelectedWithdrawal(null);
       
-      // Show success message
       toast({
-        title: `Withdrawal ${actionType}`,
-        description: `The withdrawal has been ${actionType}${actionType === "reject" ? " and funds have been refunded to the user" : ""}`
+        title: `Withdrawal ${actionType}ed`,
+        description: `The withdrawal has been ${actionType}ed${actionType === "reject" ? " and funds have been refunded to the user" : ""}`
       });
       
     } catch (error) {
@@ -328,7 +319,6 @@ const ApproveWithdrawals = () => {
         </Tabs>
       </div>
       
-      {/* Confirmation Dialog */}
       {selectedWithdrawal && (
         <Dialog open={isActionDialogOpen} onOpenChange={setIsActionDialogOpen}>
           <DialogContent>
