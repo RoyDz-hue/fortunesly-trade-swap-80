@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
@@ -26,12 +27,12 @@ interface Withdrawal {
   userId: string;
 }
 
-// Raw data type from database to help with mapping
+// Define a simpler interface for raw data from database to avoid deep type instantiation
 interface RawWithdrawal {
   id: string;
   currency: string;
   amount: number;
-  status: WithdrawalStatus | null;
+  status: string | null;
   created_at: string | null;
   user_address: string;
   user_id: string | null;
@@ -66,7 +67,7 @@ const MyWithdrawalsPage = () => {
         
       if (withdrawalError) throw withdrawalError;
       
-      // Format withdrawals - with explicit typing to avoid deep type instantiation
+      // Format withdrawals with explicit casting to avoid deep type instantiation
       const formattedWithdrawals: Withdrawal[] = (withdrawalData as RawWithdrawal[]).map(item => ({
         id: item.id,
         currency: item.currency,

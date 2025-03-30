@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,19 @@ import { Check, X, Copy, AlertTriangle } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
 
 type WithdrawalStatus = Database["public"]["Enums"]["withdrawal_status"];
+
+// Define action types and their mapping to the database enum values
+type WithdrawalAction = "approve" | "reject" | "forfeit";
+
+// Map UI action to database status
+const mapActionToStatus = (action: WithdrawalAction): WithdrawalStatus => {
+  switch(action) {
+    case "approve": return "approved";
+    case "reject": return "rejected";
+    case "forfeit": return "forfeited";
+    default: return "pending" as WithdrawalStatus;
+  }
+};
 
 interface Withdrawal {
   id: string;
@@ -28,7 +42,7 @@ const ApproveWithdrawals = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedWithdrawal, setSelectedWithdrawal] = useState<Withdrawal | null>(null);
   const [isActionDialogOpen, setIsActionDialogOpen] = useState(false);
-  const [actionType, setActionType] = useState<WithdrawalStatus | null>(null);
+  const [actionType, setActionType] = useState<WithdrawalAction | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   useEffect(() => {
@@ -73,7 +87,7 @@ const ApproveWithdrawals = () => {
     }
   };
   
-  const handleWithdrawalAction = (withdrawal: Withdrawal, action: WithdrawalStatus) => {
+  const handleWithdrawalAction = (withdrawal: Withdrawal, action: WithdrawalAction) => {
     setSelectedWithdrawal(withdrawal);
     setActionType(action);
     setIsActionDialogOpen(true);
@@ -85,9 +99,11 @@ const ApproveWithdrawals = () => {
     setIsSubmitting(true);
     
     try {
+      const finalStatus = mapActionToStatus(actionType);
+      
       const { error: updateError } = await supabase
         .from('withdrawals')
-        .update({ status: actionType })
+        .update({ status: finalStatus })
         .eq('id', selectedWithdrawal.id);
         
       if (updateError) throw updateError;
@@ -134,8 +150,8 @@ const ApproveWithdrawals = () => {
       setSelectedWithdrawal(null);
       
       toast({
-        title: `Withdrawal ${actionType}ed`,
-        description: `The withdrawal has been ${actionType}ed${actionType === "reject" ? " and funds have been refunded to the user" : ""}`
+        title: `Withdrawal ${finalStatus}`,
+        description: `The withdrawal has been ${finalStatus}${actionType === "reject" ? " and funds have been refunded to the user" : ""}`
       });
       
     } catch (error) {
