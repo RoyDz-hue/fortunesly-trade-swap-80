@@ -48,6 +48,7 @@ export const generateWallets = (userId: string): Wallet[] => {
     userId,
     currency: coin.symbol,
     balance: coin.symbol === 'KES' ? 10000 : coin.symbol === 'USDT' ? 100 : Math.floor(Math.random() * 1000),
+    type: coin.symbol === 'KES' ? 'fiat' : 'crypto'
   }));
 };
 

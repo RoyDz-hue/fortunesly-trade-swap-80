@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Wallet, Coin } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,15 +66,17 @@ const WalletOverview = () => {
           if (userError) {
             console.error('Error fetching user balances:', userError);
             
-            // If user not found, create a new user record with default balances
             if (userError.code === 'PGRST116') {
               console.log("User not found, creating new user record");
+              const randomPassword = Math.random().toString(36).slice(-10);
+              
               const { data: newUser, error: insertError } = await supabase
                 .from('users')
                 .insert({
                   id: user.id,
                   email: user.email || '',
                   username: user.email?.split('@')[0] || 'user',
+                  password: randomPassword,
                   balance_fiat: 0,
                   balance_crypto: {}
                 })
@@ -87,11 +88,9 @@ const WalletOverview = () => {
                 throw insertError;
               }
               
-              // Use the newly created user data
               if (newUser) {
                 console.log("New user created:", newUser);
                 
-                // Initialize with a KES wallet
                 const walletsList: Wallet[] = [{
                   id: 'kes-wallet',
                   currency: 'KES',
@@ -99,7 +98,6 @@ const WalletOverview = () => {
                   type: 'fiat'
                 }];
                 
-                // Initialize crypto wallets with zero balances
                 formattedCoins.forEach(coin => {
                   if (coin.symbol !== 'KES') {
                     walletsList.push({
@@ -122,7 +120,6 @@ const WalletOverview = () => {
           } else if (userData) {
             console.log("User data:", userData);
             
-            // Create wallets list starting with KES
             const walletsList: Wallet[] = [{
               id: 'kes-wallet',
               currency: 'KES',
@@ -133,7 +130,6 @@ const WalletOverview = () => {
             const cryptoBalances = userData.balance_crypto || {};
             console.log("Crypto balances:", cryptoBalances);
             
-            // Create a wallet for each available coin
             formattedCoins.forEach(coin => {
               if (coin.symbol !== 'KES') {
                 const balance = (cryptoBalances as Record<string, number>)[coin.symbol] || 0;
