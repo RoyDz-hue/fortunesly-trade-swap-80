@@ -14,7 +14,7 @@ export interface Wallet {
   currency: string;
   balance: number;
   updatedAt?: string;
-  type?: 'fiat' | 'crypto';
+  type: 'fiat' | 'crypto';
 }
 
 export interface Coin {
