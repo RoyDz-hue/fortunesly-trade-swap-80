@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Transaction } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,7 +73,6 @@ const RecentTransactions = () => {
     
     fetchTransactions();
     
-    // Set up a subscription to listen for changes
     const channel = supabase
       .channel('custom-transactions-channel')
       .on(
@@ -87,7 +85,6 @@ const RecentTransactions = () => {
         },
         (payload) => {
           console.log('Transaction change received:', payload);
-          // Refresh transactions when there's an update
           fetchTransactions();
         }
       )

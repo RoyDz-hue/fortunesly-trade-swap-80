@@ -98,27 +98,33 @@ export type Database = {
           created_at: string | null
           currency: string
           id: string
+          proof: string | null
           status: string | null
           type: string
           user_id: string | null
+          withdrawal_address: string | null
         }
         Insert: {
           amount: number
           created_at?: string | null
           currency: string
           id?: string
+          proof?: string | null
           status?: string | null
           type: string
           user_id?: string | null
+          withdrawal_address?: string | null
         }
         Update: {
           amount?: number
           created_at?: string | null
           currency?: string
           id?: string
+          proof?: string | null
           status?: string | null
           type?: string
           user_id?: string | null
+          withdrawal_address?: string | null
         }
         Relationships: [
           {
