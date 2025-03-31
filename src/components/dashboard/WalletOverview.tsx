@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Wallet, Coin } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,13 +23,11 @@ const WalletOverview = () => {
   const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
   const [availableCoins, setAvailableCoins] = useState<Coin[]>([]);
   
-  // Fetch balances and coins from database
   useEffect(() => {
     if (user) {
       const fetchData = async () => {
         setIsLoading(true);
         try {
-          // Fetch all available coins from the database
           const { data: coinsData, error: coinsError } = await supabase
             .from('coins')
             .select('*')
@@ -38,7 +35,6 @@ const WalletOverview = () => {
           
           if (coinsError) throw coinsError;
           
-          // Convert coins to the format we need
           const coins = coinsData || [];
           const formattedCoins = coins.map(coin => ({
             id: coin.id,
@@ -46,11 +42,10 @@ const WalletOverview = () => {
             symbol: coin.symbol,
             depositAddress: coin.deposit_address,
             image: coin.image || `https://via.placeholder.com/40/6E59A5/ffffff?text=${coin.symbol}`,
-            taxRate: 10 // Default tax rate
+            taxRate: 10
           }));
           setAvailableCoins(formattedCoins);
           
-          // Fetch user balances
           const { data: userData, error: userError } = await supabase
             .from('users')
             .select('balance_crypto, balance_fiat')
@@ -66,7 +61,6 @@ const WalletOverview = () => {
             });
             setWallets([]);
           } else if (userData) {
-            // Create wallets from KES balance
             const walletsList: Wallet[] = [{
               id: 'kes-wallet',
               currency: 'KES',
@@ -74,12 +68,9 @@ const WalletOverview = () => {
               type: 'fiat'
             }];
             
-            // Add crypto wallets from balance_crypto
             const cryptoBalances = userData.balance_crypto || {};
             
-            // Create a wallet for each available coin
             formattedCoins.forEach(coin => {
-              // Skip KES as it's already added as fiat
               if (coin.symbol !== 'KES') {
                 const balance = (cryptoBalances as Record<string, number>)[coin.symbol] || 0;
                 walletsList.push({
@@ -114,7 +105,6 @@ const WalletOverview = () => {
     if (wallet.type === 'fiat') {
       setIsDepositOpen(true);
     } else {
-      // Find the coin data for this wallet
       const coinData = availableCoins.find(coin => coin.symbol === wallet.currency);
       if (coinData) {
         setSelectedCoin(coinData);
@@ -134,7 +124,6 @@ const WalletOverview = () => {
     if (wallet.type === 'fiat') {
       setIsWithdrawOpen(true);
     } else {
-      // Find the coin data for this wallet
       const coinData = availableCoins.find(coin => coin.symbol === wallet.currency);
       if (coinData) {
         setSelectedCoin(coinData);
@@ -150,7 +139,6 @@ const WalletOverview = () => {
   };
 
   const handleTransactionSuccess = () => {
-    // Reload wallet data after a transaction
     if (user) {
       setIsLoading(true);
       supabase
@@ -162,7 +150,6 @@ const WalletOverview = () => {
           if (error) {
             console.error('Error refreshing balances:', error);
           } else if (data) {
-            // Update wallets with new balances
             const updatedWallets = wallets.map(wallet => {
               if (wallet.currency === 'KES') {
                 return { ...wallet, balance: data.balance_fiat || 0 };
@@ -266,7 +253,6 @@ const WalletOverview = () => {
         })}
       </div>
 
-      {/* Dialogs */}
       {selectedWallet?.type === 'fiat' && (
         <>
           <DepositDialog
