@@ -11,6 +11,7 @@ const TradePage = lazy(() => import("./TradePage"));
 const OrdersPage = lazy(() => import("./OrdersPage"));
 const MyWithdrawalsPage = lazy(() => import("./MyWithdrawalsPage"));
 const SettingsPage = lazy(() => import("./dashboard/SettingsPage"));
+const TransactionsPage = lazy(() => import("./dashboard/TransactionsPage"));
 
 // Loading component
 const PageLoader = () => (
@@ -45,6 +46,7 @@ const Dashboard = () => {
           <Route path="/trade" element={<TradePage />} />
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/withdrawals" element={<MyWithdrawalsPage />} />
+          <Route path="/transactions" element={<TransactionsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </Suspense>

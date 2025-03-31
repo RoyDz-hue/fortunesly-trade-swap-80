@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Transaction } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useNavigate } from "react-router-dom";
 
 const statusColors = {
   pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
@@ -23,6 +25,7 @@ const RecentTransactions = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -49,19 +52,18 @@ const RecentTransactions = () => {
         // Map the Supabase data (snake_case) to our Transaction type (camelCase)
         const formattedTransactions: Transaction[] = data.map(item => ({
           id: item.id,
-          userId: item.user_id, // Include userId property
+          userId: item.user_id,
           type: item.type as 'deposit' | 'withdrawal',
-          currency: item.currency, // Include currency property
+          currency: item.currency,
           amount: item.amount,
           status: item.status as 'pending' | 'approved' | 'rejected' | 'forfeited',
           createdAt: item.created_at,
-          // Provide default values for properties that don't exist in the data
-          updatedAt: item.created_at, // Use created_at as fallback
-          proof: '', // Default empty string since proof isn't available
-          withdrawalAddress: '' // Default empty string since withdrawal_address isn't available
+          proof: item.proof || '',
+          withdrawalAddress: item.withdrawal_address || ''
         }));
         
         setTransactions(formattedTransactions);
+        setError(null);
       } catch (err) {
         console.error('Unexpected error:', err);
         setError('An unexpected error occurred');
@@ -71,6 +73,29 @@ const RecentTransactions = () => {
     };
     
     fetchTransactions();
+    
+    // Set up a subscription to listen for changes
+    const channel = supabase
+      .channel('custom-transactions-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'transactions',
+          filter: `user_id=eq.${user?.id}`
+        },
+        (payload) => {
+          console.log('Transaction change received:', payload);
+          // Refresh transactions when there's an update
+          fetchTransactions();
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user, isAuthenticated]);
   
   const formatDate = (dateString: string): string => {
@@ -103,6 +128,10 @@ const RecentTransactions = () => {
     </div>
   );
   
+  const handleViewAllClick = () => {
+    navigate('/dashboard/transactions');
+  };
+  
   return (
     <Card className="border border-gray-200">
       <CardHeader className="p-4 border-b border-gray-200">
@@ -123,7 +152,8 @@ const RecentTransactions = () => {
           </div>
         ) : transactions.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
-            No transactions found. Your recent transactions will appear here.
+            <p>No transactions found. Start by depositing or withdrawing funds.</p>
+            <p className="text-xs mt-2">Your transaction history will appear here.</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
@@ -155,7 +185,10 @@ const RecentTransactions = () => {
           </div>
         )}
         <div className="p-4 border-t border-gray-200">
-          <button className="w-full py-2 text-sm font-medium text-center text-fortunesly-primary hover:text-fortunesly-accent transition-colors">
+          <button 
+            className="w-full py-2 text-sm font-medium text-center text-fortunesly-primary hover:text-fortunesly-accent transition-colors"
+            onClick={handleViewAllClick}
+          >
             View All Transactions
           </button>
         </div>

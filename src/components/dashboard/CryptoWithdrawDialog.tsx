@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Coin } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 
 interface CryptoWithdrawDialogProps {
   isOpen: boolean;
@@ -17,6 +19,7 @@ interface CryptoWithdrawDialogProps {
 
 const CryptoWithdrawDialog = ({ isOpen, onClose, coin, maxAmount, onSuccess }: CryptoWithdrawDialogProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [amount, setAmount] = useState("");
   const [withdrawalAddress, setWithdrawalAddress] = useState("");
   const [taxAmount, setTaxAmount] = useState(0);
@@ -41,6 +44,15 @@ const CryptoWithdrawDialog = ({ isOpen, onClose, coin, maxAmount, onSuccess }: C
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to withdraw funds",
+        variant: "destructive",
+      });
+      return;
+    }
     
     const parsedAmount = parseFloat(amount);
     
@@ -73,10 +85,58 @@ const CryptoWithdrawDialog = ({ isOpen, onClose, coin, maxAmount, onSuccess }: C
     
     setIsLoading(true);
     
-    // This would be replaced with actual API call to submit the withdrawal request
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // 1. Deduct amount from user's crypto balance
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('balance_crypto')
+        .eq('id', user.id)
+        .single();
+        
+      if (userError) throw userError;
+      
+      const cryptoBalances = userData.balance_crypto || {};
+      
+      if (!cryptoBalances[coin.symbol] || cryptoBalances[coin.symbol] < parsedAmount) {
+        throw new Error("Insufficient balance");
+      }
+      
+      // Calculate new balance
+      cryptoBalances[coin.symbol] -= parsedAmount;
+      
+      // Update user balance
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ balance_crypto: cryptoBalances })
+        .eq('id', user.id);
+        
+      if (updateError) throw updateError;
+      
+      // 2. Create withdrawal record
+      const { error: withdrawalError } = await supabase
+        .from('withdrawals')
+        .insert({
+          user_id: user.id,
+          currency: coin.symbol,
+          amount: netAmount,
+          user_address: withdrawalAddress,
+          status: 'pending'
+        });
+        
+      if (withdrawalError) throw withdrawalError;
+      
+      // 3. Create transaction record for tracking
+      const { error: txnError } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: user.id,
+          type: 'withdrawal',
+          currency: coin.symbol,
+          amount: parsedAmount,
+          status: 'pending'
+        });
+        
+      if (txnError) throw txnError;
       
       toast({
         title: "Withdrawal request submitted",
@@ -87,6 +147,8 @@ const CryptoWithdrawDialog = ({ isOpen, onClose, coin, maxAmount, onSuccess }: C
         onSuccess();
       }
       onClose();
+      setAmount("");
+      setWithdrawalAddress("");
     } catch (error) {
       console.error("Withdrawal error:", error);
       toast({

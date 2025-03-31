@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Coin } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 
 interface CryptoDepositDialogProps {
   isOpen: boolean;
@@ -16,14 +18,16 @@ interface CryptoDepositDialogProps {
 
 const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDepositDialogProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [amount, setAmount] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!amount || !proofFile) {
+    if (!amount || !proofFile || !user) {
       toast({
         title: "Missing information",
         description: "Please enter the amount and upload a proof of transaction",
@@ -34,10 +38,50 @@ const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDeposit
     
     setIsLoading(true);
     
-    // This would be replaced with actual API call to submit the deposit request
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Step 1: Upload proof image to Supabase Storage
+      const fileExt = proofFile.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      const filePath = `transaction-proofs/${fileName}`;
+      
+      // Create transaction-proofs bucket if it doesn't exist (in production this would be done during initial setup)
+      const { error: bucketError } = await supabase.storage.getBucket('transaction-proofs');
+      if (bucketError && bucketError.message.includes('does not exist')) {
+        await supabase.storage.createBucket('transaction-proofs', { public: false });
+      }
+      
+      // Upload the file
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('transaction-proofs')
+        .upload(filePath, proofFile, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+      
+      if (uploadError) throw uploadError;
+      
+      // Get a URL for the uploaded proof
+      const { data: urlData } = await supabase.storage
+        .from('transaction-proofs')
+        .createSignedUrl(filePath, 60 * 60 * 24 * 7); // 7 days expiry
+      
+      const proofUrl = urlData?.signedUrl || '';
+      
+      // Step 2: Create transaction record
+      const { data: txnData, error: txnError } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: user.id,
+          type: 'deposit',
+          currency: coin.symbol,
+          amount: parseFloat(amount),
+          status: 'pending',
+          proof: proofUrl
+        })
+        .select()
+        .single();
+        
+      if (txnError) throw txnError;
       
       toast({
         title: "Deposit request submitted",
@@ -48,6 +92,8 @@ const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDeposit
         onSuccess();
       }
       onClose();
+      setAmount("");
+      setProofFile(null);
     } catch (error) {
       console.error("Deposit error:", error);
       toast({
@@ -57,6 +103,7 @@ const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDeposit
       });
     } finally {
       setIsLoading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -138,6 +185,19 @@ const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDeposit
                 </p>
               </div>
             </div>
+            {uploadProgress > 0 && uploadProgress < 100 && (
+              <div className="col-span-4">
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div 
+                    className="bg-fortunesly-primary h-2.5 rounded-full" 
+                    style={{ width: `${uploadProgress}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-gray-500 text-center mt-1">
+                  Uploading: {uploadProgress}%
+                </p>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
