@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   username: string;
@@ -11,10 +10,11 @@ export interface User {
 
 export interface Wallet {
   id: string;
-  userId: string;
+  userId?: string;
   currency: string;
   balance: number;
   updatedAt?: string;
+  type?: 'fiat' | 'crypto';
 }
 
 export interface Coin {
