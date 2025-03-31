@@ -1,14 +1,45 @@
 
+import { useState, useEffect } from "react";
 import WalletOverview from "@/components/dashboard/WalletOverview";
 import RecentTransactions from "@/components/dashboard/RecentTransactions";
 import MarketOverview from "@/components/dashboard/MarketOverview";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Wallet, TrendingUp } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 // Main Dashboard Home Component
 const DashboardHome = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [isDataLoading, setIsDataLoading] = useState(true);
+  
+  useEffect(() => {
+    // Preload the user data when dashboard loads
+    const preloadData = async () => {
+      if (!user) return;
+      
+      try {
+        await supabase
+          .from('users')
+          .select('balance_crypto, balance_fiat')
+          .eq('id', user.id)
+          .single();
+          
+        await supabase
+          .from('coins')
+          .select('*')
+          .order('symbol');
+      } catch (error) {
+        console.error('Error preloading data:', error);
+      } finally {
+        setIsDataLoading(false);
+      }
+    };
+    
+    preloadData();
+  }, [user]);
   
   return (
     <div className="space-y-6">

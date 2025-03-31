@@ -4,6 +4,7 @@ import OrderBook from "@/components/dashboard/OrderBook";
 import TradeForm from "@/components/dashboard/TradeForm";
 import { supabase } from "@/integrations/supabase/client";
 import { TradingPair, Coin } from "@/types";
+import { useToast } from "@/hooks/use-toast";
 
 const TradePage = () => {
   const [selectedPair, setSelectedPair] = useState({
@@ -11,9 +12,11 @@ const TradePage = () => {
     quoteCurrency: "KES"
   });
   
+  const { toast } = useToast();
   const [tradingPairs, setTradingPairs] = useState<TradingPair[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [availableBalances, setAvailableBalances] = useState<Record<string, number>>({});
+  const [availableCoins, setAvailableCoins] = useState<Coin[]>([]);
   
   useEffect(() => {
     const fetchData = async () => {
@@ -30,6 +33,14 @@ const TradePage = () => {
         // Create trading pairs from available coins
         const pairs: TradingPair[] = [];
         const coins = coinsData || [];
+        setAvailableCoins(coins.map(coin => ({
+          id: coin.id,
+          name: coin.name,
+          symbol: coin.symbol,
+          depositAddress: coin.deposit_address,
+          image: coin.image || `https://via.placeholder.com/40/6E59A5/ffffff?text=${coin.symbol}`,
+          taxRate: 10 // Default tax rate if not specified
+        })));
         
         // KES is the default quote currency
         // Create trading pairs with all other coins as base currency
@@ -41,8 +52,8 @@ const TradePage = () => {
               id: `${coin.symbol.toLowerCase()}-kes`,
               baseCurrency: coin.symbol,
               quoteCurrency: 'KES',
-              minOrderSize: 0.0001,
-              maxOrderSize: 100,
+              minOrderSize: 20, // New default minimum
+              maxOrderSize: 1000000, // New high maximum - will be limited by available balance
               isActive: true
             });
             
@@ -53,8 +64,8 @@ const TradePage = () => {
                 id: `${coin.symbol.toLowerCase()}-usdt`,
                 baseCurrency: coin.symbol,
                 quoteCurrency: 'USDT',
-                minOrderSize: 0.0001,
-                maxOrderSize: 100,
+                minOrderSize: 1, // Lower minimum for USDT pairs
+                maxOrderSize: 100000, // High maximum for USDT pairs
                 isActive: true
               });
             }
@@ -74,6 +85,14 @@ const TradePage = () => {
             
           if (userError) {
             console.error('Error fetching user balances:', userError);
+            // Create a default balance object with 0 for all coins
+            const defaultBalances: Record<string, number> = {
+              KES: 0
+            };
+            coins.forEach(coin => {
+              defaultBalances[coin.symbol] = 0;
+            });
+            setAvailableBalances(defaultBalances);
           } else if (userData) {
             // Convert the stored JSON balance_crypto to our balances format
             const balances: Record<string, number> = {
@@ -88,18 +107,30 @@ const TradePage = () => {
               });
             }
             
+            // Ensure all coins have a balance value (default to 0 if not present)
+            coins.forEach(coin => {
+              if (!balances[coin.symbol]) {
+                balances[coin.symbol] = 0;
+              }
+            });
+            
             setAvailableBalances(balances);
           }
         }
       } catch (error) {
         console.error('Error fetching data:', error);
+        toast({
+          title: "Failed to load data",
+          description: "There was an issue loading trading pairs and balances.",
+          variant: "destructive",
+        });
       } finally {
         setIsLoading(false);
       }
     };
     
     fetchData();
-  }, []);
+  }, [toast]);
   
   return (
     <div>
@@ -113,14 +144,16 @@ const TradePage = () => {
         <div>
           <TradeForm 
             availablePairs={tradingPairs} 
-            availableBalances={availableBalances} 
+            availableBalances={availableBalances}
+            availableCoins={availableCoins}
+            isLoading={isLoading}
           />
         </div>
       </div>
       
       <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
         <p className="text-sm text-blue-800">
-          <strong>Note:</strong> Trading functionality is now connected to the Supabase database. Your transactions and orders will be saved in the database.
+          <strong>Note:</strong> Trading functionality is connected to the database. Your transactions and orders will be saved in the database.
         </p>
       </div>
     </div>

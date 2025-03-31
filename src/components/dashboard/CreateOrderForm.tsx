@@ -8,17 +8,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
-import { TradingPair } from "@/types";
+import { TradingPair, Coin } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 
 interface CreateOrderFormProps {
   availablePairs: TradingPair[];
   availableBalances: Record<string, number>;
+  availableCoins?: Coin[];
   onOrderCreated?: () => void;
 }
 
-const CreateOrderForm = ({ availablePairs, availableBalances, onOrderCreated }: CreateOrderFormProps) => {
+const CreateOrderForm = ({ 
+  availablePairs, 
+  availableBalances, 
+  availableCoins = [],
+  onOrderCreated 
+}: CreateOrderFormProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [orderType, setOrderType] = useState<"buy" | "sell">("buy");
@@ -27,9 +33,9 @@ const CreateOrderForm = ({ availablePairs, availableBalances, onOrderCreated }: 
   const [price, setPrice] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
   const [total, setTotal] = useState<number>(0);
-  const [minOrderLimit, setMinOrderLimit] = useState<number>(50); // Default to 50 KES
-  const [maxOrderLimit, setMaxOrderLimit] = useState<number>(60000); // Default to 60000 KES
+  const [minOrderLimit, setMinOrderLimit] = useState<number>(20); // Default to 20 KES
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedCoinData, setSelectedCoinData] = useState<Coin | null>(null);
   
   // Calculate total when price or amount changes
   useEffect(() => {
@@ -47,10 +53,13 @@ const CreateOrderForm = ({ availablePairs, availableBalances, onOrderCreated }: 
       if (pair) {
         setPairDetails(pair);
         setMinOrderLimit(pair.minOrderSize);
-        setMaxOrderLimit(pair.maxOrderSize);
+        
+        // Find corresponding coin data
+        const coinData = availableCoins.find(c => c.symbol === pair.baseCurrency);
+        setSelectedCoinData(coinData || null);
       }
     }
-  }, [selectedPair, availablePairs]);
+  }, [selectedPair, availablePairs, availableCoins]);
   
   const handleCreateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,6 +94,16 @@ const CreateOrderForm = ({ availablePairs, availableBalances, onOrderCreated }: 
     const priceValue = parseFloat(price);
     const amountValue = parseFloat(amount);
     const totalValue = priceValue * amountValue;
+    
+    // Check minimum order size
+    if (totalValue < minOrderLimit) {
+      toast({
+        title: "Order too small",
+        description: `Minimum order size is ${minOrderLimit} ${pairDetails.quoteCurrency}`,
+        variant: "destructive",
+      });
+      return;
+    }
     
     if (orderType === "buy") {
       // Check if user has enough quote currency (e.g., KES)
@@ -175,278 +194,274 @@ const CreateOrderForm = ({ availablePairs, availableBalances, onOrderCreated }: 
     }
   };
   
+  // Calculate maximum order value (based on available balance)
+  const getMaxOrderValue = (): number => {
+    if (!pairDetails) return 0;
+    
+    if (orderType === "buy") {
+      return availableBalances[pairDetails.quoteCurrency] || 0;
+    } else {
+      const baseCurrencyBalance = availableBalances[pairDetails.baseCurrency] || 0;
+      const priceValue = parseFloat(price) || 0;
+      return baseCurrencyBalance * priceValue;
+    }
+  };
+  
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Create Order</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="buy" onValueChange={(value) => setOrderType(value as "buy" | "sell")}>
-          <TabsList className="grid w-full grid-cols-2 mb-4">
-            <TabsTrigger value="buy">Buy</TabsTrigger>
-            <TabsTrigger value="sell">Sell</TabsTrigger>
-          </TabsList>
+    <Tabs defaultValue="buy" onValueChange={(value) => setOrderType(value as "buy" | "sell")}>
+      <TabsList className="grid w-full grid-cols-2 mb-4">
+        <TabsTrigger value="buy">Buy</TabsTrigger>
+        <TabsTrigger value="sell">Sell</TabsTrigger>
+      </TabsList>
+      
+      <TabsContent value="buy">
+        <form onSubmit={handleCreateOrder} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="pair-buy">Trading Pair</Label>
+            <Select onValueChange={setSelectedPair} value={selectedPair}>
+              <SelectTrigger id="pair-buy">
+                <SelectValue placeholder="Select pair" />
+              </SelectTrigger>
+              <SelectContent>
+                {availablePairs.length > 0 ? (
+                  availablePairs.map((pair) => (
+                    <SelectItem key={pair.id} value={pair.id}>
+                      {pair.baseCurrency}/{pair.quoteCurrency}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="placeholder" disabled>
+                    No trading pairs available
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+            {pairDetails && (
+              <p className="text-xs text-gray-500">
+                Available: {availableBalances[pairDetails.quoteCurrency]?.toLocaleString() || 0} {pairDetails.quoteCurrency}
+              </p>
+            )}
+          </div>
           
-          <TabsContent value="buy">
-            <form onSubmit={handleCreateOrder} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="pair-buy">Trading Pair</Label>
-                <Select onValueChange={setSelectedPair} value={selectedPair}>
-                  <SelectTrigger id="pair-buy">
-                    <SelectValue placeholder="Select pair" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availablePairs.length > 0 ? (
-                      availablePairs.map((pair) => (
-                        <SelectItem key={pair.id} value={pair.id}>
-                          {pair.baseCurrency}/{pair.quoteCurrency}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="placeholder" disabled>
-                        No trading pairs available
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-                {pairDetails && (
-                  <p className="text-xs text-gray-500">
-                    Available: {availableBalances[pairDetails.quoteCurrency] || 0} {pairDetails.quoteCurrency}
-                  </p>
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="price-buy">Price per Coin</Label>
-                <Input 
-                  id="price-buy" 
-                  type="number" 
-                  step="0.00000001" 
-                  min="0.00000001" 
-                  placeholder="0.00" 
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                />
-                {pairDetails && (
-                  <p className="text-xs text-gray-500">
-                    Price in {pairDetails.quoteCurrency} per {pairDetails.baseCurrency}
-                  </p>
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label htmlFor="amount-buy">Amount</Label>
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={handleMaxAmount}
-                    className="h-6 text-xs"
-                  >
-                    Max
-                  </Button>
-                </div>
-                <Input 
-                  id="amount-buy" 
-                  type="number" 
-                  step="0.00000001" 
-                  min="0.00000001" 
-                  placeholder="0.00" 
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                />
-                {pairDetails && (
-                  <p className="text-xs text-gray-500">
-                    Amount in {pairDetails.baseCurrency}
-                  </p>
-                )}
-              </div>
-              
-              {pairDetails && (
-                <div className="space-y-2">
-                  <Label>Order Limits ({pairDetails.quoteCurrency})</Label>
-                  <div className="flex justify-between text-xs text-gray-500 mb-1">
-                    <span>Min: {minOrderLimit}</span>
-                    <span>Max: {maxOrderLimit}</span>
-                  </div>
-                  <Slider
-                    disabled
-                    value={[total]}
-                    max={maxOrderLimit}
-                    min={minOrderLimit}
-                    step={1}
-                  />
-                  <div className="text-xs text-center mt-1">
-                    {total < minOrderLimit && (
-                      <span className="text-red-500">
-                        Order total must be at least {minOrderLimit} {pairDetails.quoteCurrency}
-                      </span>
-                    )}
-                    {total > maxOrderLimit && (
-                      <span className="text-red-500">
-                        Order total must be at most {maxOrderLimit} {pairDetails.quoteCurrency}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-              
-              <div className="pt-2 border-t border-gray-200">
-                <div className="flex justify-between text-sm mb-2">
-                  <span>Total:</span>
-                  <span>
-                    {total.toFixed(2)} {pairDetails?.quoteCurrency || ''}
-                  </span>
-                </div>
-                <Button 
-                  type="submit" 
-                  className="w-full" 
-                  disabled={
-                    isSubmitting || 
-                    !selectedPair || 
-                    !price || 
-                    !amount || 
-                    (pairDetails && (total < minOrderLimit || total > maxOrderLimit))
-                  }
-                >
-                  {isSubmitting ? "Creating..." : "Create Buy Order"}
-                </Button>
-              </div>
-            </form>
-          </TabsContent>
+          <div className="space-y-2">
+            <Label htmlFor="price-buy">Price per Coin</Label>
+            <Input 
+              id="price-buy" 
+              type="number" 
+              step="0.00000001" 
+              min="0.00000001" 
+              placeholder="0.00" 
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+            />
+            {pairDetails && (
+              <p className="text-xs text-gray-500">
+                Price in {pairDetails.quoteCurrency} per {pairDetails.baseCurrency}
+              </p>
+            )}
+          </div>
           
-          <TabsContent value="sell">
-            <form onSubmit={handleCreateOrder} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="pair-sell">Trading Pair</Label>
-                <Select onValueChange={setSelectedPair} value={selectedPair}>
-                  <SelectTrigger id="pair-sell">
-                    <SelectValue placeholder="Select pair" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availablePairs.length > 0 ? (
-                      availablePairs.map((pair) => (
-                        <SelectItem key={pair.id} value={pair.id}>
-                          {pair.baseCurrency}/{pair.quoteCurrency}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="placeholder" disabled>
-                        No trading pairs available
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-                {pairDetails && (
-                  <p className="text-xs text-gray-500">
-                    Available: {availableBalances[pairDetails.baseCurrency] || 0} {pairDetails.baseCurrency}
-                  </p>
-                )}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <Label htmlFor="amount-buy">Amount</Label>
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleMaxAmount}
+                className="h-6 text-xs"
+              >
+                Max
+              </Button>
+            </div>
+            <Input 
+              id="amount-buy" 
+              type="number" 
+              step="0.00000001" 
+              min="0.00000001" 
+              placeholder="0.00" 
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+            {pairDetails && (
+              <p className="text-xs text-gray-500">
+                Amount in {pairDetails.baseCurrency}
+              </p>
+            )}
+          </div>
+          
+          {pairDetails && (
+            <div className="space-y-2">
+              <Label>Order Value ({pairDetails.quoteCurrency})</Label>
+              <div className="flex justify-between text-xs text-gray-500 mb-1">
+                <span>Min: {minOrderLimit}</span>
+                <span>Max: {getMaxOrderValue().toLocaleString()}</span>
               </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="price-sell">Price per Coin</Label>
-                <Input 
-                  id="price-sell" 
-                  type="number" 
-                  step="0.00000001" 
-                  min="0.00000001" 
-                  placeholder="0.00" 
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                />
-                {pairDetails && (
-                  <p className="text-xs text-gray-500">
-                    Price in {pairDetails.quoteCurrency} per {pairDetails.baseCurrency}
-                  </p>
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label htmlFor="amount-sell">Amount</Label>
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={handleMaxAmount}
-                    className="h-6 text-xs"
-                  >
-                    Max
-                  </Button>
-                </div>
-                <Input 
-                  id="amount-sell" 
-                  type="number" 
-                  step="0.00000001" 
-                  min="0.00000001" 
-                  placeholder="0.00" 
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                />
-                {pairDetails && (
-                  <p className="text-xs text-gray-500">
-                    Amount in {pairDetails.baseCurrency}
-                  </p>
-                )}
-              </div>
-              
-              {pairDetails && (
-                <div className="space-y-2">
-                  <Label>Order Limits ({pairDetails.quoteCurrency})</Label>
-                  <div className="flex justify-between text-xs text-gray-500 mb-1">
-                    <span>Min: {minOrderLimit}</span>
-                    <span>Max: {maxOrderLimit}</span>
-                  </div>
-                  <Slider
-                    disabled
-                    value={[total]}
-                    max={maxOrderLimit}
-                    min={minOrderLimit}
-                    step={1}
-                  />
-                  <div className="text-xs text-center mt-1">
-                    {total < minOrderLimit && (
-                      <span className="text-red-500">
-                        Order total must be at least {minOrderLimit} {pairDetails.quoteCurrency}
-                      </span>
-                    )}
-                    {total > maxOrderLimit && (
-                      <span className="text-red-500">
-                        Order total must be at most {maxOrderLimit} {pairDetails.quoteCurrency}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-              
-              <div className="pt-2 border-t border-gray-200">
-                <div className="flex justify-between text-sm mb-2">
-                  <span>Total:</span>
-                  <span>
-                    {total.toFixed(2)} {pairDetails?.quoteCurrency || ''}
+              <Slider
+                disabled
+                value={[total]}
+                max={Math.max(getMaxOrderValue(), minOrderLimit + 1)}
+                min={0}
+                step={1}
+              />
+              <div className="text-xs text-center mt-1">
+                {total < minOrderLimit && (
+                  <span className="text-red-500">
+                    Order total must be at least {minOrderLimit} {pairDetails.quoteCurrency}
                   </span>
-                </div>
-                <Button 
-                  type="submit" 
-                  className="w-full" 
-                  disabled={
-                    isSubmitting || 
-                    !selectedPair || 
-                    !price || 
-                    !amount || 
-                    (pairDetails && (total < minOrderLimit || total > maxOrderLimit))
-                  }
-                >
-                  {isSubmitting ? "Creating..." : "Create Sell Order"}
-                </Button>
+                )}
               </div>
-            </form>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+            </div>
+          )}
+          
+          <div className="pt-2 border-t border-gray-200">
+            <div className="flex justify-between text-sm mb-2">
+              <span>Total:</span>
+              <span>
+                {total.toFixed(2)} {pairDetails?.quoteCurrency || ''}
+              </span>
+            </div>
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={
+                isSubmitting || 
+                !selectedPair || 
+                !price || 
+                !amount || 
+                (pairDetails && total < minOrderLimit)
+              }
+            >
+              {isSubmitting ? "Creating..." : "Create Buy Order"}
+            </Button>
+          </div>
+        </form>
+      </TabsContent>
+      
+      <TabsContent value="sell">
+        <form onSubmit={handleCreateOrder} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="pair-sell">Trading Pair</Label>
+            <Select onValueChange={setSelectedPair} value={selectedPair}>
+              <SelectTrigger id="pair-sell">
+                <SelectValue placeholder="Select pair" />
+              </SelectTrigger>
+              <SelectContent>
+                {availablePairs.length > 0 ? (
+                  availablePairs.map((pair) => (
+                    <SelectItem key={pair.id} value={pair.id}>
+                      {pair.baseCurrency}/{pair.quoteCurrency}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="placeholder" disabled>
+                    No trading pairs available
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+            {pairDetails && (
+              <p className="text-xs text-gray-500">
+                Available: {availableBalances[pairDetails.baseCurrency]?.toLocaleString() || 0} {pairDetails.baseCurrency}
+              </p>
+            )}
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="price-sell">Price per Coin</Label>
+            <Input 
+              id="price-sell" 
+              type="number" 
+              step="0.00000001" 
+              min="0.00000001" 
+              placeholder="0.00" 
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+            />
+            {pairDetails && (
+              <p className="text-xs text-gray-500">
+                Price in {pairDetails.quoteCurrency} per {pairDetails.baseCurrency}
+              </p>
+            )}
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <Label htmlFor="amount-sell">Amount</Label>
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleMaxAmount}
+                className="h-6 text-xs"
+              >
+                Max
+              </Button>
+            </div>
+            <Input 
+              id="amount-sell" 
+              type="number" 
+              step="0.00000001" 
+              min="0.00000001" 
+              placeholder="0.00" 
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+            {pairDetails && (
+              <p className="text-xs text-gray-500">
+                Amount in {pairDetails.baseCurrency}
+              </p>
+            )}
+          </div>
+          
+          {pairDetails && (
+            <div className="space-y-2">
+              <Label>Order Value ({pairDetails.quoteCurrency})</Label>
+              <div className="flex justify-between text-xs text-gray-500 mb-1">
+                <span>Min: {minOrderLimit}</span>
+                <span>Max: {getMaxOrderValue().toLocaleString()}</span>
+              </div>
+              <Slider
+                disabled
+                value={[total]}
+                max={Math.max(getMaxOrderValue(), minOrderLimit + 1)}
+                min={0}
+                step={1}
+              />
+              <div className="text-xs text-center mt-1">
+                {total < minOrderLimit && (
+                  <span className="text-red-500">
+                    Order total must be at least {minOrderLimit} {pairDetails.quoteCurrency}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+          
+          <div className="pt-2 border-t border-gray-200">
+            <div className="flex justify-between text-sm mb-2">
+              <span>Total:</span>
+              <span>
+                {total.toFixed(2)} {pairDetails?.quoteCurrency || ''}
+              </span>
+            </div>
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={
+                isSubmitting || 
+                !selectedPair || 
+                !price || 
+                !amount || 
+                (pairDetails && total < minOrderLimit)
+              }
+            >
+              {isSubmitting ? "Creating..." : "Create Sell Order"}
+            </Button>
+          </div>
+        </form>
+      </TabsContent>
+    </Tabs>
   );
 };
 
