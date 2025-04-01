@@ -44,13 +44,7 @@ const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDeposit
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
       const filePath = `transaction-proofs/${fileName}`;
       
-      // Create transaction-proofs bucket if it doesn't exist (in production this would be done during initial setup)
-      const { error: bucketError } = await supabase.storage.getBucket('transaction-proofs');
-      if (bucketError && bucketError.message.includes('does not exist')) {
-        await supabase.storage.createBucket('transaction-proofs', { public: false });
-      }
-      
-      // Upload the file
+      // Upload the file (using transaction-proofs bucket that we've created in the SQL migration)
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('transaction-proofs')
         .upload(filePath, proofFile, {
@@ -58,12 +52,20 @@ const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDeposit
           upsert: false,
         });
       
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error("Upload error:", uploadError);
+        throw new Error(`Failed to upload proof: ${uploadError.message}`);
+      }
       
       // Get a URL for the uploaded proof
-      const { data: urlData } = await supabase.storage
+      const { data: urlData, error: urlError } = await supabase.storage
         .from('transaction-proofs')
         .createSignedUrl(filePath, 60 * 60 * 24 * 7); // 7 days expiry
+      
+      if (urlError) {
+        console.error("URL generation error:", urlError);
+        throw new Error(`Failed to generate URL: ${urlError.message}`);
+      }
       
       const proofUrl = urlData?.signedUrl || '';
       
@@ -81,7 +83,10 @@ const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDeposit
         .select()
         .single();
         
-      if (txnError) throw txnError;
+      if (txnError) {
+        console.error("Transaction creation error:", txnError);
+        throw new Error(`Failed to create transaction: ${txnError.message}`);
+      }
       
       toast({
         title: "Deposit request submitted",
@@ -98,7 +103,9 @@ const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDeposit
       console.error("Deposit error:", error);
       toast({
         title: "Request failed",
-        description: "An error occurred while submitting your deposit request",
+        description: typeof error === 'object' && error !== null && 'message' in error 
+          ? `Error: ${(error as Error).message}` 
+          : "An error occurred while submitting your deposit request",
         variant: "destructive",
       });
     } finally {
