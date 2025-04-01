@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Transaction } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,61 +28,23 @@ const RecentTransactions = () => {
   const navigate = useNavigate();
   
   useEffect(() => {
-    const fetchTransactions = async () => {
-      if (!isAuthenticated || !user) {
-        setIsLoading(false);
-        return;
-      }
-      
-      try {
-        setIsLoading(true);
-        const { data, error } = await supabase
-          .from('transactions')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(5);
-          
-        if (error) {
-          console.error('Error fetching transactions:', error);
-          setError('Failed to load transactions');
-          return;
-        }
-        
-        // Map the Supabase data (snake_case) to our Transaction type (camelCase)
-        const formattedTransactions: Transaction[] = data.map(item => ({
-          id: item.id,
-          userId: item.user_id,
-          type: item.type as 'deposit' | 'withdrawal',
-          currency: item.currency,
-          amount: item.amount,
-          status: item.status as 'pending' | 'approved' | 'rejected' | 'forfeited',
-          createdAt: item.created_at,
-          proof: item.proof || '',
-          withdrawalAddress: item.withdrawal_address || ''
-        }));
-        
-        setTransactions(formattedTransactions);
-        setError(null);
-      } catch (err) {
-        console.error('Unexpected error:', err);
-        setError('An unexpected error occurred');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    if (!isAuthenticated || !user) {
+      setIsLoading(false);
+      return;
+    }
     
     fetchTransactions();
     
+    // Set up realtime subscription for transactions
     const channel = supabase
-      .channel('custom-transactions-channel')
+      .channel('user-transactions-changes')
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'transactions',
-          filter: `user_id=eq.${user?.id}`
+          filter: `user_id=eq.${user.id}`
         },
         (payload) => {
           console.log('Transaction change received:', payload);
@@ -94,6 +57,54 @@ const RecentTransactions = () => {
       supabase.removeChannel(channel);
     };
   }, [user, isAuthenticated]);
+  
+  const fetchTransactions = async () => {
+    if (!isAuthenticated || !user) {
+      setIsLoading(false);
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      console.log("Fetching transactions for user:", user.id);
+      
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+        
+      if (error) {
+        console.error('Error fetching transactions:', error);
+        setError('Failed to load transactions');
+        return;
+      }
+      
+      console.log("Fetched transactions:", data);
+      
+      // Map the Supabase data (snake_case) to our Transaction type (camelCase)
+      const formattedTransactions: Transaction[] = data.map(item => ({
+        id: item.id,
+        userId: item.user_id,
+        type: item.type as 'deposit' | 'withdrawal',
+        currency: item.currency,
+        amount: item.amount,
+        status: item.status as 'pending' | 'approved' | 'rejected' | 'forfeited',
+        createdAt: item.created_at,
+        proof: item.proof || '',
+        withdrawalAddress: item.withdrawal_address || ''
+      }));
+      
+      setTransactions(formattedTransactions);
+      setError(null);
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      setError('An unexpected error occurred');
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
@@ -129,6 +140,10 @@ const RecentTransactions = () => {
     navigate('/dashboard/transactions');
   };
   
+  if (error) {
+    console.error("Transaction component error:", error);
+  }
+  
   return (
     <Card className="border border-gray-200">
       <CardHeader className="p-4 border-b border-gray-200">
@@ -141,7 +156,7 @@ const RecentTransactions = () => {
           <div className="p-8 text-center text-red-500">
             <p>{error}</p>
             <button 
-              onClick={() => window.location.reload()} 
+              onClick={() => fetchTransactions()} 
               className="mt-2 text-sm text-fortunesly-primary hover:underline"
             >
               Try again

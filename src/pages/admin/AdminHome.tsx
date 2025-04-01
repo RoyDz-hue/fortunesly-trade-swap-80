@@ -7,7 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 const AdminHome = () => {
   const [stats, setStats] = useState({
     totalUsers: 0,
-    totalDeposits: 0,
+    totalKesDeposits: 0,
+    totalCryptoDeposits: 0,
     totalWithdrawals: 0,
     pendingApprovals: 0
   });
@@ -22,32 +23,79 @@ const AdminHome = () => {
           .from('users')
           .select('*', { count: 'exact', head: true });
 
-        // Get pending withdrawals count
-        const { count: pendingCount, error: pendingError } = await supabase
+        if (userError) throw userError;
+
+        // Get pending approvals count (deposits + withdrawals)
+        const { count: pendingDepositsCount, error: pendingDepositsError } = await supabase
+          .from('transactions')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'pending')
+          .eq('type', 'deposit');
+          
+        if (pendingDepositsError) throw pendingDepositsError;
+        
+        const { count: pendingWithdrawalsCount, error: pendingWithdrawalsError } = await supabase
           .from('withdrawals')
           .select('*', { count: 'exact', head: true })
           .eq('status', 'pending');
+          
+        if (pendingWithdrawalsError) throw pendingWithdrawalsError;
 
-        // Get total transactions stats
-        const { data: deposits, error: depositsError } = await supabase
+        // Get KES deposits
+        const { data: kesDeposits, error: kesDepositsError } = await supabase
           .from('transactions')
           .select('amount')
-          .eq('type', 'deposit');
+          .eq('type', 'deposit')
+          .eq('currency', 'KES');
 
+        if (kesDepositsError) throw kesDepositsError;
+
+        // Get crypto deposits (all currencies except KES)
+        const { data: cryptoDeposits, error: cryptoDepositsError } = await supabase
+          .from('transactions')
+          .select('amount, currency')
+          .eq('type', 'deposit')
+          .neq('currency', 'KES');
+          
+        if (cryptoDepositsError) throw cryptoDepositsError;
+
+        // Get withdrawals
         const { data: withdrawals, error: withdrawalsError } = await supabase
           .from('transactions')
           .select('amount')
           .eq('type', 'withdrawal');
 
+        if (withdrawalsError) throw withdrawalsError;
+        
         // Calculate totals
-        const totalDeposits = deposits?.reduce((sum, item) => sum + item.amount, 0) || 0;
-        const totalWithdrawals = withdrawals?.reduce((sum, item) => sum + item.amount, 0) || 0;
+        const totalKesDeposits = kesDeposits
+          ? kesDeposits.reduce((sum, item) => sum + Number(item.amount), 0)
+          : 0;
+          
+        const totalCryptoDeposits = cryptoDeposits
+          ? cryptoDeposits.reduce((sum, item) => sum + Number(item.amount), 0)
+          : 0;
+          
+        const totalWithdrawals = withdrawals
+          ? withdrawals.reduce((sum, item) => sum + Number(item.amount), 0)
+          : 0;
+
+        const pendingApprovals = (pendingDepositsCount || 0) + (pendingWithdrawalsCount || 0);
+          
+        console.log("Stats calculated:", {
+          totalUsers: userCount || 0,
+          totalKesDeposits,
+          totalCryptoDeposits,
+          totalWithdrawals,
+          pendingApprovals
+        });
 
         setStats({
           totalUsers: userCount || 0,
-          totalDeposits,
+          totalKesDeposits,
+          totalCryptoDeposits,
           totalWithdrawals,
-          pendingApprovals: pendingCount || 0
+          pendingApprovals
         });
       } catch (error) {
         console.error("Error fetching admin dashboard data:", error);
@@ -57,6 +105,13 @@ const AdminHome = () => {
     }
 
     fetchDashboardStats();
+    
+    // Set up a refresh interval (every 30 seconds)
+    const interval = setInterval(() => {
+      fetchDashboardStats();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -78,24 +133,24 @@ const AdminHome = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Total Deposits</CardTitle>
-            <ArrowDown className="w-4 h-4 text-green-600" />
+            <CardTitle className="text-sm font-medium">KES Deposits</CardTitle>
+            <DollarSign className="w-4 h-4 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isLoading ? "Loading..." : `${stats.totalDeposits.toLocaleString()} KES`}
+              {isLoading ? "Loading..." : `${stats.totalKesDeposits.toLocaleString()} KES`}
             </div>
           </CardContent>
         </Card>
-
+        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Total Withdrawals</CardTitle>
-            <ArrowUp className="w-4 h-4 text-red-600" />
+            <CardTitle className="text-sm font-medium">Crypto Deposits</CardTitle>
+            <Coins className="w-4 h-4 text-blue-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isLoading ? "Loading..." : `${stats.totalWithdrawals.toLocaleString()} KES`}
+              {isLoading ? "Loading..." : stats.totalCryptoDeposits.toLocaleString()}
             </div>
           </CardContent>
         </Card>
@@ -112,8 +167,6 @@ const AdminHome = () => {
           </CardContent>
         </Card>
       </div>
-      
-      {/* Additional dashboard content can be added here */}
     </div>
   );
 };

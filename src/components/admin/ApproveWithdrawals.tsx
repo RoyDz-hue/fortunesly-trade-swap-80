@@ -8,9 +8,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { Check, X, Copy, AlertTriangle } from "lucide-react";
-import { Database } from "@/integrations/supabase/types";
 
-type WithdrawalStatus = Database["public"]["Enums"]["withdrawal_status"];
+// Define withdrawal status types
+type WithdrawalStatus = 'pending' | 'approved' | 'rejected' | 'forfeited';
 
 // Define action types and their mapping to the database enum values
 type WithdrawalAction = "approve" | "reject" | "forfeit";
@@ -21,7 +21,7 @@ const mapActionToStatus = (action: WithdrawalAction): WithdrawalStatus => {
     case "approve": return "approved";
     case "reject": return "rejected";
     case "forfeit": return "forfeited";
-    default: return "pending" as WithdrawalStatus;
+    default: return "pending";
   }
 };
 
@@ -47,11 +47,29 @@ const ApproveWithdrawals = () => {
   
   useEffect(() => {
     fetchWithdrawals();
+    
+    // Set up realtime subscription for withdrawals
+    const channel = supabase
+      .channel('admin-withdrawals-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'withdrawals' },
+        (payload) => {
+          console.log('Withdrawal change received:', payload);
+          fetchWithdrawals();
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
   
   const fetchWithdrawals = async () => {
     setIsLoading(true);
     try {
+      console.log("Fetching pending withdrawals...");
       const { data, error } = await supabase
         .from('withdrawals')
         .select(`
@@ -62,6 +80,8 @@ const ApproveWithdrawals = () => {
         .order('created_at', { ascending: false });
         
       if (error) throw error;
+      
+      console.log("Fetched withdrawals:", data);
       
       const formattedWithdrawals: Withdrawal[] = data.map(item => ({
         id: item.id,
@@ -192,7 +212,8 @@ const ApproveWithdrawals = () => {
           <TabsContent value="crypto">
             {isLoading ? (
               <div className="text-center py-8">
-                <p>Loading crypto withdrawals...</p>
+                <div className="w-8 h-8 border-2 border-t-fortunesly-primary border-gray-200 rounded-full animate-spin mx-auto"></div>
+                <p className="mt-2 text-gray-500">Loading crypto withdrawals...</p>
               </div>
             ) : withdrawals.filter(w => w.currency !== "KES").length === 0 ? (
               <div className="text-center py-8 text-gray-500">
@@ -275,7 +296,8 @@ const ApproveWithdrawals = () => {
           <TabsContent value="kes">
             {isLoading ? (
               <div className="text-center py-8">
-                <p>Loading KES withdrawals...</p>
+                <div className="w-8 h-8 border-2 border-t-fortunesly-primary border-gray-200 rounded-full animate-spin mx-auto"></div>
+                <p className="mt-2 text-gray-500">Loading KES withdrawals...</p>
               </div>
             ) : withdrawals.filter(w => w.currency === "KES").length === 0 ? (
               <div className="text-center py-8 text-gray-500">

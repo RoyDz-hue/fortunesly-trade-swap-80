@@ -27,11 +27,29 @@ const ApproveCryptoDeposits = () => {
 
   useEffect(() => {
     fetchPendingDeposits();
+    
+    // Set up realtime subscription for new deposits
+    const channel = supabase
+      .channel('admin-deposits-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'transactions' },
+        (payload) => {
+          console.log('Transaction change received:', payload);
+          fetchPendingDeposits();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchPendingDeposits = async () => {
     setIsLoading(true);
     try {
+      console.log("Fetching pending crypto deposits...");
       const { data, error } = await supabase
         .from('transactions')
         .select(`
@@ -46,23 +64,25 @@ const ApproveCryptoDeposits = () => {
         `)
         .eq('type', 'deposit')
         .eq('status', 'pending')
-        .neq('currency', 'KES')
         .order('created_at', { ascending: false });
 
       if (error) {
+        console.error("Error fetching pending deposits:", error);
         throw error;
       }
 
-      const formattedDeposits: CryptoDeposit[] = data.map(item => ({
+      console.log("Fetched pending deposits:", data);
+      
+      const formattedDeposits: CryptoDeposit[] = data?.map(item => ({
         id: item.id,
         userId: item.user_id,
-        username: item.users?.username,
+        username: item.users?.username || item.user_id,
         currency: item.currency,
         amount: item.amount,
         status: item.status as 'pending' | 'approved' | 'rejected' | 'forfeited',
         createdAt: item.created_at,
         proofImageUrl: item.proof || ''
-      }));
+      })) || [];
 
       setPendingDeposits(formattedDeposits);
     } catch (error) {
