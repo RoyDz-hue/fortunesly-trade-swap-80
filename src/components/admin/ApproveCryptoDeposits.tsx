@@ -12,7 +12,7 @@ interface CryptoDeposit {
   username?: string;
   currency: string;
   amount: number;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'forfeited';
   createdAt: string;
   proofImageUrl: string;
 }
@@ -59,7 +59,7 @@ const ApproveCryptoDeposits = () => {
         username: item.users?.username,
         currency: item.currency,
         amount: item.amount,
-        status: item.status,
+        status: item.status as 'pending' | 'approved' | 'rejected' | 'forfeited',
         createdAt: item.created_at,
         proofImageUrl: item.proof || ''
       }));
