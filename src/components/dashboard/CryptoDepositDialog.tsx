@@ -80,41 +80,29 @@ const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDeposit
     try {
       // Step 1: Upload proof image to Supabase Storage
       const fileExt = proofFile.name.split('.').pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-      const filePath = `transaction-proofs/${fileName}`;
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
       
       console.log("Starting file upload to path:", filePath);
       
-      // Upload the file
+      // Upload the file with public access
+      setUploadProgress(25);
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('transaction-proofs')
         .upload(filePath, proofFile, {
           cacheControl: '3600',
-          upsert: true, // Changed to true to overwrite if needed
+          upsert: true
         });
       
       if (uploadError) {
         console.error("Upload error:", uploadError);
         setUploadError(`Failed to upload proof: ${uploadError.message}`);
+        setIsLoading(false);
         return;
       }
       
       console.log("File uploaded successfully:", uploadData);
-      setUploadProgress(50);
-      
-      // First, make the file publicly accessible
-      const { data: updateData, error: updateError } = await supabase.storage
-        .from('transaction-proofs')
-        .update(filePath, proofFile, {
-          cacheControl: '3600',
-          upsert: true,
-        });
-        
-      if (updateError) {
-        console.error("File update error:", updateError);
-        setUploadError(`Failed to update file permissions: ${updateError.message}`);
-        return;
-      }
+      setUploadProgress(75);
       
       // Get a public URL for the file
       const { data: publicUrlData } = supabase.storage
@@ -124,7 +112,11 @@ const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDeposit
       const proofUrl = publicUrlData?.publicUrl || '';
       console.log("Generated public URL:", proofUrl);
       
-      setUploadProgress(75);
+      if (!proofUrl) {
+        setUploadError("Failed to generate public URL for the uploaded file");
+        setIsLoading(false);
+        return;
+      }
       
       // Step 2: Create transaction record using the public URL
       const { data: txnData, error: txnError } = await supabase
@@ -143,6 +135,7 @@ const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDeposit
       if (txnError) {
         console.error("Transaction creation error:", txnError);
         setUploadError(`Failed to create transaction: ${txnError.message}`);
+        setIsLoading(false);
         return;
       }
       
