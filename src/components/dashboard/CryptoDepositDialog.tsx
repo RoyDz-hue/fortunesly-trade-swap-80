@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Coin } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface CryptoDepositDialogProps {
   isOpen: boolean;
@@ -23,9 +25,46 @@ const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDeposit
   const [amount, setAmount] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // Clean up preview URL when dialog closes or component unmounts
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
+  // Reset state when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      setProofFile(null);
+      setAmount("");
+      setUploadProgress(0);
+      setUploadError(null);
+      setPreviewUrl(null);
+    }
+  }, [isOpen]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setProofFile(file);
+      
+      // Generate a preview for the image
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+      
+      // Clear any previous upload errors
+      setUploadError(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setUploadError(null);
     
     if (!amount || !proofFile || !user) {
       toast({
@@ -44,32 +83,50 @@ const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDeposit
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
       const filePath = `transaction-proofs/${fileName}`;
       
-      // Upload the file (using transaction-proofs bucket that we've created in the SQL migration)
+      console.log("Starting file upload to path:", filePath);
+      
+      // Upload the file
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('transaction-proofs')
         .upload(filePath, proofFile, {
           cacheControl: '3600',
-          upsert: false,
+          upsert: true, // Changed to true to overwrite if needed
         });
       
       if (uploadError) {
         console.error("Upload error:", uploadError);
-        throw new Error(`Failed to upload proof: ${uploadError.message}`);
+        setUploadError(`Failed to upload proof: ${uploadError.message}`);
+        return;
       }
       
-      // Get a URL for the uploaded proof
-      const { data: urlData, error: urlError } = await supabase.storage
+      console.log("File uploaded successfully:", uploadData);
+      setUploadProgress(50);
+      
+      // First, make the file publicly accessible
+      const { data: updateData, error: updateError } = await supabase.storage
         .from('transaction-proofs')
-        .createSignedUrl(filePath, 60 * 60 * 24 * 7); // 7 days expiry
-      
-      if (urlError) {
-        console.error("URL generation error:", urlError);
-        throw new Error(`Failed to generate URL: ${urlError.message}`);
+        .update(filePath, proofFile, {
+          cacheControl: '3600',
+          upsert: true,
+        });
+        
+      if (updateError) {
+        console.error("File update error:", updateError);
+        setUploadError(`Failed to update file permissions: ${updateError.message}`);
+        return;
       }
       
-      const proofUrl = urlData?.signedUrl || '';
+      // Get a public URL for the file
+      const { data: publicUrlData } = supabase.storage
+        .from('transaction-proofs')
+        .getPublicUrl(filePath);
+        
+      const proofUrl = publicUrlData?.publicUrl || '';
+      console.log("Generated public URL:", proofUrl);
       
-      // Step 2: Create transaction record
+      setUploadProgress(75);
+      
+      // Step 2: Create transaction record using the public URL
       const { data: txnData, error: txnError } = await supabase
         .from('transactions')
         .insert({
@@ -85,8 +142,12 @@ const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDeposit
         
       if (txnError) {
         console.error("Transaction creation error:", txnError);
-        throw new Error(`Failed to create transaction: ${txnError.message}`);
+        setUploadError(`Failed to create transaction: ${txnError.message}`);
+        return;
       }
+      
+      console.log("Transaction created successfully:", txnData);
+      setUploadProgress(100);
       
       toast({
         title: "Deposit request submitted",
@@ -101,16 +162,13 @@ const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDeposit
       setProofFile(null);
     } catch (error) {
       console.error("Deposit error:", error);
-      toast({
-        title: "Request failed",
-        description: typeof error === 'object' && error !== null && 'message' in error 
+      setUploadError(
+        typeof error === 'object' && error !== null && 'message' in error 
           ? `Error: ${(error as Error).message}` 
-          : "An error occurred while submitting your deposit request",
-        variant: "destructive",
-      });
+          : "An unexpected error occurred while submitting your deposit request"
+      );
     } finally {
       setIsLoading(false);
-      setUploadProgress(0);
     }
   };
 
@@ -181,17 +239,36 @@ const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDeposit
                   id="proof"
                   type="file"
                   accept="image/*"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      setProofFile(e.target.files[0]);
-                    }
-                  }}
+                  onChange={handleFileChange}
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Upload a screenshot of your transaction as proof
                 </p>
               </div>
             </div>
+            
+            {/* Preview of uploaded image */}
+            {previewUrl && (
+              <div className="col-span-4">
+                <div className="mt-2 border rounded overflow-hidden max-h-48">
+                  <img 
+                    src={previewUrl} 
+                    alt="Proof preview" 
+                    className="w-full object-contain"
+                  />
+                </div>
+              </div>
+            )}
+            
+            {uploadError && (
+              <div className="col-span-4">
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{uploadError}</AlertDescription>
+                </Alert>
+              </div>
+            )}
+            
             {uploadProgress > 0 && uploadProgress < 100 && (
               <div className="col-span-4">
                 <div className="w-full bg-gray-200 rounded-full h-2.5">
