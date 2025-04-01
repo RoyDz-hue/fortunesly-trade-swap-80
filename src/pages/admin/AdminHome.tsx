@@ -35,9 +35,10 @@ const AdminHome = () => {
         if (pendingDepositsError) throw pendingDepositsError;
         
         const { count: pendingWithdrawalsCount, error: pendingWithdrawalsError } = await supabase
-          .from('withdrawals')
+          .from('transactions')
           .select('*', { count: 'exact', head: true })
-          .eq('status', 'pending');
+          .eq('status', 'pending')
+          .eq('type', 'withdrawal');
           
         if (pendingWithdrawalsError) throw pendingWithdrawalsError;
 
@@ -46,7 +47,8 @@ const AdminHome = () => {
           .from('transactions')
           .select('amount')
           .eq('type', 'deposit')
-          .eq('currency', 'KES');
+          .eq('currency', 'KES')
+          .eq('status', 'approved');
 
         if (kesDepositsError) throw kesDepositsError;
 
@@ -55,7 +57,8 @@ const AdminHome = () => {
           .from('transactions')
           .select('amount, currency')
           .eq('type', 'deposit')
-          .neq('currency', 'KES');
+          .neq('currency', 'KES')
+          .eq('status', 'approved');
           
         if (cryptoDepositsError) throw cryptoDepositsError;
 
@@ -63,7 +66,8 @@ const AdminHome = () => {
         const { data: withdrawals, error: withdrawalsError } = await supabase
           .from('transactions')
           .select('amount')
-          .eq('type', 'withdrawal');
+          .eq('type', 'withdrawal')
+          .eq('status', 'approved');
 
         if (withdrawalsError) throw withdrawalsError;
         
