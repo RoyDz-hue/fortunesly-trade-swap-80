@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -10,15 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Upload, Trash2, Edit, Image } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-
-interface Coin {
-  id: string;
-  name: string;
-  symbol: string;
-  deposit_address: string;
-  image: string | null;
-  icon_url: string | null;
-}
+import { Coin } from "@/types";
 
 const ManageCoins = () => {
   const { toast } = useToast();
@@ -30,7 +21,6 @@ const ManageCoins = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
   
-  // Form states
   const [newCoinName, setNewCoinName] = useState("");
   const [newCoinSymbol, setNewCoinSymbol] = useState("");
   const [newDepositAddress, setNewDepositAddress] = useState("");
@@ -96,7 +86,6 @@ const ManageCoins = () => {
 
     setIsSubmitting(true);
     try {
-      // First, insert the coin into the database
       const { data, error } = await supabase
         .from("coins")
         .insert({
@@ -108,7 +97,6 @@ const ManageCoins = () => {
         
       if (error) throw error;
       
-      // If a file was selected, upload it to storage
       if (selectedFile && data && data.length > 0) {
         await uploadCoinIcon(selectedFile, data[0].id);
       }
@@ -118,14 +106,12 @@ const ManageCoins = () => {
         description: `${newCoinSymbol.toUpperCase()} has been added successfully`
       });
       
-      // Reset form
       setNewCoinName("");
       setNewCoinSymbol("");
       setNewDepositAddress("");
       setSelectedFile(null);
       setIsAddDialogOpen(false);
       
-      // Refresh coin list
       fetchCoins();
       
     } catch (error: any) {
@@ -143,7 +129,6 @@ const ManageCoins = () => {
   const uploadCoinIcon = async (file: File, coinId: string) => {
     setIsUploading(true);
     try {
-      // Upload the file to storage
       const fileName = `${coinId}-${Date.now()}.${file.name.split('.').pop()}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("coin-icons")
@@ -151,12 +136,10 @@ const ManageCoins = () => {
         
       if (uploadError) throw uploadError;
       
-      // Get the public URL
       const { data: publicUrlData } = supabase.storage
         .from("coin-icons")
         .getPublicUrl(fileName);
         
-      // Update the coin with the icon URL
       const { error: updateError } = await supabase
         .from("coins")
         .update({ icon_url: publicUrlData.publicUrl })
@@ -188,7 +171,6 @@ const ManageCoins = () => {
     try {
       await uploadCoinIcon(selectedFile, coinId);
       
-      // Close dialog and refresh coins
       setIsEditDialogOpen(false);
       setSelectedCoin(null);
       setSelectedFile(null);
@@ -291,7 +273,6 @@ const ManageCoins = () => {
         </Card>
       )}
       
-      {/* Add Coin Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -371,7 +352,6 @@ const ManageCoins = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Edit Coin Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>

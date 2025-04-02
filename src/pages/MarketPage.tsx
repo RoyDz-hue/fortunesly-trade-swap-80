@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
@@ -32,7 +31,7 @@ const MarketPage = () => {
   const [orders, setOrders] = useState<MarketOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
-  const [filterCurrency, setFilterCurrency] = useState("");
+  const [filterCurrency, setFilterCurrency] = useState<string>("");
   const [availableCurrencies, setAvailableCurrencies] = useState<string[]>([]);
   const [isTradeDialogOpen, setIsTradeDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<MarketOrder | null>(null);

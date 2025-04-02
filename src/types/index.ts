@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   username: string;
@@ -22,8 +23,10 @@ export interface Coin {
   name: string;
   symbol: string;
   depositAddress?: string;
+  deposit_address?: string; // Adding for compatibility with Supabase
   taxRate?: number;
   image?: string;
+  icon_url?: string; // Adding for compatibility with Supabase
   status?: 'active' | 'inactive';
   createdAt?: string;
   updatedAt?: string;
