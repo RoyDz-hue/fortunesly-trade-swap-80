@@ -42,7 +42,9 @@ const TradePage = () => {
         name: coin.name,
         symbol: coin.symbol,
         depositAddress: coin.deposit_address,
+        deposit_address: coin.deposit_address,
         image: coin.image || `https://via.placeholder.com/40/6E59A5/ffffff?text=${coin.symbol}`,
+        icon_url: coin.icon_url,
         taxRate: 10 // Default tax rate if not specified
       })));
       
@@ -161,6 +163,75 @@ const TradePage = () => {
       supabase.removeChannel(channel);
     };
   }, [fetchData]);
+
+  // Fetch market orders for OrderBook component
+  const [buyOrders, setBuyOrders] = useState<any[]>([]);
+  const [sellOrders, setSellOrders] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        // Fetch buy orders
+        const { data: buyData, error: buyError } = await supabase
+          .from("orders")
+          .select("id, price, amount, currency")
+          .eq("type", "buy")
+          .eq("status", "open")
+          .order("price", { ascending: false })
+          .limit(10);
+          
+        if (buyError) throw buyError;
+        
+        // Fetch sell orders
+        const { data: sellData, error: sellError } = await supabase
+          .from("orders")
+          .select("id, price, amount, currency")
+          .eq("type", "sell")
+          .eq("status", "open")
+          .order("price", { ascending: true })
+          .limit(10);
+          
+        if (sellError) throw sellError;
+        
+        // Format orders
+        const formattedBuyOrders = buyData?.map(order => ({
+          id: order.id,
+          price: parseFloat(order.price),
+          amount: parseFloat(order.amount),
+          total: parseFloat(order.price) * parseFloat(order.amount)
+        })) || [];
+        
+        const formattedSellOrders = sellData?.map(order => ({
+          id: order.id,
+          price: parseFloat(order.price),
+          amount: parseFloat(order.amount),
+          total: parseFloat(order.price) * parseFloat(order.amount)
+        })) || [];
+        
+        setBuyOrders(formattedBuyOrders);
+        setSellOrders(formattedSellOrders);
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+      }
+    };
+
+    fetchOrders();
+    
+    const ordersChannel = supabase
+      .channel("orders-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        () => {
+          fetchOrders();
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(ordersChannel);
+    };
+  }, []);
   
   return (
     <div>
@@ -184,7 +255,11 @@ const TradePage = () => {
         <TabsContent value="trade">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
-              <OrderBook tradingPair={selectedPair} />
+              <OrderBook 
+                tradingPair={selectedPair} 
+                buyOrders={buyOrders}
+                sellOrders={sellOrders}
+              />
             </div>
             <div>
               <TradeForm 
@@ -201,12 +276,6 @@ const TradePage = () => {
           <MarketOverview />
         </TabsContent>
       </Tabs>
-      
-      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-        <p className="text-sm text-blue-800">
-          <strong>Note:</strong> Trading functionality is connected to the database. Your transactions and orders will be saved.
-        </p>
-      </div>
     </div>
   );
 };

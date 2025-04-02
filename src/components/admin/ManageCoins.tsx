@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -10,21 +11,28 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Upload, Trash2, Edit, Image } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Coin } from "@/types";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const ManageCoins = () => {
   const { toast } = useToast();
   const [coins, setCoins] = useState<Coin[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
   
   const [newCoinName, setNewCoinName] = useState("");
   const [newCoinSymbol, setNewCoinSymbol] = useState("");
   const [newDepositAddress, setNewDepositAddress] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  
+  // Edit form states
+  const [editCoinName, setEditCoinName] = useState("");
+  const [editDepositAddress, setEditDepositAddress] = useState("");
 
   const fetchCoins = useCallback(async () => {
     setIsLoading(true);
@@ -183,6 +191,101 @@ const ManageCoins = () => {
     }
   };
 
+  const handleOpenEditDialog = (coin: Coin) => {
+    setSelectedCoin(coin);
+    setEditCoinName(coin.name);
+    setEditDepositAddress(coin.deposit_address || '');
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateCoin = async () => {
+    if (!selectedCoin) return;
+    if (!editCoinName || !editDepositAddress) {
+      toast({
+        title: "Missing information",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from("coins")
+        .update({
+          name: editCoinName,
+          deposit_address: editDepositAddress
+        })
+        .eq("id", selectedCoin.id);
+        
+      if (error) throw error;
+      
+      if (selectedFile) {
+        await uploadCoinIcon(selectedFile, selectedCoin.id);
+      }
+      
+      toast({
+        title: "Coin updated",
+        description: `${selectedCoin.symbol} has been updated successfully`
+      });
+      
+      setIsEditDialogOpen(false);
+      setSelectedCoin(null);
+      setSelectedFile(null);
+      fetchCoins();
+      
+    } catch (error: any) {
+      console.error("Error updating coin:", error);
+      toast({
+        title: "Failed to update coin",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleOpenDeleteDialog = (coin: Coin) => {
+    setSelectedCoin(coin);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteCoin = async () => {
+    if (!selectedCoin) return;
+    
+    setIsDeleting(true);
+    try {
+      // Delete the coin
+      const { error } = await supabase
+        .from("coins")
+        .delete()
+        .eq("id", selectedCoin.id);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Coin deleted",
+        description: `${selectedCoin.symbol} has been deleted successfully`
+      });
+      
+      setIsDeleteDialogOpen(false);
+      setSelectedCoin(null);
+      fetchCoins();
+      
+    } catch (error: any) {
+      console.error("Error deleting coin:", error);
+      toast({
+        title: "Failed to delete coin",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -232,7 +335,10 @@ const ManageCoins = () => {
                           </Badge>
                         </TableCell>
                         <TableCell className="font-mono text-xs">
-                          {coin.deposit_address.substring(0, 10)}...{coin.deposit_address.substring(coin.deposit_address.length - 10)}
+                          {coin.deposit_address && coin.deposit_address.length > 20 ? 
+                            `${coin.deposit_address.substring(0, 10)}...${coin.deposit_address.substring(coin.deposit_address.length - 10)}` :
+                            coin.deposit_address
+                          }
                         </TableCell>
                         <TableCell>
                           {coin.icon_url ? (
@@ -240,6 +346,10 @@ const ManageCoins = () => {
                               src={coin.icon_url} 
                               alt={coin.symbol} 
                               className="w-8 h-8 rounded-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = `https://via.placeholder.com/32/6E59A5/ffffff?text=${coin.symbol}`;
+                              }}
                             />
                           ) : (
                             <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
@@ -260,6 +370,24 @@ const ManageCoins = () => {
                             >
                               <Upload className="mr-1 h-3 w-3" />
                               Upload Icon
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="flex items-center"
+                              onClick={() => handleOpenEditDialog(coin)}
+                            >
+                              <Edit className="mr-1 h-3 w-3" />
+                              Edit
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="flex items-center text-red-600 hover:text-red-700"
+                              onClick={() => handleOpenDeleteDialog(coin)}
+                            >
+                              <Trash2 className="mr-1 h-3 w-3" />
+                              Delete
                             </Button>
                           </div>
                         </TableCell>
@@ -355,43 +483,94 @@ const ManageCoins = () => {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Update Coin Icon</DialogTitle>
+            <DialogTitle>{selectedCoin ? `Edit ${selectedCoin.symbol}` : 'Edit Coin'}</DialogTitle>
             <DialogDescription>
-              Upload a new icon for {selectedCoin?.name}
+              Update coin details or upload a new icon
             </DialogDescription>
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
-            <div className="flex items-center justify-center">
-              {selectedCoin?.icon_url ? (
-                <img 
-                  src={selectedCoin.icon_url} 
-                  alt={selectedCoin.symbol} 
-                  className="w-20 h-20 rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center">
-                  <Image className="w-10 h-10 text-gray-400" />
+            {selectedCoin && (
+              <>
+                <div className="flex items-center justify-center">
+                  {selectedCoin.icon_url ? (
+                    <img 
+                      src={selectedCoin.icon_url} 
+                      alt={selectedCoin.symbol} 
+                      className="w-20 h-20 rounded-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = `https://via.placeholder.com/40/6E59A5/ffffff?text=${selectedCoin.symbol}`;
+                      }}
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center">
+                      <Image className="w-10 h-10 text-gray-400" />
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="newCoinIcon" className="text-right">
-                New Icon
-              </Label>
-              <div className="col-span-3">
-                <Input
-                  id="newCoinIcon"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Recommended size: 64x64px
-                </p>
-              </div>
-            </div>
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="editCoinName" className="text-right">
+                    Coin Name
+                  </Label>
+                  <Input
+                    id="editCoinName"
+                    value={editCoinName}
+                    onChange={(e) => setEditCoinName(e.target.value)}
+                    className="col-span-3"
+                    placeholder="Bitcoin"
+                  />
+                </div>
+
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="editSymbol" className="text-right">
+                    Symbol
+                  </Label>
+                  <div className="col-span-3">
+                    <Input
+                      id="editSymbol"
+                      value={selectedCoin.symbol}
+                      disabled
+                      className="bg-gray-100"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Symbol cannot be changed after creation
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="editDepositAddress" className="text-right">
+                    Deposit Address
+                  </Label>
+                  <Input
+                    id="editDepositAddress"
+                    value={editDepositAddress}
+                    onChange={(e) => setEditDepositAddress(e.target.value)}
+                    className="col-span-3"
+                    placeholder="0x..."
+                  />
+                </div>
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="newCoinIcon" className="text-right">
+                    New Icon
+                  </Label>
+                  <div className="col-span-3">
+                    <Input
+                      id="newCoinIcon"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Recommended size: 64x64px
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
           
           <DialogFooter>
@@ -399,14 +578,35 @@ const ManageCoins = () => {
               Cancel
             </Button>
             <Button 
-              onClick={() => selectedCoin && handleUpdateIcon(selectedCoin.id)} 
-              disabled={isUploading || !selectedFile}
+              onClick={handleUpdateCoin} 
+              disabled={isSubmitting}
             >
-              {isUploading ? "Uploading..." : "Update Icon"}
+              {isSubmitting ? "Updating..." : "Update Coin"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this coin?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedCoin && `This will permanently delete ${selectedCoin.name} (${selectedCoin.symbol}) from the system. This action cannot be undone.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCoin}
+              className="bg-red-500 text-white hover:bg-red-600"
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete Coin"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

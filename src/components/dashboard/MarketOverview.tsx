@@ -10,6 +10,7 @@ interface MarketPrice {
   symbol: string;
   name: string;
   image?: string;
+  icon_url?: string;
   latestPrice: number;
   prevPrice: number;
   changePercentage24h: number;
@@ -100,6 +101,7 @@ const MarketOverview = () => {
             symbol: coin.symbol,
             name: coin.name,
             image: coin.image,
+            icon_url: coin.icon_url,
             latestPrice: latestPrice,
             prevPrice: prevPrice,
             changePercentage24h: changePercentage,
@@ -147,9 +149,7 @@ const MarketOverview = () => {
                   <div className="flex items-center">
                     <div className="w-8 h-8 mr-3 rounded-full overflow-hidden flex-shrink-0 bg-gray-100">
                       <img 
-                        src={market.image ? 
-                          `data:image/png;base64,${market.image}` : 
-                          `https://via.placeholder.com/32/6E59A5/ffffff?text=${market.symbol}`} 
+                        src={market.icon_url || `https://via.placeholder.com/32/6E59A5/ffffff?text=${market.symbol}`} 
                         alt={market.symbol} 
                         className="w-full h-full object-cover"
                         onError={(e) => {

@@ -16,6 +16,7 @@ const OrdersPage = () => {
   const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
   const [cancelledOrders, setCancelledOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCancelling, setIsCancelling] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   
@@ -90,13 +91,15 @@ const OrdersPage = () => {
   };
   
   const handleCancelOrder = async (orderId: string) => {
+    if (isCancelling) return;
+    
+    setIsCancelling(true);
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: 'cancelled' })
-        .eq('id', orderId)
-        .eq('user_id', user?.id);
-        
+      // Call a Supabase function to cancel the order and refund balance
+      const { data, error } = await supabase.rpc('cancel_order', { 
+        order_id_param: orderId 
+      });
+      
       if (error) throw error;
       
       // Update local state to move order to cancelled list
@@ -107,17 +110,19 @@ const OrdersPage = () => {
         
         toast({
           title: "Order cancelled",
-          description: "Your order has been cancelled successfully"
+          description: "Your order has been cancelled and funds have been returned to your balance."
         });
       }
       
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error cancelling order:", error);
       toast({
         title: "Failed to cancel order",
-        description: "An error occurred while cancelling your order",
+        description: error.message || "An error occurred while cancelling your order",
         variant: "destructive"
       });
+    } finally {
+      setIsCancelling(false);
     }
   };
   
@@ -194,9 +199,10 @@ const OrdersPage = () => {
                       variant="outline" 
                       size="sm"
                       onClick={() => handleCancelOrder(order.id)}
+                      disabled={isCancelling}
                     >
                       <X className="h-3 w-3 mr-1" />
-                      Cancel
+                      {isCancelling ? "Cancelling..." : "Cancel"}
                     </Button>
                   </TableCell>
                 )}

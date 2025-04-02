@@ -1,95 +1,82 @@
 
 import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
+import { ExternalLink, CheckCircle2, XCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
-interface CryptoDeposit {
+interface CryptoDepositRequest {
   id: string;
-  userId: string;
-  username?: string;
-  currency: string;
+  user_id: string;
   amount: number;
-  status: 'pending' | 'approved' | 'rejected' | 'forfeited';
-  createdAt: string;
-  proofImageUrl: string;
+  currency: string;
+  status: "pending" | "approved" | "rejected";
+  created_at: string;
+  proof: string;
+  username?: string;
 }
 
 const ApproveCryptoDeposits = () => {
   const { toast } = useToast();
-  const [pendingDeposits, setPendingDeposits] = useState<CryptoDeposit[]>([]);
-  const [selectedDeposit, setSelectedDeposit] = useState<CryptoDeposit | null>(null);
-  const [isViewingProof, setIsViewingProof] = useState(false);
+  const [deposits, setDeposits] = useState<CryptoDepositRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedProof, setSelectedProof] = useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchPendingDeposits();
+    fetchDeposits();
     
-    // Set up realtime subscription for new deposits
+    // Setup real-time updates
     const channel = supabase
-      .channel('admin-deposits-changes')
+      .channel("admin-deposits")
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'transactions' },
-        (payload) => {
-          console.log('Transaction change received:', payload);
-          fetchPendingDeposits();
+        "postgres_changes",
+        { event: "*", schema: "public", table: "transactions" },
+        () => {
+          fetchDeposits();
         }
       )
       .subscribe();
-
+      
     return () => {
       supabase.removeChannel(channel);
     };
   }, []);
 
-  const fetchPendingDeposits = async () => {
+  const fetchDeposits = async () => {
     setIsLoading(true);
     try {
-      console.log("Fetching pending crypto deposits...");
+      // Fetch crypto deposit transactions with user info
       const { data, error } = await supabase
-        .from('transactions')
-        .select(`
-          id,
-          user_id,
-          currency,
-          amount,
-          status,
-          created_at,
-          proof,
-          users:user_id (username)
-        `)
-        .eq('type', 'deposit')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
+        .from("transactions")
+        .select("*, users(username)")
+        .eq("type", "deposit")
+        .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Error fetching pending deposits:", error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log("Fetched pending deposits:", data);
-      
-      const formattedDeposits: CryptoDeposit[] = data?.map(item => ({
+      // Map to our interface
+      const depositRequests = data.map((item) => ({
         id: item.id,
-        userId: item.user_id,
-        username: item.users?.username || item.user_id,
-        currency: item.currency,
+        user_id: item.user_id,
         amount: item.amount,
-        status: item.status as 'pending' | 'approved' | 'rejected' | 'forfeited',
-        createdAt: item.created_at,
-        proofImageUrl: item.proof || ''
-      })) || [];
+        currency: item.currency,
+        status: item.status,
+        created_at: item.created_at,
+        proof: item.proof,
+        username: item.users?.username
+      }));
 
-      setPendingDeposits(formattedDeposits);
+      setDeposits(depositRequests);
     } catch (error) {
-      console.error("Error fetching pending deposits:", error);
+      console.error("Error fetching deposits:", error);
       toast({
-        title: "Error",
-        description: "Failed to load pending deposits",
+        title: "Failed to load deposit requests",
+        description: "There was an error fetching the pending deposits",
         variant: "destructive"
       });
     } finally {
@@ -97,241 +84,177 @@ const ApproveCryptoDeposits = () => {
     }
   };
 
-  const handleViewProof = (deposit: CryptoDeposit) => {
-    setSelectedDeposit(deposit);
-    setIsViewingProof(true);
-  };
-
-  const handleApprove = async (deposit: CryptoDeposit) => {
-    setIsProcessing(true);
-    
+  const handleApprove = async (id: string) => {
+    setProcessingId(id);
     try {
-      // 1. Update transaction status
-      const { error: updateError } = await supabase
-        .from('transactions')
-        .update({ status: 'approved' })
-        .eq('id', deposit.id);
+      // Use our new approve_crypto_deposit database function
+      const { data, error } = await supabase
+        .rpc('approve_crypto_deposit', { transaction_id_param: id });
         
-      if (updateError) throw updateError;
-      
-      // 2. Get user's current crypto balance
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('balance_crypto')
-        .eq('id', deposit.userId)
-        .single();
-        
-      if (userError) throw userError;
-      
-      // 3. Update user's crypto balance
-      let cryptoBalance = userData.balance_crypto || {};
-      
-      if (!cryptoBalance[deposit.currency]) {
-        cryptoBalance[deposit.currency] = 0;
-      }
-      
-      cryptoBalance[deposit.currency] += Number(deposit.amount);
-      
-      const { error: balanceError } = await supabase
-        .from('users')
-        .update({ balance_crypto: cryptoBalance })
-        .eq('id', deposit.userId);
-        
-      if (balanceError) throw balanceError;
-      
-      // 4. Remove from UI and show success
-      setPendingDeposits(pendingDeposits.filter(d => d.id !== deposit.id));
-      setIsViewingProof(false);
+      if (error) throw error;
       
       toast({
-        title: "Deposit Approved",
-        description: `${deposit.amount} ${deposit.currency} has been credited to the user's account.`
+        title: "Deposit approved",
+        description: "The crypto deposit has been approved and funds have been added to the user's wallet",
       });
-    } catch (error) {
+      
+      fetchDeposits();
+    } catch (error: any) {
       console.error("Error approving deposit:", error);
       toast({
-        title: "Error",
-        description: "Failed to approve deposit",
+        title: "Failed to approve deposit",
+        description: error.message || "There was an unexpected error",
         variant: "destructive"
       });
     } finally {
-      setIsProcessing(false);
+      setProcessingId(null);
     }
   };
 
-  const handleReject = async (deposit: CryptoDeposit) => {
-    setIsProcessing(true);
-    
+  const handleReject = async (id: string) => {
+    setProcessingId(id);
     try {
-      // Simply update transaction status to rejected
-      const { error: updateError } = await supabase
-        .from('transactions')
-        .update({ status: 'rejected' })
-        .eq('id', deposit.id);
+      const { error } = await supabase
+        .from("transactions")
+        .update({ status: "rejected" })
+        .eq("id", id);
         
-      if (updateError) throw updateError;
-      
-      // Remove from UI and show success
-      setPendingDeposits(pendingDeposits.filter(d => d.id !== deposit.id));
-      setIsViewingProof(false);
+      if (error) throw error;
       
       toast({
-        title: "Deposit Rejected",
-        description: "The deposit request has been rejected."
+        title: "Deposit rejected",
+        description: "The crypto deposit has been rejected",
       });
+      
+      fetchDeposits();
     } catch (error) {
       console.error("Error rejecting deposit:", error);
       toast({
-        title: "Error",
-        description: "Failed to reject deposit",
+        title: "Failed to reject deposit",
+        description: "There was an error rejecting the deposit",
         variant: "destructive"
       });
     } finally {
-      setIsProcessing(false);
+      setProcessingId(null);
     }
   };
 
   return (
-    <>
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <h2 className="text-lg font-semibold mb-4">Pending Crypto Deposits</h2>
-        
-        {isLoading ? (
-          <div className="text-center py-8">
-            <div className="w-8 h-8 border-2 border-t-fortunesly-primary border-gray-200 rounded-full animate-spin mx-auto"></div>
-            <p className="mt-2 text-gray-500">Loading pending deposits...</p>
-          </div>
-        ) : pendingDeposits.length > 0 ? (
-          <div className="border rounded-md overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Coin</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Proof</TableHead>
-                  <TableHead>Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pendingDeposits.map((deposit) => (
-                  <TableRow key={deposit.id}>
-                    <TableCell>{new Date(deposit.createdAt).toLocaleString()}</TableCell>
-                    <TableCell>{deposit.username || deposit.userId}</TableCell>
-                    <TableCell>{deposit.currency}</TableCell>
-                    <TableCell>{deposit.amount}</TableCell>
-                    <TableCell>
-                      <Button variant="outline" size="sm" onClick={() => handleViewProof(deposit)}>
-                        View Proof
-                      </Button>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700"
-                          onClick={() => handleApprove(deposit)}
-                          disabled={isProcessing}
-                        >
-                          Approve
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700"
-                          onClick={() => handleReject(deposit)}
-                          disabled={isProcessing}
-                        >
-                          Reject
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        ) : (
-          <div className="text-center py-10 text-gray-500">
-            <p>No pending crypto deposits found</p>
-            <p className="text-sm mt-1">Deposits will appear here when users submit them</p>
-          </div>
-        )}
-      </div>
+    <div>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Crypto Deposit Approvals</h1>
       
-      {/* Proof Viewing Dialog */}
-      {selectedDeposit && (
-        <Dialog open={isViewingProof} onOpenChange={setIsViewingProof}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Deposit Proof</DialogTitle>
-              <DialogDescription>
-                Proof of deposit submitted by user
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="py-4">
-              <div className="border rounded-md overflow-hidden">
-                <img 
-                  src={selectedDeposit.proofImageUrl} 
-                  alt="Deposit Proof" 
-                  className="w-full object-contain max-h-[300px]"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = "https://via.placeholder.com/500x300?text=Proof+Image+Not+Available";
-                  }}
-                />
-              </div>
-              
-              <div className="mt-4 space-y-2 text-sm">
-                <div className="flex justify-between border-b pb-2">
-                  <span className="font-medium">User ID:</span>
-                  <span>{selectedDeposit.username || selectedDeposit.userId}</span>
-                </div>
-                <div className="flex justify-between border-b pb-2">
-                  <span className="font-medium">Coin:</span>
-                  <span>{selectedDeposit.currency}</span>
-                </div>
-                <div className="flex justify-between border-b pb-2">
-                  <span className="font-medium">Amount:</span>
-                  <span>{selectedDeposit.amount}</span>
-                </div>
-                <div className="flex justify-between border-b pb-2">
-                  <span className="font-medium">Date:</span>
-                  <span>{new Date(selectedDeposit.createdAt).toLocaleString()}</span>
-                </div>
-              </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Pending Approvals</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center p-4">Loading deposits...</div>
+          ) : deposits.length === 0 ? (
+            <div className="text-center p-4 text-gray-500">No crypto deposit requests found</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Currency</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Proof</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {deposits.map((deposit) => (
+                    <TableRow key={deposit.id}>
+                      <TableCell>{deposit.username || "Unknown"}</TableCell>
+                      <TableCell>{deposit.currency}</TableCell>
+                      <TableCell>{deposit.amount.toFixed(6)}</TableCell>
+                      <TableCell>{new Date(deposit.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        {deposit.proof ? (
+                          <Button 
+                            variant="link" 
+                            className="p-0 h-auto"
+                            onClick={() => setSelectedProof(deposit.proof)}
+                          >
+                            <ExternalLink size={16} className="mr-1" /> 
+                            View Proof
+                          </Button>
+                        ) : (
+                          <span className="text-gray-500 text-sm">No proof</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant="outline" 
+                          className={
+                            deposit.status === "pending" ? "bg-yellow-50 text-yellow-800 border-yellow-200" :
+                            deposit.status === "approved" ? "bg-green-50 text-green-800 border-green-200" :
+                            "bg-red-50 text-red-800 border-red-200"
+                          }
+                        >
+                          {deposit.status.charAt(0).toUpperCase() + deposit.status.slice(1)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {deposit.status === "pending" && (
+                          <div className="flex items-center space-x-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                              onClick={() => handleApprove(deposit.id)}
+                              disabled={processingId === deposit.id}
+                            >
+                              <CheckCircle2 size={16} className="mr-1" />
+                              Approve
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
+                              onClick={() => handleReject(deposit.id)}
+                              disabled={processingId === deposit.id}
+                            >
+                              <XCircle size={16} className="mr-1" />
+                              Reject
+                            </Button>
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
-            
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsViewingProof(false)}>
-                Close
-              </Button>
-              <Button 
-                className="bg-green-600 hover:bg-green-700" 
-                onClick={() => {
-                  handleApprove(selectedDeposit);
-                }}
-                disabled={isProcessing}
-              >
-                Approve Deposit
-              </Button>
-              <Button 
-                className="bg-red-600 hover:bg-red-700 text-white" 
-                onClick={() => {
-                  handleReject(selectedDeposit);
-                }}
-                disabled={isProcessing}
-              >
-                Reject Deposit
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-    </>
+          )}
+        </CardContent>
+      </Card>
+      
+      <Dialog open={!!selectedProof} onOpenChange={() => setSelectedProof(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Transaction Proof</DialogTitle>
+            <DialogDescription>
+              Review the submitted proof image
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedProof && (
+            <div className="flex justify-center">
+              <img 
+                src={selectedProof} 
+                alt="Transaction Proof" 
+                className="max-h-[70vh] object-contain"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
 

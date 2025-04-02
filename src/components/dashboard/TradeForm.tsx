@@ -77,7 +77,7 @@ const TradeForm = ({
               size="sm"
               onClick={() => setViewMode("limit")}
             >
-              Limit
+              Create Order
             </Button>
           </div>
         </CardTitle>
@@ -88,15 +88,12 @@ const TradeForm = ({
             <p className="text-sm text-gray-500">
               Market orders are executed immediately at the best available price.
             </p>
-            <p className="text-center py-4 text-gray-500">
-              Market trades will be implemented soon.
-            </p>
             <Button 
               className="w-full" 
               variant="outline" 
               onClick={() => setViewMode("limit")}
             >
-              Switch to Limit Order
+              Click to Create Order
             </Button>
           </div>
         ) : (
