@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -86,9 +87,10 @@ const ApproveCryptoDeposits = () => {
   const handleApprove = async (id: string) => {
     setProcessingId(id);
     try {
-      // Fix the call to the database function
-      const { data, error } = await supabase
-        .rpc('approve_crypto_deposit', { transaction_id_param: id });
+      // Use correct RPC call syntax with proper type casting
+      const { data, error } = await supabase.rpc('approve_crypto_deposit', { 
+        transaction_id_param: id 
+      } as any);
         
       if (error) throw error;
       

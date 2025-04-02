@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import OrderBook from "@/components/dashboard/OrderBook";
 import TradeForm from "@/components/dashboard/TradeForm";
@@ -177,16 +178,16 @@ const TradePage = () => {
         
         const formattedBuyOrders = buyData?.map(order => ({
           id: order.id,
-          price: parseFloat(order.price),
-          amount: parseFloat(order.amount),
-          total: parseFloat(order.price) * parseFloat(order.amount)
+          price: parseFloat(order.price.toString()),
+          amount: parseFloat(order.amount.toString()),
+          total: parseFloat(order.price.toString()) * parseFloat(order.amount.toString())
         })) || [];
         
         const formattedSellOrders = sellData?.map(order => ({
           id: order.id,
-          price: parseFloat(order.price),
-          amount: parseFloat(order.amount),
-          total: parseFloat(order.price) * parseFloat(order.amount)
+          price: parseFloat(order.price.toString()),
+          amount: parseFloat(order.amount.toString()),
+          total: parseFloat(order.price.toString()) * parseFloat(order.amount.toString())
         })) || [];
         
         setBuyOrders(formattedBuyOrders);

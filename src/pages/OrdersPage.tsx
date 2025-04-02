@@ -1,6 +1,7 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -91,11 +92,11 @@ const OrdersPage = () => {
     try {
       setCancellingOrderId(orderId);
       
-      // Call the cancel_order function
+      // Call the cancel_order function with proper type casting
       const { data, error } = await supabase
         .rpc('cancel_order', { 
           order_id_param: orderId 
-        });
+        } as any);
         
       if (error) throw error;
       
@@ -129,116 +130,110 @@ const OrdersPage = () => {
           <CardTitle>Your Orders</CardTitle>
         </CardHeader>
         <CardContent>
-          <TabGroup>
-            <TabList>
-              <Tab value="open">Open Orders</Tab>
-              <Tab value="completed">Completed Orders</Tab>
-            </TabList>
-            <TabPanels>
-              <TabPanel value="open">
-                {isLoading ? (
-                  <div className="text-center py-4">Loading open orders...</div>
-                ) : openOrders.length === 0 ? (
-                  <div className="text-center py-4">No open orders found.</div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Currency</TableHead>
-                          <TableHead>Amount</TableHead>
-                          <TableHead>Price</TableHead>
-                          <TableHead>Total</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Actions</TableHead>
+          <Tabs defaultValue="open">
+            <TabsList>
+              <TabsTrigger value="open">Open Orders</TabsTrigger>
+              <TabsTrigger value="completed">Completed Orders</TabsTrigger>
+            </TabsList>
+            <TabsContent value="open">
+              {isLoading ? (
+                <div className="text-center py-4">Loading open orders...</div>
+              ) : openOrders.length === 0 ? (
+                <div className="text-center py-4">No open orders found.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Currency</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Price</TableHead>
+                        <TableHead>Total</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {openOrders.map((order) => (
+                        <TableRow key={order.id}>
+                          <TableCell>{formatDate(order.createdAt)}</TableCell>
+                          <TableCell>{order.type}</TableCell>
+                          <TableCell>{order.currency}</TableCell>
+                          <TableCell>{order.amount}</TableCell>
+                          <TableCell>{order.price}</TableCell>
+                          <TableCell>{order.total.toFixed(2)}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{order.status}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={cancellingOrderId === order.id}
+                              onClick={() => handleCancelOrder(order.id)}
+                            >
+                              {cancellingOrderId === order.id ? (
+                                "Cancelling..."
+                              ) : (
+                                <>
+                                  <X className="mr-2 h-4 w-4" />
+                                  Cancel
+                                </>
+                              )}
+                            </Button>
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {openOrders.map((order) => (
-                          <TableRow key={order.id}>
-                            <TableCell>{formatDate(order.createdAt)}</TableCell>
-                            <TableCell>{order.type}</TableCell>
-                            <TableCell>{order.currency}</TableCell>
-                            <TableCell>{order.amount}</TableCell>
-                            <TableCell>{order.price}</TableCell>
-                            <TableCell>{order.total.toFixed(2)}</TableCell>
-                            <TableCell>
-                              <Badge variant="secondary">{order.status}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={cancellingOrderId === order.id}
-                                onClick={() => handleCancelOrder(order.id)}
-                              >
-                                {cancellingOrderId === order.id ? (
-                                  "Cancelling..."
-                                ) : (
-                                  <>
-                                    <X className="mr-2 h-4 w-4" />
-                                    Cancel
-                                  </>
-                                )}
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </TabPanel>
-              <TabPanel value="completed">
-                {isLoading ? (
-                  <div className="text-center py-4">Loading completed orders...</div>
-                ) : completedOrders.length === 0 ? (
-                  <div className="text-center py-4">No completed orders found.</div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Currency</TableHead>
-                          <TableHead>Amount</TableHead>
-                          <TableHead>Price</TableHead>
-                          <TableHead>Total</TableHead>
-                          <TableHead>Status</TableHead>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </TabsContent>
+            <TabsContent value="completed">
+              {isLoading ? (
+                <div className="text-center py-4">Loading completed orders...</div>
+              ) : completedOrders.length === 0 ? (
+                <div className="text-center py-4">No completed orders found.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Currency</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Price</TableHead>
+                        <TableHead>Total</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {completedOrders.map((order) => (
+                        <TableRow key={order.id}>
+                          <TableCell>{formatDate(order.createdAt)}</TableCell>
+                          <TableCell>{order.type}</TableCell>
+                          <TableCell>{order.currency}</TableCell>
+                          <TableCell>{order.amount}</TableCell>
+                          <TableCell>{order.price}</TableCell>
+                          <TableCell>{order.total.toFixed(2)}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={order.status === "cancelled" ? "destructive" : "outline"}
+                            >
+                              {order.status}
+                            </Badge>
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {completedOrders.map((order) => (
-                          <TableRow key={order.id}>
-                            <TableCell>{formatDate(order.createdAt)}</TableCell>
-                            <TableCell>{order.type}</TableCell>
-                            <TableCell>{order.currency}</TableCell>
-                            <TableCell>{order.amount}</TableCell>
-                            <TableCell>{order.price}</TableCell>
-                            <TableCell>{order.total.toFixed(2)}</TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={
-                                  order.status === "cancelled"
-                                    ? "destructive"
-                                    : "success"
-                                }
-                              >
-                                {order.status}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </TabPanel>
-            </TabPanels>
-          </TabGroup>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>
