@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import OrderBook from "@/components/dashboard/OrderBook";
 import TradeForm from "@/components/dashboard/TradeForm";
@@ -26,7 +25,6 @@ const TradePage = () => {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Fetch all available coins from the database
       const { data: coinsData, error: coinsError } = await supabase
         .from('coins')
         .select('*')
@@ -34,7 +32,6 @@ const TradePage = () => {
       
       if (coinsError) throw coinsError;
       
-      // Create trading pairs from available coins
       const pairs: TradingPair[] = [];
       const coins = coinsData || [];
       setAvailableCoins(coins.map(coin => ({
@@ -45,33 +42,28 @@ const TradePage = () => {
         deposit_address: coin.deposit_address,
         image: coin.image || `https://via.placeholder.com/40/6E59A5/ffffff?text=${coin.symbol}`,
         icon_url: coin.icon_url,
-        taxRate: 10 // Default tax rate if not specified
+        taxRate: 10
       })));
       
-      // KES is the default quote currency
-      // Create trading pairs with all other coins as base currency
       for (const coin of coins) {
-        // Skip KES as a base currency
         if (coin.symbol !== 'KES') {
-          // Create a pair with KES
           pairs.push({
             id: `${coin.symbol.toLowerCase()}-kes`,
             baseCurrency: coin.symbol,
             quoteCurrency: 'KES',
-            minOrderSize: 20, // New default minimum
-            maxOrderSize: 1000000, // New high maximum - will be limited by available balance
+            minOrderSize: 20,
+            maxOrderSize: 1000000,
             isActive: true
           });
           
-          // If USDT is available, create pairs with USDT too
           const usdtCoin = coins.find(c => c.symbol === 'USDT');
           if (usdtCoin && coin.symbol !== 'USDT') {
             pairs.push({
               id: `${coin.symbol.toLowerCase()}-usdt`,
               baseCurrency: coin.symbol,
               quoteCurrency: 'USDT',
-              minOrderSize: 1, // Lower minimum for USDT pairs
-              maxOrderSize: 100000, // High maximum for USDT pairs
+              minOrderSize: 1,
+              maxOrderSize: 100000,
               isActive: true
             });
           }
@@ -80,7 +72,6 @@ const TradePage = () => {
       
       setTradingPairs(pairs);
       
-      // Fetch user balances from the user table
       const { data: session } = await supabase.auth.getSession();
       if (session.session) {
         const { data: userData, error: userError } = await supabase
@@ -91,7 +82,6 @@ const TradePage = () => {
           
         if (userError) {
           console.error('Error fetching user balances:', userError);
-          // Create a default balance object with 0 for all coins
           const defaultBalances: Record<string, number> = {
             KES: 0
           };
@@ -100,20 +90,16 @@ const TradePage = () => {
           });
           setAvailableBalances(defaultBalances);
         } else if (userData) {
-          // Convert the stored JSON balance_crypto to our balances format
           const balances: Record<string, number> = {
-            // Include fiat balance
             KES: userData.balance_fiat || 0
           };
           
-          // Add crypto balances from the balance_crypto JSON field
           if (userData.balance_crypto) {
             Object.entries(userData.balance_crypto as Record<string, number>).forEach(([currency, balance]) => {
               balances[currency] = balance;
             });
           }
           
-          // Ensure all coins have a balance value (default to 0 if not present)
           coins.forEach(coin => {
             if (!balances[coin.symbol]) {
               balances[coin.symbol] = 0;
@@ -138,7 +124,6 @@ const TradePage = () => {
   useEffect(() => {
     fetchData();
     
-    // Setup a supabase channel to listen for updates to orders and balances
     const channel = supabase
       .channel('trade-updates')
       .on(
@@ -164,14 +149,12 @@ const TradePage = () => {
     };
   }, [fetchData]);
 
-  // Fetch market orders for OrderBook component
   const [buyOrders, setBuyOrders] = useState<any[]>([]);
   const [sellOrders, setSellOrders] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        // Fetch buy orders
         const { data: buyData, error: buyError } = await supabase
           .from("orders")
           .select("id, price, amount, currency")
@@ -182,7 +165,6 @@ const TradePage = () => {
           
         if (buyError) throw buyError;
         
-        // Fetch sell orders
         const { data: sellData, error: sellError } = await supabase
           .from("orders")
           .select("id, price, amount, currency")
@@ -193,7 +175,6 @@ const TradePage = () => {
           
         if (sellError) throw sellError;
         
-        // Format orders
         const formattedBuyOrders = buyData?.map(order => ({
           id: order.id,
           price: parseFloat(order.price),
@@ -232,7 +213,7 @@ const TradePage = () => {
       supabase.removeChannel(ordersChannel);
     };
   }, []);
-  
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">

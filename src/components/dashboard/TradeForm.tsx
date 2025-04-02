@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,6 @@ import { Coin } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface TradeFormProps {
-  // Will be populated from database
   availablePairs: Array<{
     id: string;
     baseCurrency: string;

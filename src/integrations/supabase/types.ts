@@ -209,6 +209,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_crypto_deposit: {
+        Args: {
+          transaction_id_param: string
+        }
+        Returns: Json
+      }
+      cancel_order: {
+        Args: {
+          order_id_param: string
+        }
+        Returns: Json
+      }
       create_order: {
         Args: {
           user_id_param: string

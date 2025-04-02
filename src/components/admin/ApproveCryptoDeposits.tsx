@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +13,7 @@ interface CryptoDepositRequest {
   user_id: string;
   amount: number;
   currency: string;
-  status: "pending" | "approved" | "rejected";
+  status: string;
   created_at: string;
   proof: string;
   username?: string;
@@ -87,7 +86,7 @@ const ApproveCryptoDeposits = () => {
   const handleApprove = async (id: string) => {
     setProcessingId(id);
     try {
-      // Use our new approve_crypto_deposit database function
+      // Fix the call to the database function
       const { data, error } = await supabase
         .rpc('approve_crypto_deposit', { transaction_id_param: id });
         
