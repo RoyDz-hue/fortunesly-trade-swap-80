@@ -34,7 +34,7 @@ const Login = () => {
       await login(email, password);
       toast({
         title: "Login successful!",
-        description: "You will be redirected shortly.",
+        description: "loading...",
       });
     } catch (error) {
       if (error instanceof Error) {
