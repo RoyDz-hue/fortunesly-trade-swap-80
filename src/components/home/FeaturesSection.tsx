@@ -4,7 +4,7 @@ import { Wallet, ArrowLeftRight, PiggyBank } from "lucide-react";
 const features = [
   {
     title: "Deposit",
-    description: "Instantly deposit KES via PayHero API or cryptocurrencies with easy verification.",
+    description: "Instantly deposit KES or cryptocurrencies with easy verification.",
     icon: <PiggyBank className="w-10 h-10 text-fortunesly-primary" />,
   },
   {
