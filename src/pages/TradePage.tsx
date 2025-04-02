@@ -41,7 +41,8 @@ const TradePage = () => {
         symbol: coin.symbol,
         depositAddress: coin.deposit_address,
         deposit_address: coin.deposit_address,
-        image: coin.image || `https://via.placeholder.com/40/6E59A5/ffffff?text=${coin.symbol}`,
+        // Prioritize icon_url over image for better icon display
+        image: coin.icon_url || `https://via.placeholder.com/40/6E59A5/ffffff?text=${coin.symbol}`,
         icon_url: coin.icon_url,
         taxRate: 10
       })));
@@ -158,7 +159,7 @@ const TradePage = () => {
       try {
         const { data: buyData, error: buyError } = await supabase
           .from("orders")
-          .select("id, price, amount, currency")
+          .select("id, price, amount, currency, user_id, users(username)")
           .eq("type", "buy")
           .eq("status", "open")
           .order("price", { ascending: false })
@@ -168,7 +169,7 @@ const TradePage = () => {
         
         const { data: sellData, error: sellError } = await supabase
           .from("orders")
-          .select("id, price, amount, currency")
+          .select("id, price, amount, currency, user_id, users(username)")
           .eq("type", "sell")
           .eq("status", "open")
           .order("price", { ascending: true })
@@ -178,6 +179,8 @@ const TradePage = () => {
         
         const formattedBuyOrders = buyData?.map(order => ({
           id: order.id,
+          userId: order.user_id,
+          username: order.users?.username || 'Anonymous',
           price: parseFloat(order.price.toString()),
           amount: parseFloat(order.amount.toString()),
           total: parseFloat(order.price.toString()) * parseFloat(order.amount.toString())
@@ -185,6 +188,8 @@ const TradePage = () => {
         
         const formattedSellOrders = sellData?.map(order => ({
           id: order.id,
+          userId: order.user_id,
+          username: order.users?.username || 'Anonymous',
           price: parseFloat(order.price.toString()),
           amount: parseFloat(order.amount.toString()),
           total: parseFloat(order.price.toString()) * parseFloat(order.amount.toString())
@@ -215,12 +220,18 @@ const TradePage = () => {
     };
   }, []);
 
+  // Function to handle order selection for trading
+  const handleOrderSelect = (order: any, type: 'buy' | 'sell') => {
+    // Navigate to market page with selected order
+    window.location.href = `/market?orderId=${order.id}&type=${type}`;
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Trade</h1>
         <Button asChild variant="outline" className="flex gap-1 items-center">
-          <Link to="/market">
+          <Link to="/dashboard/market">
             View All Market Orders <ArrowRightCircle className="h-4 w-4 ml-1" />
           </Link>
         </Button>
@@ -241,6 +252,7 @@ const TradePage = () => {
                 tradingPair={selectedPair} 
                 buyOrders={buyOrders}
                 sellOrders={sellOrders}
+                onOrderSelect={handleOrderSelect}
               />
             </div>
             <div>

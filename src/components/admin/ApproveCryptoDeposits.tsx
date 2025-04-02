@@ -87,12 +87,17 @@ const ApproveCryptoDeposits = () => {
   const handleApprove = async (id: string) => {
     setProcessingId(id);
     try {
-      // Use correct RPC call syntax with proper type casting
+      // Call the approve_crypto_deposit function with proper type assertion
       const { data, error } = await supabase.rpc('approve_crypto_deposit', { 
         transaction_id_param: id 
       } as any);
-        
-      if (error) throw error;
+      
+      console.log("Approve response:", data);
+      
+      if (error) {
+        console.error("RPC error details:", error);
+        throw error;
+      }
       
       toast({
         title: "Deposit approved",
@@ -190,7 +195,11 @@ const ApproveCryptoDeposits = () => {
                       </TableCell>
                       <TableCell>
                         <Badge 
-                          variant="outline" 
+                          variant={
+                            deposit.status === "pending" ? "outline" : 
+                            deposit.status === "approved" ? "outline" : 
+                            "destructive"
+                          }
                           className={
                             deposit.status === "pending" ? "bg-yellow-50 text-yellow-800 border-yellow-200" :
                             deposit.status === "approved" ? "bg-green-50 text-green-800 border-green-200" :

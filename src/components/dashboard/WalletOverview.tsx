@@ -52,7 +52,7 @@ const WalletOverview = () => {
             name: coin.name,
             symbol: coin.symbol,
             depositAddress: coin.deposit_address,
-            image: coin.image || `https://via.placeholder.com/40/6E59A5/ffffff?text=${coin.symbol}`,
+            image: coin.icon_url || `https://via.placeholder.com/40/6E59A5/ffffff?text=${coin.symbol}`,
             taxRate: 10
           }));
           setAvailableCoins(formattedCoins);
@@ -308,6 +308,7 @@ const WalletOverview = () => {
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
                           target.src = `https://via.placeholder.com/32/6E59A5/ffffff?text=${wallet.currency}`;
+                          target.onerror = null;
                         }}
                       />
                     </div>

@@ -1,8 +1,8 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CreateOrderForm from "@/components/dashboard/CreateOrderForm";
 import { Coin } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
