@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const TradePage = () => {
   const [selectedPair, setSelectedPair] = useState({
-    baseCurrency: "BTC",
+    baseCurrency: "Coin,",
     quoteCurrency: "KES"
   });
   
