@@ -167,36 +167,10 @@ const CreateOrderForm = ({
       }
     }
     
-    // Check balances
-    if (orderType === 'buy') {
-      const totalCost = numericAmount * numericPrice;
-      const availableBalance = availableBalances['KES'] || 0;
-      
-      if (totalCost > availableBalance) {
-        toast({
-          title: "Insufficient balance",
-          description: `You need ${totalCost} KES but only have ${availableBalance} KES available`,
-          variant: "destructive",
-        });
-        return;
-      }
-    } else {
-      const availableBalance = availableBalances[baseCurrency] || 0;
-      
-      if (numericAmount > availableBalance) {
-        toast({
-          title: "Insufficient balance",
-          description: `You need ${numericAmount} ${baseCurrency} but only have ${availableBalance} ${baseCurrency} available`,
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-    
     setIsSubmitting(true);
     
     try {
-      // Try to create the order using rpc function that handles balance withholding
+      // Now we'll use the create_order database function that handles balance withholding
       const { data, error } = await supabase.rpc('create_order', {
         user_id_param: user.id,
         order_type_param: orderType,

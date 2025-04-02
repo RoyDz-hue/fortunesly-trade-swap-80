@@ -30,6 +30,7 @@ export type Database = {
       coins: {
         Row: {
           deposit_address: string
+          icon_url: string | null
           id: string
           image: string | null
           name: string
@@ -37,6 +38,7 @@ export type Database = {
         }
         Insert: {
           deposit_address: string
+          icon_url?: string | null
           id?: string
           image?: string | null
           name: string
@@ -44,6 +46,7 @@ export type Database = {
         }
         Update: {
           deposit_address?: string
+          icon_url?: string | null
           id?: string
           image?: string | null
           name?: string
@@ -206,7 +209,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_order: {
+        Args: {
+          user_id_param: string
+          order_type_param: string
+          currency_param: string
+          amount_param: number
+          price_param: number
+        }
+        Returns: string
+      }
+      execute_market_order: {
+        Args: {
+          order_id_param: string
+          trader_id_param: string
+          trade_amount_param: number
+        }
+        Returns: Json
+      }
     }
     Enums: {
       withdrawal_status: "pending" | "approved" | "rejected" | "forfeited"
