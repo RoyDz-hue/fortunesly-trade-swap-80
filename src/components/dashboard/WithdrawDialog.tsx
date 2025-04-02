@@ -35,10 +35,10 @@ const WithdrawDialog = ({ isOpen, onClose, currency, maxAmount, onSuccess }: Wit
       return;
     }
     
-    if (parsedAmount < 100) {
+    if (parsedAmount < 10) {
       toast({
         title: "Invalid amount",
-        description: "Minimum withdrawal amount is KES 100",
+        description: "Minimum withdrawal amount is KES 10",
         variant: "destructive",
       });
       return;
