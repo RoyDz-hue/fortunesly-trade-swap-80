@@ -13,6 +13,7 @@ const WithdrawalsPage = lazy(() => import("./WithdrawalsPage"));
 const TradingPairsPage = lazy(() => import("./admin/TradingPairsPage"));
 const SettingsPage = lazy(() => import("./admin/SettingsPage"));
 const TransactionsPage = lazy(() => import("./admin/TransactionsPage"));
+const MarketPage = lazy(() => import("./MarketPage"));
 
 // Loading fallback
 const PageLoader = () => (
@@ -50,6 +51,7 @@ const AdminDashboard = () => {
           <Route path="/transactions" element={<TransactionsPage />} />
           <Route path="/trading-pairs" element={<TradingPairsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/market" element={<MarketPage />} />
         </Routes>
       </Suspense>
     </AdminLayout>
