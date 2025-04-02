@@ -8,8 +8,8 @@ const DEFAULT_CREDENTIALS: PayHeroCredentials = {
 };
 
 // Default channel IDs (would be managed by admin in real app)
-const DEFAULT_DEPOSIT_CHANNEL_ID = 911;
-const DEFAULT_WITHDRAWAL_CHANNEL_ID = 12345;
+const DEFAULT_DEPOSIT_CHANNEL_ID = 1487;
+const DEFAULT_WITHDRAWAL_CHANNEL_ID = 1564;
 
 // Generate Basic Auth Token
 const getAuthToken = (credentials: PayHeroCredentials = DEFAULT_CREDENTIALS): string => {
