@@ -10,6 +10,7 @@ import {
   SheetContent, 
   SheetTrigger 
 } from "@/components/ui/sheet";
+import { ROUTES } from "@/utils/routeUtils";
 
 interface SidebarLinkProps {
   href: string;
@@ -45,10 +46,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const [isOpen, setIsOpen] = useState(false);
   
   const isActive = (path: string) => {
-    if (path === '/dashboard' && location.pathname === '/dashboard') {
+    if (path === ROUTES.DASHBOARD && location.pathname === ROUTES.DASHBOARD) {
       return true;
     }
-    if (path !== '/dashboard' && location.pathname.startsWith(path)) {
+    if (path !== ROUTES.DASHBOARD && location.pathname.startsWith(path)) {
       return true;
     }
     return false;
@@ -66,41 +67,41 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const renderNavLinks = (isMobile: boolean = false) => (
     <nav className="space-y-2">
       <SidebarLink 
-        href="/dashboard" 
+        href={ROUTES.DASHBOARD} 
         icon={<Home size={20} />} 
-        isActive={isActive('/dashboard')}
+        isActive={isActive(ROUTES.DASHBOARD)}
         onClick={isMobile ? closeMobileMenu : undefined}
       >
         Dashboard
       </SidebarLink>
       <SidebarLink 
-        href="/dashboard/wallet" 
+        href={ROUTES.DASHBOARD_WALLET} 
         icon={<Wallet size={20} />} 
-        isActive={isActive('/dashboard/wallet')}
+        isActive={isActive(ROUTES.DASHBOARD_WALLET)}
         onClick={isMobile ? closeMobileMenu : undefined}
       >
         Wallet
       </SidebarLink>
       <SidebarLink 
-        href="/dashboard/trade" 
+        href={ROUTES.DASHBOARD_TRADE} 
         icon={<ArrowLeftRight size={20} />} 
-        isActive={isActive('/dashboard/trade')}
+        isActive={isActive(ROUTES.DASHBOARD_TRADE)}
         onClick={isMobile ? closeMobileMenu : undefined}
       >
         Trade
       </SidebarLink>
       <SidebarLink 
-        href="/dashboard/orders" 
+        href={ROUTES.DASHBOARD_ORDERS} 
         icon={<ListOrdered size={20} />} 
-        isActive={isActive('/dashboard/orders')}
+        isActive={isActive(ROUTES.DASHBOARD_ORDERS)}
         onClick={isMobile ? closeMobileMenu : undefined}
       >
         Orders
       </SidebarLink>
       <SidebarLink 
-        href="/dashboard/settings" 
+        href={ROUTES.DASHBOARD_SETTINGS} 
         icon={<Settings size={20} />} 
-        isActive={isActive('/dashboard/settings')}
+        isActive={isActive(ROUTES.DASHBOARD_SETTINGS)}
         onClick={isMobile ? closeMobileMenu : undefined}
       >
         Settings

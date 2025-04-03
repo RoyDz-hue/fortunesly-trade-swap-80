@@ -48,6 +48,9 @@ function App() {
               <Route path="settings" element={<SettingsPage />} />
               <Route path="transactions" element={<TransactionsPage />} />
               <Route path="withdrawals" element={<MyWithdrawalsPage />} />
+              {/* Add missing routes for orders and trade inside dashboard */}
+              <Route path="orders" element={<OrdersPage />} />
+              <Route path="trade" element={<TradePage />} />
             </Route>
             
             {/* Trading routes */}

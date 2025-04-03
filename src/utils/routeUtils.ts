@@ -16,6 +16,8 @@ export const ROUTES = {
   DASHBOARD_SETTINGS: '/dashboard/settings',
   DASHBOARD_TRANSACTIONS: '/dashboard/transactions',
   DASHBOARD_WITHDRAWALS: '/dashboard/withdrawals',
+  DASHBOARD_ORDERS: '/dashboard/orders',     // Added dashboard orders route
+  DASHBOARD_TRADE: '/dashboard/trade',       // Added dashboard trade route
   
   // Trading
   ORDERS: '/orders',
