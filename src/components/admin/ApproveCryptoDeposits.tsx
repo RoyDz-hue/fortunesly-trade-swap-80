@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { ExternalLink, CheckCircle2, XCircle } from "lucide-react";
+import { ExternalLink, CheckCircle2, XCircle, Image, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import ImageWithFallback from "@/components/common/ImageWithFallback";
+import { updateUserCryptoBalance } from "@/utils/walletUtils";
 
 interface CryptoDepositRequest {
   id: string;
@@ -90,21 +91,41 @@ const ApproveCryptoDeposits = () => {
     try {
       console.log("Approving deposit with ID:", id);
       
-      // Call the approve_crypto_deposit function
-      const { data, error } = await supabase.rpc('approve_crypto_deposit', { 
-        transaction_id_param: id 
-      });
+      // First get the transaction details
+      const { data: transactionData, error: transactionError } = await supabase
+        .from("transactions")
+        .select("user_id, currency, amount")
+        .eq("id", id)
+        .single();
+        
+      if (transactionError) throw transactionError;
       
-      console.log("Approve response:", data);
+      console.log("Transaction to approve:", transactionData);
       
-      if (error) {
-        console.error("RPC error details:", error);
-        throw error;
+      // Manually update the user's crypto balance
+      const updateResult = await updateUserCryptoBalance(
+        transactionData.user_id,
+        transactionData.currency,
+        transactionData.amount
+      );
+      
+      if (!updateResult.success) {
+        throw new Error(updateResult.error || "Failed to update user balance");
       }
+      
+      console.log("Balance updated successfully:", updateResult);
+      
+      // Update transaction status to approved
+      const { error: statusError } = await supabase
+        .from("transactions")
+        .update({ status: "approved" })
+        .eq("id", id);
+        
+      if (statusError) throw statusError;
       
       toast({
         title: "Deposit approved",
-        description: "The crypto deposit has been approved and funds have been added to the user's wallet",
+        description: `${transactionData.amount} ${transactionData.currency} has been added to the user's wallet`,
       });
       
       fetchDeposits();
@@ -198,14 +219,31 @@ const ApproveCryptoDeposits = () => {
                       <TableCell>{new Date(deposit.created_at).toLocaleDateString()}</TableCell>
                       <TableCell>
                         {deposit.proof ? (
-                          <Button 
-                            variant="link" 
-                            className="p-0 h-auto"
-                            onClick={() => setSelectedProof(deposit.proof)}
-                          >
-                            <ExternalLink size={16} className="mr-1" /> 
-                            View Proof
-                          </Button>
+                          <div className="flex items-center space-x-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="p-1 h-auto"
+                              onClick={() => setSelectedProof(deposit.proof)}
+                            >
+                              <Image size={16} className="mr-1" /> 
+                              View Proof
+                            </Button>
+                            {/* Thumbnail preview */}
+                            {deposit.proof && (
+                              <div 
+                                className="w-10 h-10 rounded border overflow-hidden cursor-pointer"
+                                onClick={() => setSelectedProof(deposit.proof)}
+                              >
+                                <ImageWithFallback
+                                  src={deposit.proof}
+                                  alt="Proof thumbnail"
+                                  className="w-full h-full object-cover"
+                                  fallbackSrc="/placeholder.svg"
+                                />
+                              </div>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-gray-500 text-sm">No proof</span>
                         )}
@@ -236,7 +274,11 @@ const ApproveCryptoDeposits = () => {
                               onClick={() => handleApprove(deposit.id)}
                               disabled={processingId === deposit.id}
                             >
-                              <CheckCircle2 size={16} className="mr-1" />
+                              {processingId === deposit.id ? (
+                                <Loader2 size={16} className="mr-1 animate-spin" />
+                              ) : (
+                                <CheckCircle2 size={16} className="mr-1" />
+                              )}
                               Approve
                             </Button>
                             <Button 
@@ -246,7 +288,11 @@ const ApproveCryptoDeposits = () => {
                               onClick={() => handleReject(deposit.id)}
                               disabled={processingId === deposit.id}
                             >
-                              <XCircle size={16} className="mr-1" />
+                              {processingId === deposit.id ? (
+                                <Loader2 size={16} className="mr-1 animate-spin" />
+                              ) : (
+                                <XCircle size={16} className="mr-1" />
+                              )}
                               Reject
                             </Button>
                           </div>
@@ -272,12 +318,14 @@ const ApproveCryptoDeposits = () => {
           
           {selectedProof && (
             <div className="flex justify-center">
-              <ImageWithFallback
-                src={selectedProof}
-                alt="Transaction Proof"
-                className="max-h-[70vh] object-contain"
-                fallbackSrc="/placeholder.svg"
-              />
+              <div className="max-h-[70vh] w-full relative">
+                <ImageWithFallback
+                  src={selectedProof}
+                  alt="Transaction Proof"
+                  className="max-h-[70vh] max-w-full object-contain mx-auto"
+                  fallbackSrc="/placeholder.svg"
+                />
+              </div>
             </div>
           )}
         </DialogContent>
