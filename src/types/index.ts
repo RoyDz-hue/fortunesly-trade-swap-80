@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   username: string;
@@ -7,6 +6,7 @@ export interface User {
   createdAt?: string;
   updatedAt?: string;
   status?: 'active' | 'suspended';
+  avatarUrl?: string; // Adding avatarUrl property
 }
 
 export interface Wallet {

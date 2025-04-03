@@ -30,7 +30,7 @@ export const updateUserCryptoBalance = async (
     
     // Create updated balance object
     const updatedBalance = {
-      ...balances,
+      ...(typeof balances === 'object' ? balances : {}),
       [currency]: newBalance
     };
 

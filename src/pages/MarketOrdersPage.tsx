@@ -84,9 +84,9 @@ const MarketOrdersPage = () => {
       console.log("Fetched orders:", data);
       
       // Format the data and safely type cast
-      const formattedOrders = data.map((order: OrderResponse) => ({
+      const formattedOrders: Order[] = data.map((order: OrderResponse) => ({
         id: order.id,
-        type: order.type === 'buy' || order.type === 'sell' ? order.type : 'buy', // Default to 'buy' if invalid
+        type: order.type === 'sell' ? 'sell' : 'buy',
         currency: order.currency,
         amount: order.amount,
         price: order.price,
