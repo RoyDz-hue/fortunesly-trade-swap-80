@@ -248,6 +248,11 @@ const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDeposit
                     src={previewUrl} 
                     alt="Proof preview" 
                     className="w-full object-contain"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.onerror = null;
+                      target.src = '/placeholder.svg';
+                    }}
                   />
                 </div>
               </div>

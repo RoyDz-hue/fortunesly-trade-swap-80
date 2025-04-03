@@ -119,8 +119,11 @@ const ApproveWithdrawals = () => {
     setIsSubmitting(true);
     
     try {
+      console.log(`Executing ${actionType} action on withdrawal:`, selectedWithdrawal);
+      
       const finalStatus = mapActionToStatus(actionType);
       
+      // Update withdrawal status
       const { error: updateError } = await supabase
         .from('withdrawals')
         .update({ status: finalStatus })
@@ -129,42 +132,82 @@ const ApproveWithdrawals = () => {
       if (updateError) throw updateError;
       
       if (actionType === "reject") {
+        console.log("Refunding rejected withdrawal to user");
+        
+        // Get user's current balance data
         const { data: userData, error: userError } = await supabase
           .from('users')
           .select('balance_crypto, balance_fiat')
           .eq('id', selectedWithdrawal.userId)
           .single();
           
-        if (userError) throw userError;
+        if (userError) {
+          console.error("Error fetching user data:", userError);
+          throw userError;
+        }
+        
+        console.log("User data for refund:", userData);
         
         if (selectedWithdrawal.currency === "KES") {
+          // Handle KES refund
           const currentBalance = userData.balance_fiat || 0;
           const newBalance = currentBalance + selectedWithdrawal.amount;
+          
+          console.log(`Updating KES balance: ${currentBalance} + ${selectedWithdrawal.amount} = ${newBalance}`);
           
           const { error: balanceError } = await supabase
             .from('users')
             .update({ balance_fiat: newBalance })
             .eq('id', selectedWithdrawal.userId);
             
-          if (balanceError) throw balanceError;
+          if (balanceError) {
+            console.error("Error updating fiat balance:", balanceError);
+            throw balanceError;
+          }
         } else {
+          // Handle crypto refund
           let currentBalances = userData.balance_crypto || {};
           
           if (!currentBalances[selectedWithdrawal.currency]) {
             currentBalances[selectedWithdrawal.currency] = 0;
           }
           
-          currentBalances[selectedWithdrawal.currency] += selectedWithdrawal.amount;
+          const currentAmount = parseFloat(currentBalances[selectedWithdrawal.currency]) || 0;
+          const newAmount = currentAmount + selectedWithdrawal.amount;
+          currentBalances[selectedWithdrawal.currency] = newAmount;
+          
+          console.log(`Updating ${selectedWithdrawal.currency} balance: ${currentAmount} + ${selectedWithdrawal.amount} = ${newAmount}`);
+          console.log("New crypto balances:", currentBalances);
           
           const { error: balanceError } = await supabase
             .from('users')
             .update({ balance_crypto: currentBalances })
             .eq('id', selectedWithdrawal.userId);
             
-          if (balanceError) throw balanceError;
+          if (balanceError) {
+            console.error("Error updating crypto balance:", balanceError);
+            throw balanceError;
+          }
+        }
+        
+        // Create transaction record for the refund
+        const { error: txError } = await supabase
+          .from('transactions')
+          .insert({
+            user_id: selectedWithdrawal.userId,
+            type: 'withdrawal_refund',
+            currency: selectedWithdrawal.currency,
+            amount: selectedWithdrawal.amount,
+            status: 'approved'
+          });
+          
+        if (txError) {
+          console.error("Error creating refund transaction:", txError);
+          // Non-critical error, continue
         }
       }
       
+      // Remove the processed withdrawal from the UI
       setWithdrawals(withdrawals.filter(w => w.id !== selectedWithdrawal.id));
       setIsActionDialogOpen(false);
       setSelectedWithdrawal(null);
@@ -174,11 +217,11 @@ const ApproveWithdrawals = () => {
         description: `The withdrawal has been ${finalStatus}${actionType === "reject" ? " and funds have been refunded to the user" : ""}`
       });
       
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error ${actionType}ing withdrawal:`, error);
       toast({
         title: "Error",
-        description: `Failed to ${actionType} withdrawal`,
+        description: error.message || `Failed to ${actionType} withdrawal`,
         variant: "destructive"
       });
     } finally {

@@ -87,6 +87,8 @@ const ApproveCryptoDeposits = () => {
   const handleApprove = async (id: string) => {
     setProcessingId(id);
     try {
+      console.log("Approving deposit with ID:", id);
+      
       // Call the approve_crypto_deposit function with proper type assertion
       const { data, error } = await supabase.rpc('approve_crypto_deposit', { 
         transaction_id_param: id 
@@ -120,6 +122,20 @@ const ApproveCryptoDeposits = () => {
   const handleReject = async (id: string) => {
     setProcessingId(id);
     try {
+      console.log("Rejecting deposit with ID:", id);
+      
+      // First get the transaction details to know which user and amount to refund
+      const { data: transactionData, error: transactionError } = await supabase
+        .from("transactions")
+        .select("user_id, currency, amount")
+        .eq("id", id)
+        .single();
+        
+      if (transactionError) throw transactionError;
+      
+      console.log("Transaction to reject:", transactionData);
+      
+      // Update transaction status to rejected
       const { error } = await supabase
         .from("transactions")
         .update({ status: "rejected" })
@@ -133,11 +149,11 @@ const ApproveCryptoDeposits = () => {
       });
       
       fetchDeposits();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error rejecting deposit:", error);
       toast({
         title: "Failed to reject deposit",
-        description: "There was an error rejecting the deposit",
+        description: error.message || "There was an unexpected error",
         variant: "destructive"
       });
     } finally {
@@ -259,6 +275,12 @@ const ApproveCryptoDeposits = () => {
                 src={selectedProof} 
                 alt="Transaction Proof" 
                 className="max-h-[70vh] object-contain"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.onerror = null;
+                  target.src = '/placeholder.svg';
+                  console.error("Failed to load image:", selectedProof);
+                }}
               />
             </div>
           )}

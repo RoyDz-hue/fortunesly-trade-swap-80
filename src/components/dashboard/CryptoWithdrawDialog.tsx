@@ -86,14 +86,19 @@ const CryptoWithdrawDialog = ({ isOpen, onClose, coin, maxAmount, onSuccess }: C
     setIsLoading(true);
     
     try {
-      // 1. Deduct amount from user's crypto balance
+      console.log(`Initiating withdrawal of ${parsedAmount} ${coin.symbol} to address ${withdrawalAddress}`);
+      
+      // 1. Get current user crypto balance
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('balance_crypto')
         .eq('id', user.id)
         .single();
         
-      if (userError) throw userError;
+      if (userError) {
+        console.error("Error fetching user data:", userError);
+        throw userError;
+      }
       
       const cryptoBalances = userData.balance_crypto || {};
       
@@ -110,10 +115,13 @@ const CryptoWithdrawDialog = ({ isOpen, onClose, coin, maxAmount, onSuccess }: C
         .update({ balance_crypto: cryptoBalances })
         .eq('id', user.id);
         
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error("Error updating user balance:", updateError);
+        throw updateError;
+      }
       
       // 2. Create withdrawal record
-      const { error: withdrawalError } = await supabase
+      const { data: withdrawalData, error: withdrawalError } = await supabase
         .from('withdrawals')
         .insert({
           user_id: user.id,
@@ -121,22 +129,35 @@ const CryptoWithdrawDialog = ({ isOpen, onClose, coin, maxAmount, onSuccess }: C
           amount: netAmount,
           user_address: withdrawalAddress,
           status: 'pending'
-        });
+        })
+        .select();
         
-      if (withdrawalError) throw withdrawalError;
+      if (withdrawalError) {
+        console.error("Error creating withdrawal record:", withdrawalError);
+        throw withdrawalError;
+      }
+      
+      console.log("Created withdrawal record:", withdrawalData);
       
       // 3. Create transaction record for tracking
-      const { error: txnError } = await supabase
+      const { data: txnData, error: txnError } = await supabase
         .from('transactions')
         .insert({
           user_id: user.id,
           type: 'withdrawal',
           currency: coin.symbol,
           amount: parsedAmount,
-          status: 'pending'
-        });
+          status: 'pending',
+          withdrawal_address: withdrawalAddress
+        })
+        .select();
         
-      if (txnError) throw txnError;
+      if (txnError) {
+        console.error("Error creating transaction record:", txnError);
+        throw txnError;
+      }
+      
+      console.log("Created transaction record:", txnData);
       
       toast({
         title: "Withdrawal request submitted",
@@ -149,11 +170,11 @@ const CryptoWithdrawDialog = ({ isOpen, onClose, coin, maxAmount, onSuccess }: C
       onClose();
       setAmount("");
       setWithdrawalAddress("");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Withdrawal error:", error);
       toast({
         title: "Request failed",
-        description: "An error occurred while submitting your withdrawal request",
+        description: error.message || "An error occurred while submitting your withdrawal request",
         variant: "destructive",
       });
     } finally {
