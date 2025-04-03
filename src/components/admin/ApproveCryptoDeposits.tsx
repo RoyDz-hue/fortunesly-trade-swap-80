@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ExternalLink, CheckCircle2, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import ImageWithFallback from "@/components/common/ImageWithFallback";
 
 interface CryptoDepositRequest {
   id: string;
@@ -89,10 +89,10 @@ const ApproveCryptoDeposits = () => {
     try {
       console.log("Approving deposit with ID:", id);
       
-      // Call the approve_crypto_deposit function with proper type assertion
+      // Call the approve_crypto_deposit function with proper type casting
       const { data, error } = await supabase.rpc('approve_crypto_deposit', { 
         transaction_id_param: id 
-      } as any);
+      }) as any;
       
       console.log("Approve response:", data);
       
@@ -271,16 +271,11 @@ const ApproveCryptoDeposits = () => {
           
           {selectedProof && (
             <div className="flex justify-center">
-              <img 
-                src={selectedProof} 
-                alt="Transaction Proof" 
+              <ImageWithFallback
+                src={selectedProof}
+                alt="Transaction Proof"
                 className="max-h-[70vh] object-contain"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.onerror = null;
-                  target.src = '/placeholder.svg';
-                  console.error("Failed to load image:", selectedProof);
-                }}
+                fallbackSrc="/placeholder.svg"
               />
             </div>
           )}

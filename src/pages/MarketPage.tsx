@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getTradeRoute, ROUTES } from "@/utils/routeUtils";
+import ImageWithFallback from "@/components/common/ImageWithFallback";
 
 interface Coin {
   id: string;
@@ -50,7 +52,7 @@ const MarketPage = () => {
   );
   
   const handleGoToTrade = (coinId: string) => {
-    navigate(`/trade/${coinId}`);
+    navigate(getTradeRoute(coinId));
   };
   
   return (
@@ -73,7 +75,7 @@ const MarketPage = () => {
           </div>
           
           <Button 
-            onClick={() => navigate("/market/orders")}
+            onClick={() => navigate(ROUTES.MARKET_ORDERS)}
             variant="outline"
           >
             View All Market Orders
@@ -118,15 +120,10 @@ const MarketPage = () => {
                         <TableCell>
                           <div className="flex items-center gap-3">
                             {coin.icon_url ? (
-                              <img 
-                                src={coin.icon_url} 
-                                alt={coin.symbol} 
+                              <ImageWithFallback
+                                src={coin.icon_url}
+                                alt={coin.symbol}
                                 className="w-8 h-8 rounded-full"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.onerror = null;
-                                  target.src = '/placeholder.svg';
-                                }}
                               />
                             ) : (
                               <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
@@ -162,7 +159,7 @@ const MarketPage = () => {
         </CardContent>
         <CardFooter className="flex justify-center border-t pt-6">
           <Button 
-            onClick={() => navigate("/market/orders")}
+            onClick={() => navigate(ROUTES.MARKET_ORDERS)}
             variant="secondary"
           >
             View All Market Orders

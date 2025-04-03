@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,6 +21,20 @@ interface Order {
   created_at: string;
   user_id: string;
   username?: string;
+}
+
+interface OrderResponse {
+  id: string;
+  type: string;
+  currency: string;
+  amount: number;
+  price: number;
+  status: string | null;
+  created_at: string | null;
+  user_id: string | null;
+  users: {
+    username: string;
+  };
 }
 
 const MarketOrdersPage = () => {
@@ -70,9 +83,16 @@ const MarketOrdersPage = () => {
       
       console.log("Fetched orders:", data);
       
-      // Format the data
-      const formattedOrders = data.map(order => ({
-        ...order,
+      // Format the data and safely type cast
+      const formattedOrders = data.map((order: OrderResponse) => ({
+        id: order.id,
+        type: order.type === 'buy' || order.type === 'sell' ? order.type : 'buy', // Default to 'buy' if invalid
+        currency: order.currency,
+        amount: order.amount,
+        price: order.price,
+        status: (order.status as 'open' | 'filled' | 'cancelled' | 'partially_filled') || 'open',
+        created_at: order.created_at || new Date().toISOString(),
+        user_id: order.user_id || '',
         username: order.users?.username
       }));
       

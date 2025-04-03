@@ -24,7 +24,7 @@ import AdminTransactionsPage from "./pages/admin/TransactionsPage";
 import DepositsPage from "./pages/admin/DepositsPage";
 import MarketOrdersPage from "./pages/MarketOrdersPage";
 import MyWithdrawalsPage from "./pages/MyWithdrawalsPage";
-import { AuthProvider } from "./context/AuthContext";
+import AuthProvider from "./context/AuthContext";
 import NotFound from "./pages/NotFound";
 import './App.css'
 

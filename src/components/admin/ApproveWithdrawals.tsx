@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -8,14 +7,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { Check, X, Copy, AlertTriangle } from "lucide-react";
+import { updateUserCryptoBalance, updateUserFiatBalance } from "@/utils/walletUtils";
 
-// Define withdrawal status types
 type WithdrawalStatus = 'pending' | 'approved' | 'rejected' | 'forfeited';
 
-// Define action types and their mapping to the database enum values
 type WithdrawalAction = "approve" | "reject" | "forfeit";
 
-// Map UI action to database status
 const mapActionToStatus = (action: WithdrawalAction): WithdrawalStatus => {
   switch(action) {
     case "approve": return "approved";
@@ -48,7 +45,6 @@ const ApproveWithdrawals = () => {
   useEffect(() => {
     fetchWithdrawals();
     
-    // Set up realtime subscription for withdrawals
     const channel = supabase
       .channel('admin-withdrawals-changes')
       .on(
@@ -123,7 +119,6 @@ const ApproveWithdrawals = () => {
       
       const finalStatus = mapActionToStatus(actionType);
       
-      // Update withdrawal status
       const { error: updateError } = await supabase
         .from('withdrawals')
         .update({ status: finalStatus })
@@ -134,63 +129,23 @@ const ApproveWithdrawals = () => {
       if (actionType === "reject") {
         console.log("Refunding rejected withdrawal to user");
         
-        // Get user's current balance data
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('balance_crypto, balance_fiat')
-          .eq('id', selectedWithdrawal.userId)
-          .single();
-          
-        if (userError) {
-          console.error("Error fetching user data:", userError);
-          throw userError;
-        }
-        
-        console.log("User data for refund:", userData);
-        
+        let updateResult;
         if (selectedWithdrawal.currency === "KES") {
-          // Handle KES refund
-          const currentBalance = userData.balance_fiat || 0;
-          const newBalance = currentBalance + selectedWithdrawal.amount;
-          
-          console.log(`Updating KES balance: ${currentBalance} + ${selectedWithdrawal.amount} = ${newBalance}`);
-          
-          const { error: balanceError } = await supabase
-            .from('users')
-            .update({ balance_fiat: newBalance })
-            .eq('id', selectedWithdrawal.userId);
-            
-          if (balanceError) {
-            console.error("Error updating fiat balance:", balanceError);
-            throw balanceError;
-          }
+          updateResult = await updateUserFiatBalance(selectedWithdrawal.userId, selectedWithdrawal.amount);
         } else {
-          // Handle crypto refund
-          let currentBalances = userData.balance_crypto || {};
-          
-          if (!currentBalances[selectedWithdrawal.currency]) {
-            currentBalances[selectedWithdrawal.currency] = 0;
-          }
-          
-          const currentAmount = parseFloat(currentBalances[selectedWithdrawal.currency]) || 0;
-          const newAmount = currentAmount + selectedWithdrawal.amount;
-          currentBalances[selectedWithdrawal.currency] = newAmount;
-          
-          console.log(`Updating ${selectedWithdrawal.currency} balance: ${currentAmount} + ${selectedWithdrawal.amount} = ${newAmount}`);
-          console.log("New crypto balances:", currentBalances);
-          
-          const { error: balanceError } = await supabase
-            .from('users')
-            .update({ balance_crypto: currentBalances })
-            .eq('id', selectedWithdrawal.userId);
-            
-          if (balanceError) {
-            console.error("Error updating crypto balance:", balanceError);
-            throw balanceError;
-          }
+          updateResult = await updateUserCryptoBalance(
+            selectedWithdrawal.userId, 
+            selectedWithdrawal.currency, 
+            selectedWithdrawal.amount
+          );
         }
         
-        // Create transaction record for the refund
+        if (!updateResult.success) {
+          throw new Error(`Failed to update user's ${selectedWithdrawal.currency} balance: ${updateResult.error}`);
+        }
+        
+        console.log(`Successfully refunded ${selectedWithdrawal.amount} ${selectedWithdrawal.currency} to user ${selectedWithdrawal.userId}`);
+        
         const { error: txError } = await supabase
           .from('transactions')
           .insert({
@@ -207,7 +162,6 @@ const ApproveWithdrawals = () => {
         }
       }
       
-      // Remove the processed withdrawal from the UI
       setWithdrawals(withdrawals.filter(w => w.id !== selectedWithdrawal.id));
       setIsActionDialogOpen(false);
       setSelectedWithdrawal(null);
