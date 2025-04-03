@@ -25,7 +25,7 @@ export const updateUserCryptoBalance = async (
 
     // Parse and update the balance
     const balances = userData.balance_crypto || {};
-    const currentBalance = parseFloat(balances[currency]) || 0;
+    const currentBalance = parseFloat(String(balances[currency])) || 0;
     const newBalance = currentBalance + amount;
     
     // Create updated balance object
@@ -122,7 +122,7 @@ export const getUserCryptoBalance = async (userId: string, currency: string) => 
     if (error) throw error;
 
     const balances = data.balance_crypto || {};
-    return parseFloat(balances[currency]) || 0;
+    return parseFloat(String(balances[currency])) || 0;
   } catch (error) {
     console.error(`Error getting ${currency} balance for user ${userId}:`, error);
     return null;

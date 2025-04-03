@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,20 +22,6 @@ interface Order {
   created_at: string;
   user_id: string;
   username?: string;
-}
-
-interface OrderResponse {
-  id: string;
-  type: string;
-  currency: string;
-  amount: number;
-  price: number;
-  status: string | null;
-  created_at: string | null;
-  user_id: string | null;
-  users: {
-    username: string;
-  };
 }
 
 const MarketOrdersPage = () => {
@@ -84,7 +71,7 @@ const MarketOrdersPage = () => {
       console.log("Fetched orders:", data);
       
       // Format the data and safely type cast
-      const formattedOrders: Order[] = data.map((order: OrderResponse) => ({
+      const formattedOrders: Order[] = data.map((order: any) => ({
         id: order.id,
         type: order.type === 'sell' ? 'sell' : 'buy',
         currency: order.currency,
@@ -163,7 +150,7 @@ const MarketOrdersPage = () => {
           order_id_param: selectedOrder.id,
           trader_id_param: user.id,
           trade_amount_param: parsedAmount
-        } as any
+        }
       );
       
       if (error) {
@@ -216,15 +203,15 @@ const MarketOrdersPage = () => {
             </TabsList>
             
             <TabsContent value="all">
-              {renderOrdersTable(orders, openTradeDialog, isLoading)}
+              {renderOrdersTable(orders, openTradeDialog, isLoading, user)}
             </TabsContent>
             
             <TabsContent value="buy">
-              {renderOrdersTable(orders.filter(order => order.type === 'buy'), openTradeDialog, isLoading)}
+              {renderOrdersTable(orders.filter(order => order.type === 'buy'), openTradeDialog, isLoading, user)}
             </TabsContent>
             
             <TabsContent value="sell">
-              {renderOrdersTable(orders.filter(order => order.type === 'sell'), openTradeDialog, isLoading)}
+              {renderOrdersTable(orders.filter(order => order.type === 'sell'), openTradeDialog, isLoading, user)}
             </TabsContent>
           </Tabs>
         </CardContent>
@@ -349,10 +336,9 @@ const MarketOrdersPage = () => {
 const renderOrdersTable = (
   orders: Order[], 
   onTradeClick: (order: Order) => void,
-  isLoading: boolean
+  isLoading: boolean,
+  currentUser: any
 ) => {
-  const { user } = useAuth();
-  
   if (isLoading) {
     return (
       <div className="text-center py-8">
@@ -387,7 +373,7 @@ const renderOrdersTable = (
         </TableHeader>
         <TableBody>
           {orders.map((order) => {
-            const isOwnOrder = user && order.user_id === user.id;
+            const isOwnOrder = currentUser && order.user_id === currentUser.id;
             
             return (
               <TableRow key={order.id}>

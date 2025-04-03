@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -89,10 +90,10 @@ const ApproveCryptoDeposits = () => {
     try {
       console.log("Approving deposit with ID:", id);
       
-      // Call the approve_crypto_deposit function with proper type casting
+      // Call the approve_crypto_deposit function
       const { data, error } = await supabase.rpc('approve_crypto_deposit', { 
         transaction_id_param: id 
-      }) as any;
+      });
       
       console.log("Approve response:", data);
       
