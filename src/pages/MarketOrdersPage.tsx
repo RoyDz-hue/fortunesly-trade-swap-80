@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -130,6 +129,44 @@ const MarketOrdersPage = () => {
     }
   };
   
+  const executeTrade = async (orderId: string, type: 'buy' | 'sell', amount: number) => {
+    if (!user) return;
+    
+    try {
+      setIsProcessing(true);
+      
+      // Call your trade execution API or Supabase function
+      const { data, error } = await supabase
+        .from('orders')
+        .update({ 
+          status: 'filled',
+          filled_at: new Date().toISOString(),
+          filled_by: user.id,
+          filled_amount: amount
+        })
+        .eq('id', orderId);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Trade executed successfully",
+        description: `Your ${type} order has been filled`
+      });
+      
+      // Refresh orders
+      fetchOrders();
+      
+    } catch (error) {
+      toast({
+        title: "Trade failed",
+        description: "Failed to execute trade. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  
   const executeTradeTransaction = async () => {
     if (!user || !selectedOrder) return;
     
@@ -152,7 +189,12 @@ const MarketOrdersPage = () => {
         amount: parsedAmount
       });
       
-      // Execute the market order
+      // Execute the market order using the new executeTrade function
+      await executeTrade(selectedOrder.id, selectedOrder.type, parsedAmount);
+      
+      // If we want to maintain compatibility with the RPC function shown earlier:
+      // Uncomment this and comment out the executeTrade call above if you want to use RPC
+      /*
       const { data, error } = await supabase.rpc(
         'execute_market_order',
         {
@@ -168,6 +210,7 @@ const MarketOrdersPage = () => {
       }
       
       console.log("Trade execution result:", data);
+      */
       
       toast({
         title: "Trade Executed Successfully",
