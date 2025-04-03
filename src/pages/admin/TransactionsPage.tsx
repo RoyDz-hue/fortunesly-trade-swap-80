@@ -221,6 +221,7 @@ const TransactionsPage = () => {
                         <TableHead>Type</TableHead>
                         <TableHead>Currency</TableHead>
                         <TableHead>Amount</TableHead>
+                        <TableHead>Proof</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
