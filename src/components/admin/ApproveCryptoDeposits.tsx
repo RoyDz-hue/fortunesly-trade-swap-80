@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,30 +28,22 @@ const ApproveCryptoDeposits = () => {
   const [selectedProof, setSelectedProof] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
+  // Fetch deposits and set up real-time updates
   useEffect(() => {
     fetchDeposits();
     
-    // Setup real-time updates
     const channel = supabase
       .channel("admin-deposits")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "transactions" },
-        () => {
-          fetchDeposits();
-        }
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, fetchDeposits)
       .subscribe();
-      
-    return () => {
-      supabase.removeChannel(channel);
-    };
+
+    return () => supabase.removeChannel(channel);
   }, []);
 
+  // Fetch crypto deposit transactions with user info
   const fetchDeposits = async () => {
     setIsLoading(true);
     try {
-      // Fetch crypto deposit transactions with user info
       const { data, error } = await supabase
         .from("transactions")
         .select("*, users(username)")
@@ -61,8 +52,8 @@ const ApproveCryptoDeposits = () => {
 
       if (error) throw error;
 
-      // Map to our interface
-      const depositRequests = data.map((item) => ({
+      // Map to interface
+      setDeposits(data.map(item => ({
         id: item.id,
         user_id: item.user_id,
         amount: item.amount,
@@ -71,9 +62,7 @@ const ApproveCryptoDeposits = () => {
         created_at: item.created_at,
         proof: item.proof,
         username: item.users?.username
-      }));
-
-      setDeposits(depositRequests);
+      })));
     } catch (error) {
       console.error("Error fetching deposits:", error);
       toast({
@@ -86,54 +75,60 @@ const ApproveCryptoDeposits = () => {
     }
   };
 
+  // Process deposit approval
   const handleApprove = async (id: string) => {
     setProcessingId(id);
     try {
-      console.log("Approving deposit with ID:", id);
-      
-      // First get the transaction details
-      const { data: transactionData, error: transactionError } = await supabase
+      // Start a Supabase transaction
+      const { data: transaction, error: txError } = await supabase
         .from("transactions")
-        .select("user_id, currency, amount")
+        .select("*, users(id, balance_crypto)")
         .eq("id", id)
         .single();
-        
-      if (transactionError) throw transactionError;
-      
-      console.log("Transaction to approve:", transactionData);
-      
-      // Manually update the user's crypto balance
-      const updateResult = await updateUserCryptoBalance(
-        transactionData.user_id,
-        transactionData.currency,
-        transactionData.amount
-      );
-      
-      if (!updateResult.success) {
-        throw new Error(updateResult.error || "Failed to update user balance");
+
+      if (txError) throw txError;
+      if (!transaction) throw new Error("Transaction not found");
+
+      // Check if already approved
+      if (transaction.status === "approved") {
+        throw new Error("Transaction already approved");
       }
-      
-      console.log("Balance updated successfully:", updateResult);
-      
-      // Update transaction status to approved
+
+      // Update the user's crypto balance first
+      const { success: balanceUpdateSuccess, error: balanceError } = await updateUserCryptoBalance(
+        transaction.user_id,
+        transaction.currency,
+        transaction.amount
+      );
+
+      if (!balanceUpdateSuccess || balanceError) {
+        throw new Error(balanceError || "Failed to update balance");
+      }
+
+      // If balance update was successful, update transaction status
       const { error: statusError } = await supabase
         .from("transactions")
-        .update({ status: "approved" })
+        .update({ 
+          status: "approved",
+          updated_at: new Date().toISOString()
+        })
         .eq("id", id);
-        
+
       if (statusError) throw statusError;
-      
+
       toast({
-        title: "Deposit approved",
-        description: `${transactionData.amount} ${transactionData.currency} has been added to the user's wallet`,
+        title: "Deposit approved successfully",
+        description: `${transaction.amount} ${transaction.currency} has been credited to the user's wallet`,
       });
-      
+
+      // Refresh the deposits list
       fetchDeposits();
+
     } catch (error: any) {
       console.error("Error approving deposit:", error);
       toast({
         title: "Failed to approve deposit",
-        description: error.message || "There was an unexpected error",
+        description: error.message || "An unexpected error occurred",
         variant: "destructive"
       });
     } finally {
@@ -141,35 +136,32 @@ const ApproveCryptoDeposits = () => {
     }
   };
 
+  // Process deposit rejection
   const handleReject = async (id: string) => {
     setProcessingId(id);
     try {
-      console.log("Rejecting deposit with ID:", id);
-      
-      // First get the transaction details to know which user and amount to refund
-      const { data: transactionData, error: transactionError } = await supabase
+      // Get transaction details
+      const { data: tx, error: txError } = await supabase
         .from("transactions")
         .select("user_id, currency, amount")
         .eq("id", id)
         .single();
-        
-      if (transactionError) throw transactionError;
-      
-      console.log("Transaction to reject:", transactionData);
-      
-      // Update transaction status to rejected
+
+      if (txError) throw txError;
+
+      // Update transaction status
       const { error } = await supabase
         .from("transactions")
         .update({ status: "rejected" })
         .eq("id", id);
-        
+
       if (error) throw error;
-      
+
       toast({
         title: "Deposit rejected",
         description: "The crypto deposit has been rejected",
       });
-      
+
       fetchDeposits();
     } catch (error: any) {
       console.error("Error rejecting deposit:", error);
@@ -183,10 +175,58 @@ const ApproveCryptoDeposits = () => {
     }
   };
 
+  // Helper function to render status badge with appropriate styling
+  const renderStatusBadge = (status) => {
+    const styles = {
+      pending: "bg-yellow-50 text-yellow-800 border-yellow-200",
+      approved: "bg-green-50 text-green-800 border-green-200",
+      rejected: "bg-red-50 text-red-800 border-red-200"
+    };
+    
+    return (
+      <Badge 
+        variant="outline"
+        className={styles[status] || ""}
+      >
+        {status.charAt(0).toUpperCase() + status.slice(1)}
+      </Badge>
+    );
+  };
+
+  // Render proof thumbnail and view button
+  const renderProofCell = (proof) => {
+    if (!proof) return <span className="text-gray-500 text-sm">No proof</span>;
+    
+    return (
+      <div className="flex items-center space-x-2">
+        <Button 
+          variant="outline" 
+          size="sm"
+          className="p-1 h-auto"
+          onClick={() => setSelectedProof(proof)}
+        >
+          <Image size={16} className="mr-1" /> 
+          View Proof
+        </Button>
+        <div 
+          className="w-10 h-10 rounded border overflow-hidden cursor-pointer"
+          onClick={() => setSelectedProof(proof)}
+        >
+          <ImageWithFallback
+            src={proof}
+            alt="Proof thumbnail"
+            className="w-full h-full object-cover"
+            fallbackSrc="/placeholder.svg"
+          />
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Crypto Deposit Approvals</h1>
-      
+
       <Card>
         <CardHeader>
           <CardTitle>Pending Approvals</CardTitle>
@@ -217,53 +257,8 @@ const ApproveCryptoDeposits = () => {
                       <TableCell>{deposit.currency}</TableCell>
                       <TableCell>{deposit.amount.toFixed(6)}</TableCell>
                       <TableCell>{new Date(deposit.created_at).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        {deposit.proof ? (
-                          <div className="flex items-center space-x-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="p-1 h-auto"
-                              onClick={() => setSelectedProof(deposit.proof)}
-                            >
-                              <Image size={16} className="mr-1" /> 
-                              View Proof
-                            </Button>
-                            {/* Thumbnail preview */}
-                            {deposit.proof && (
-                              <div 
-                                className="w-10 h-10 rounded border overflow-hidden cursor-pointer"
-                                onClick={() => setSelectedProof(deposit.proof)}
-                              >
-                                <ImageWithFallback
-                                  src={deposit.proof}
-                                  alt="Proof thumbnail"
-                                  className="w-full h-full object-cover"
-                                  fallbackSrc="/placeholder.svg"
-                                />
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-gray-500 text-sm">No proof</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant={
-                            deposit.status === "pending" ? "outline" : 
-                            deposit.status === "approved" ? "outline" : 
-                            "destructive"
-                          }
-                          className={
-                            deposit.status === "pending" ? "bg-yellow-50 text-yellow-800 border-yellow-200" :
-                            deposit.status === "approved" ? "bg-green-50 text-green-800 border-green-200" :
-                            "bg-red-50 text-red-800 border-red-200"
-                          }
-                        >
-                          {deposit.status.charAt(0).toUpperCase() + deposit.status.slice(1)}
-                        </Badge>
-                      </TableCell>
+                      <TableCell>{renderProofCell(deposit.proof)}</TableCell>
+                      <TableCell>{renderStatusBadge(deposit.status)}</TableCell>
                       <TableCell>
                         {deposit.status === "pending" && (
                           <div className="flex items-center space-x-2">
@@ -306,7 +301,8 @@ const ApproveCryptoDeposits = () => {
           )}
         </CardContent>
       </Card>
-      
+
+      {/* Proof Image Dialog */}
       <Dialog open={!!selectedProof} onOpenChange={() => setSelectedProof(null)}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
@@ -315,7 +311,7 @@ const ApproveCryptoDeposits = () => {
               Review the submitted proof image
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedProof && (
             <div className="flex justify-center">
               <div className="max-h-[70vh] w-full relative">
