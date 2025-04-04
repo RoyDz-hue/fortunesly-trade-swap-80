@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
@@ -53,7 +52,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    
     if (!user) {
       toast({
         title: "Authentication required",
@@ -66,7 +65,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
     try {
       setIsLoading(true);
       const parsedAmount = parseFloat(amount);
-
+      
       if (isNaN(parsedAmount) || parsedAmount <= 0) {
         toast({
           title: "Invalid amount",
@@ -87,8 +86,8 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
 
       // Check if this is a partial fill
       const isPartialFill = parsedAmount < order.amount;
-
-      // Use the stored procedure approach
+      
+      // Start a database transaction
       const { data: trade, error: tradeError } = await supabase
         .rpc('execute_trade', {
           p_order_id: order.id,
@@ -97,14 +96,14 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
           p_price: order.price,
           p_is_partial: isPartialFill,
           p_currency: order.currency,
-          p_type: order.type // Use the same type as the order (not opposite)
+          p_type: order.type === 'buy' ? 'sell' : 'buy' // Opposite of order type
         });
 
       if (tradeError) throw tradeError;
 
       toast({
         title: "Trade executed successfully",
-        description: `You have ${order.type} ${parsedAmount} ${order.currency}`,
+        description: `You have ${order.type === 'buy' ? 'sold' : 'bought'} ${parsedAmount} ${order.currency}`,
       });
 
       if (onSuccess) onSuccess();
@@ -135,7 +134,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Execute {order.type} Order</DialogTitle>
+          <DialogTitle>Execute {order.type === 'buy' ? 'Sell' : 'Buy'} Order</DialogTitle>
           <DialogDescription>
             Trade with {order.users?.username || 'Unknown'}
           </DialogDescription>
@@ -147,7 +146,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
               <span className="text-sm font-medium">Price per unit:</span>
               <span className="font-bold">KES {order.price.toLocaleString()}</span>
             </div>
-
+            
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Available amount:</span>
               <div className="flex items-center gap-1">
@@ -176,7 +175,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
 
           <div className="space-y-2">
             <div className="flex justify-between">
-              <Label htmlFor="amount">Amount to {order.type}</Label>
+              <Label htmlFor="amount">Amount to {order.type === 'buy' ? 'sell' : 'buy'}</Label>
               <div className="flex gap-1">
                 <Button 
                   type="button" 
@@ -198,7 +197,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
                 </Button>
               </div>
             </div>
-
+            
             <div className="flex gap-2">
               <Input
                 id="amount"
@@ -214,7 +213,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
                 {order.currency}
               </div>
             </div>
-
+            
             <p className="text-xs text-gray-500">
               You can execute a partial order. The remaining amount will stay in the market.
             </p>
@@ -228,7 +227,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
           <DialogFooter>
             <Button variant="outline" type="button" onClick={onClose}>Cancel</Button>
             <Button type="submit" disabled={isLoading} className={order.type === 'buy' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}>
-              {isLoading ? 'Processing...' : `${order.type} Now`}
+              {isLoading ? 'Processing...' : `${order.type === 'buy' ? 'Buy' : 'Sell'} Now`}
             </Button>
           </DialogFooter>
         </form>
