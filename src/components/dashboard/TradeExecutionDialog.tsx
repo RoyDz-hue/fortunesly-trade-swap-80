@@ -1,48 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/context/AuthContext";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 import ImageWithFallback from '@/components/common/ImageWithFallback';
 
-interface Order {
-  id: string;
-  user_id: string;
-  users?: {
-    username: string;
-  };
-  username?: string;
-  type: 'buy' | 'sell';
-  currency: string;
-  amount: number;
-  price: number;
-  original_amount?: number;
-}
-
-interface CoinDetails {
-  name: string;
-  symbol: string;
-  icon_url: string | null;
-}
-
-interface TradeExecutionDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  order: Order | null;
-  onSuccess?: () => void;
-}
-
-const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }: TradeExecutionDialogProps) => {
+const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [amount, setAmount] = useState<string>('');
-  const [totalAmount, setTotalAmount] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [coinDetails, setCoinDetails] = useState<CoinDetails | null>(null);
+  const [amount, setAmount] = useState('');
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [coinDetails, setCoinDetails] = useState(null);
 
   useEffect(() => {
     if (order) {
@@ -62,7 +35,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }: TradeExecut
     }
   }, [amount, order]);
 
-  const fetchCoinDetails = async (symbol: string) => {
+  const fetchCoinDetails = async (symbol) => {
     try {
       const { data, error } = await supabase
         .from('coins')
@@ -78,7 +51,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }: TradeExecut
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!user) {
@@ -89,8 +62,6 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }: TradeExecut
       });
       return;
     }
-
-    if (!order) return;
 
     try {
       setIsLoading(true);
@@ -118,31 +89,93 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }: TradeExecut
       const isPartialFill = parsedAmount < order.amount;
       
       // Start a database transaction
-      const { data: trade, error: tradeError } = await supabase
-        .rpc('execute_trade', {
-          p_order_id: order.id,
-          p_user_id: user.id,
-          p_amount: parsedAmount,
-          p_price: order.price,
-          p_is_partial: isPartialFill,
-          p_currency: order.currency,
-          p_type: order.type === 'buy' ? 'sell' : 'buy' // Opposite of order type
+      const { data: transaction, error: transactionError } = await supabase.rpc('begin_transaction');
+      
+      if (transactionError) throw transactionError;
+      
+      try {
+        // 1. Insert the trade record
+        const { data: trade, error: tradeError } = await supabase
+          .from('trades')
+          .insert([{
+            order_id: order.id,
+            user_id: user.id,
+            counterparty_id: order.user_id,
+            amount: parsedAmount,
+            price: order.price,
+            currency: order.currency,
+            type: order.type === 'buy' ? 'sell' : 'buy',
+            status: 'completed'
+          }])
+          .select()
+          .single();
+          
+        if (tradeError) throw tradeError;
+        
+        // 2. Update the order based on partial fill status
+        if (isPartialFill) {
+          const remainingAmount = order.amount - parsedAmount;
+          
+          // For first partial fill, store the original amount
+          if (!order.original_amount) {
+            const { error: updateError } = await supabase
+              .from('orders')
+              .update({
+                amount: remainingAmount,
+                original_amount: order.amount,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', order.id);
+              
+            if (updateError) throw updateError;
+          } else {
+            // For subsequent partial fills
+            const { error: updateError } = await supabase
+              .from('orders')
+              .update({
+                amount: remainingAmount,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', order.id);
+              
+            if (updateError) throw updateError;
+          }
+        } else {
+          // Complete order fill
+          const { error: updateError } = await supabase
+            .from('orders')
+            .update({
+              status: 'completed',
+              amount: 0,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', order.id);
+            
+          if (updateError) throw updateError;
+        }
+        
+        // 3. Commit the transaction
+        const { error: commitError } = await supabase.rpc('commit_transaction');
+        if (commitError) throw commitError;
+        
+        toast({
+          title: "Trade executed successfully",
+          description: `You have ${order.type === 'buy' ? 'sold' : 'bought'} ${parsedAmount} ${order.currency}`,
         });
 
-      if (tradeError) throw tradeError;
-
-      toast({
-        title: "Trade executed successfully",
-        description: `You have ${order.type === 'buy' ? 'sold' : 'bought'} ${parsedAmount} ${order.currency}`,
-      });
-
-      if (onSuccess) onSuccess();
-      onClose();
-    } catch (error: any) {
+        if (onSuccess) onSuccess();
+        onClose();
+        
+      } catch (innerError) {
+        // Rollback on error
+        await supabase.rpc('rollback_transaction');
+        throw innerError;
+      }
+    } catch (error) {
       console.error("Error executing trade:", error);
       toast({
         title: "Trade failed",
-        description: error.message || "An error occurred while executing the trade",
+        description: error.message,
         variant: "destructive",
       });
     } finally {
@@ -156,27 +189,17 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }: TradeExecut
     setAmount(order.amount.toString());
   };
 
-  const handleHalfAmount = () => {
-    setAmount((parseFloat(order.amount) / 2).toString());
+  const handleCustomAmount = (e) => {
+    setAmount(e.target.value);
   };
-
-  const handleCustomAmount = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    // Only allow numbers and decimals
-    if (/^\d*\.?\d*$/.test(value)) {
-      setAmount(value);
-    }
-  };
-
-  const isBuy = order.type === 'sell'; // If order type is 'sell', user is buying
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{isBuy ? 'Buy' : 'Sell'} {order.currency}</DialogTitle>
+          <DialogTitle>Execute {order.type === 'buy' ? 'Sell' : 'Buy'} Order</DialogTitle>
           <DialogDescription>
-            Trade with {order.users?.username || order.username || 'Unknown'}
+            Trade with {order.users?.username || 'Unknown'}
           </DialogDescription>
         </DialogHeader>
 
@@ -215,7 +238,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }: TradeExecut
 
           <div className="space-y-2">
             <div className="flex justify-between">
-              <Label htmlFor="amount">Amount to {isBuy ? 'buy' : 'sell'}</Label>
+              <Label htmlFor="amount">Amount to {order.type === 'buy' ? 'sell' : 'buy'}</Label>
               <div className="flex gap-1">
                 <Button 
                   type="button" 
@@ -231,7 +254,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }: TradeExecut
                   variant="outline"
                   size="sm"
                   className="text-xs h-6"
-                  onClick={handleHalfAmount}
+                  onClick={() => setAmount((parseFloat(order.amount) / 2).toString())}
                 >
                   Half
                 </Button>
@@ -241,12 +264,13 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }: TradeExecut
             <div className="flex gap-2">
               <Input
                 id="amount"
-                type="text"
+                type="number"
+                step="any"
                 value={amount}
                 onChange={handleCustomAmount}
                 required
                 min="0.000001"
-                max={order.amount.toString()}
+                max={order.amount}
               />
               <div className="bg-gray-100 px-3 flex items-center rounded-md text-sm font-medium">
                 {order.currency}
@@ -265,12 +289,8 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }: TradeExecut
 
           <DialogFooter>
             <Button variant="outline" type="button" onClick={onClose}>Cancel</Button>
-            <Button 
-              type="submit" 
-              disabled={isLoading} 
-              className={isBuy ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
-            >
-              {isLoading ? 'Processing...' : `${isBuy ? 'Buy' : 'Sell'} Now`}
+            <Button type="submit" disabled={isLoading} className={order.type === 'buy' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}>
+              {isLoading ? 'Processing...' : `${order.type === 'buy' ? 'Buy' : 'Sell'} Now`}
             </Button>
           </DialogFooter>
         </form>
