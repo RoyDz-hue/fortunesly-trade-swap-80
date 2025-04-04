@@ -130,7 +130,7 @@ const MarketOverview = () => {
       <CardHeader className="p-4 border-b border-gray-200 flex items-center justify-between">
         <CardTitle className="text-lg font-semibold">Market Overview</CardTitle>
         <Button asChild variant="link" size="sm" className="flex gap-1 items-center p-0">
-          <Link to="/dashboard/market">
+          <Link to="/market/orders">
             View Markets <ArrowUpRight className="h-3 w-3 ml-1" />
           </Link>
         </Button>
