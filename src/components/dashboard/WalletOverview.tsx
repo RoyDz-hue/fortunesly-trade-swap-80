@@ -25,7 +25,7 @@ const WalletOverview = () => {
   const [selectedWallet, setSelectedWallet] = useState<Wallet | null>(null);
   const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
   const [availableCoins, setAvailableCoins] = useState<Coin[]>([]);
-  
+
   useEffect(() => {
     if (user) {
       const fetchData = async () => {
@@ -33,19 +33,19 @@ const WalletOverview = () => {
         setError(null);
         try {
           console.log("Fetching coins and wallet data...");
-          
+
           const { data: coinsData, error: coinsError } = await supabase
             .from('coins')
             .select('*')
             .order('symbol');
-          
+
           if (coinsError) {
             console.error('Error fetching coins:', coinsError);
             throw coinsError;
           }
-          
+
           console.log("Coins data:", coinsData);
-          
+
           const coins = coinsData || [];
           const formattedCoins = coins.map(coin => ({
             id: coin.id,
@@ -56,20 +56,20 @@ const WalletOverview = () => {
             taxRate: 10
           }));
           setAvailableCoins(formattedCoins);
-          
+
           const { data: userData, error: userError } = await supabase
             .from('users')
             .select('balance_crypto, balance_fiat')
             .eq('id', user.id)
             .single();
-            
+
           if (userError) {
             console.error('Error fetching user balances:', userError);
-            
+
             if (userError.code === 'PGRST116') {
               console.log("User not found, creating new user record");
               const randomPassword = Math.random().toString(36).slice(-10);
-              
+
               const { data: newUser, error: insertError } = await supabase
                 .from('users')
                 .insert({
@@ -82,22 +82,22 @@ const WalletOverview = () => {
                 })
                 .select()
                 .single();
-                
+
               if (insertError) {
                 console.error('Error creating user record:', insertError);
                 throw insertError;
               }
-              
+
               if (newUser) {
                 console.log("New user created:", newUser);
-                
+
                 const walletsList: Wallet[] = [{
                   id: 'kes-wallet',
                   currency: 'KES',
                   balance: newUser.balance_fiat || 0,
                   type: 'fiat'
                 }];
-                
+
                 formattedCoins.forEach(coin => {
                   if (coin.symbol !== 'KES') {
                     walletsList.push({
@@ -108,28 +108,28 @@ const WalletOverview = () => {
                     });
                   }
                 });
-                
+
                 setWallets(walletsList);
                 setIsLoading(false);
                 return;
               }
             }
-            
+
             setError("Failed to load wallet balances. Please try again.");
             setWallets([]);
           } else if (userData) {
             console.log("User data:", userData);
-            
+
             const walletsList: Wallet[] = [{
               id: 'kes-wallet',
               currency: 'KES',
               balance: userData.balance_fiat || 0,
               type: 'fiat'
             }];
-            
+
             const cryptoBalances = userData.balance_crypto || {};
             console.log("Crypto balances:", cryptoBalances);
-            
+
             formattedCoins.forEach(coin => {
               if (coin.symbol !== 'KES') {
                 const balance = (cryptoBalances as Record<string, number>)[coin.symbol] || 0;
@@ -141,7 +141,7 @@ const WalletOverview = () => {
                 });
               }
             });
-            
+
             console.log("Final wallets list:", walletsList);
             setWallets(walletsList);
           }
@@ -157,7 +157,7 @@ const WalletOverview = () => {
           setIsLoading(false);
         }
       };
-      
+
       fetchData();
     }
   }, [user, toast]);
@@ -223,19 +223,19 @@ const WalletOverview = () => {
                 };
               }
             });
-            
+
             setWallets(updatedWallets);
           }
           setIsLoading(false);
         });
     }
   };
-  
+
   if (isLoading) {
     return (
       <div className="space-y-6">
         <h2 className="text-2xl font-bold text-gray-900">Wallet Overview</h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
             <Card key={i} className="overflow-hidden border border-gray-200">
@@ -261,17 +261,17 @@ const WalletOverview = () => {
       </div>
     );
   }
-  
+
   if (error) {
     return (
       <div className="space-y-6">
         <h2 className="text-2xl font-bold text-gray-900">Wallet Overview</h2>
-        
+
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
-        
+
         <button 
           className="px-4 py-2 bg-fortunesly-primary text-white rounded-md hover:bg-fortunesly-primary/90"
           onClick={() => window.location.reload()}
@@ -281,11 +281,11 @@ const WalletOverview = () => {
       </div>
     );
   }
-  
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-900">Wallet Overview</h2>
-      
+
       {wallets.length === 0 ? (
         <Alert>
           <AlertCircle className="h-4 w-4" />
@@ -295,14 +295,16 @@ const WalletOverview = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {wallets.map((wallet) => {
             const coin = availableCoins.find(c => c.symbol === wallet.currency);
-            
+
             return (
               <Card key={wallet.id} className="overflow-hidden border border-gray-200 hover:shadow-md transition-shadow">
                 <CardHeader className="p-4 bg-gray-50 border-b border-gray-200">
                   <div className="flex items-center">
                     <div className="w-8 h-8 mr-3 rounded-full overflow-hidden flex-shrink-0">
                       <img 
-                        src={coin?.image} 
+                        src={wallet.currency === "KES" 
+                          ? "https://bfsodqqylpfotszjlfuk.supabase.co/storage/v1/object/public/apps//kenya.png" 
+                          : coin?.image} 
                         alt={wallet.currency} 
                         className="w-full h-full object-cover"
                         onError={(e) => {
@@ -360,7 +362,7 @@ const WalletOverview = () => {
           />
         </>
       )}
-      
+
       {selectedCoin && (
         <>
           <CryptoDepositDialog
