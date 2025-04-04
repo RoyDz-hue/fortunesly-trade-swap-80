@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +27,10 @@ const ApproveWithdrawals = () => {
       .channel("admin-withdrawals")
       .on("postgres_changes", { event: "*", schema: "public", table: "withdrawals" }, fetchWithdrawals)
       .subscribe();
-    return () => supabase.removeChannel(channel);
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchWithdrawals = async () => {

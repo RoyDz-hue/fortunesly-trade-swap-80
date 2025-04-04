@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +23,10 @@ const ApproveCryptoDeposits = () => {
       .channel("admin-deposits")
       .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, fetchDeposits)
       .subscribe();
-    return () => supabase.removeChannel(channel);
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchDeposits = async () => {
@@ -57,7 +59,6 @@ const ApproveCryptoDeposits = () => {
       if (transaction.status !== "pending") throw new Error(`Transaction is already ${transaction.status}`);
 
       if (newStatus === "approved") {
-        // Update the user's crypto balance
         const { success, error: balanceError } = await updateUserCryptoBalance(
           transaction.user_id,
           transaction.currency,
@@ -69,7 +70,6 @@ const ApproveCryptoDeposits = () => {
         }
       }
       
-      // Update the transaction status
       const { error: statusError } = await supabase
         .from("transactions")
         .update({ status: newStatus })
