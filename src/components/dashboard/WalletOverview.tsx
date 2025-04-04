@@ -10,7 +10,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { AlertCircle, ArrowDownCircle, ArrowUpCircle, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const WalletOverview = () => {
   const [wallets, setWallets] = useState<Wallet[]>([]);
@@ -234,24 +240,27 @@ const WalletOverview = () => {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold text-gray-900">Wallet Overview</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {[1, 2, 3].map((i) => (
-            <Card key={i} className="overflow-hidden border border-gray-100">
-              <div className="flex items-center p-3">
-                <Skeleton className="w-6 h-6 mr-2 rounded-full" />
-                <Skeleton className="h-4 w-16" />
-                <div className="ml-auto">
-                  <Skeleton className="h-4 w-20" />
-                </div>
-              </div>
-              <div className="flex justify-end px-3 pb-3 pt-1 gap-2">
-                <Skeleton className="h-8 w-8 rounded-full" />
-                <Skeleton className="h-8 w-8 rounded-full" />
-              </div>
-            </Card>
-          ))}
+        <h2 className="text-xl font-bold text-gray-900">Wallet</h2>
+        <div className="flex justify-end space-x-2 mb-4">
+          <Skeleton className="h-10 w-24" />
+          <Skeleton className="h-10 w-24" />
         </div>
+        <Card className="overflow-hidden">
+          <CardContent className="p-0">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center justify-between p-4 border-b border-gray-100">
+                <div className="flex items-center">
+                  <Skeleton className="w-8 h-8 mr-3 rounded-full" />
+                  <div>
+                    <Skeleton className="h-4 w-24 mb-1" />
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                </div>
+                <Skeleton className="h-4 w-20" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -259,13 +268,13 @@ const WalletOverview = () => {
   if (error) {
     return (
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold text-gray-900">Wallet Overview</h2>
-        <Alert variant="destructive" className="py-2">
+        <h2 className="text-xl font-bold text-gray-900">Wallet</h2>
+        <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
         <button 
-          className="px-3 py-1 bg-fortunesly-primary text-white text-sm rounded-md hover:bg-fortunesly-primary/90"
+          className="px-4 py-2 bg-fortunesly-primary text-white rounded-md hover:bg-fortunesly-primary/90"
           onClick={() => window.location.reload()}
         >
           Retry
@@ -276,7 +285,80 @@ const WalletOverview = () => {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-semibold text-gray-900">Wallet Overview</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-900">Wallet</h2>
+        <div className="flex space-x-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex items-center px-3 py-2 text-sm font-medium text-white bg-fortunesly-primary rounded-md hover:bg-fortunesly-primary/90 transition-colors">
+              <ArrowDownCircle className="h-4 w-4 mr-1" />
+              Deposit
+              <ChevronDown className="h-4 w-4 ml-1" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {wallets.map((wallet) => (
+                <DropdownMenuItem 
+                  key={`deposit-${wallet.id}`} 
+                  className="cursor-pointer"
+                  onClick={() => handleDepositClick(wallet)}
+                >
+                  <div className="flex items-center w-full">
+                    <div className="w-5 h-5 mr-2 rounded-full overflow-hidden flex-shrink-0">
+                      <img 
+                        src={wallet.currency === "KES" 
+                          ? "https://bfsodqqylpfotszjlfuk.supabase.co/storage/v1/object/public/apps//kenya.png" 
+                          : availableCoins.find(c => c.symbol === wallet.currency)?.image} 
+                        alt={wallet.currency} 
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = `https://via.placeholder.com/20/6E59A5/ffffff?text=${wallet.currency}`;
+                          target.onerror = null;
+                        }}
+                      />
+                    </div>
+                    <span>{wallet.currency}</span>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex items-center px-3 py-2 text-sm font-medium text-fortunesly-primary bg-white border border-fortunesly-primary rounded-md hover:bg-gray-50 transition-colors">
+              <ArrowUpCircle className="h-4 w-4 mr-1" />
+              Withdraw
+              <ChevronDown className="h-4 w-4 ml-1" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {wallets.map((wallet) => (
+                <DropdownMenuItem 
+                  key={`withdraw-${wallet.id}`} 
+                  className="cursor-pointer"
+                  onClick={() => handleWithdrawClick(wallet)}
+                >
+                  <div className="flex items-center w-full">
+                    <div className="w-5 h-5 mr-2 rounded-full overflow-hidden flex-shrink-0">
+                      <img 
+                        src={wallet.currency === "KES" 
+                          ? "https://bfsodqqylpfotszjlfuk.supabase.co/storage/v1/object/public/apps//kenya.png" 
+                          : availableCoins.find(c => c.symbol === wallet.currency)?.image} 
+                        alt={wallet.currency} 
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = `https://via.placeholder.com/20/6E59A5/ffffff?text=${wallet.currency}`;
+                          target.onerror = null;
+                        }}
+                      />
+                    </div>
+                    <span>{wallet.currency}</span>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
 
       {wallets.length === 0 ? (
         <Alert>
@@ -284,15 +366,20 @@ const WalletOverview = () => {
           <AlertDescription>No wallets found. Please contact support if you believe this is an error.</AlertDescription>
         </Alert>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {wallets.map((wallet) => {
-            const coin = availableCoins.find(c => c.symbol === wallet.currency);
+        <Card className="overflow-hidden shadow-sm">
+          <CardContent className="p-0">
+            {wallets.map((wallet, index) => {
+              const coin = availableCoins.find(c => c.symbol === wallet.currency);
+              const isLast = index === wallets.length - 1;
 
-            return (
-              <Card key={wallet.id} className="overflow-hidden border border-gray-100 hover:shadow-sm transition-shadow">
-                <CardContent className="p-0">
-                  <div className="flex items-center p-3">
-                    <div className="w-6 h-6 mr-2 rounded-full overflow-hidden flex-shrink-0 bg-gray-50">
+              return (
+                <div 
+                  key={wallet.id} 
+                  className={`flex items-center justify-between p-4 hover:bg-gray-50 transition-colors cursor-pointer ${!isLast ? 'border-b border-gray-100' : ''}`}
+                  onClick={() => {}}
+                >
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 mr-3 rounded-full overflow-hidden flex-shrink-0 bg-gray-100 flex items-center justify-center">
                       <img 
                         src={wallet.currency === "KES" 
                           ? "https://bfsodqqylpfotszjlfuk.supabase.co/storage/v1/object/public/apps//kenya.png" 
@@ -307,39 +394,16 @@ const WalletOverview = () => {
                       />
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {coin?.name || wallet.currency}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {wallet.currency}
-                      </div>
-                    </div>
-                    <div className="ml-auto text-right">
-                      <div className="font-medium text-sm">{wallet.balance.toLocaleString()}</div>
-                      <div className="text-xs text-gray-500">{wallet.currency}</div>
+                      <div className="font-medium">{coin?.name || wallet.currency}</div>
+                      <div className="text-sm text-gray-500">{wallet.balance.toLocaleString()} {wallet.currency}</div>
                     </div>
                   </div>
-                  <div className="flex justify-end px-3 pb-3 pt-1 gap-2">
-                    <button 
-                      className="p-2 text-xs font-medium text-white bg-fortunesly-primary rounded-full hover:bg-fortunesly-primary/90 transition-colors"
-                      onClick={() => handleDepositClick(wallet)}
-                      title="Deposit"
-                    >
-                      <ArrowDownToLine className="h-4 w-4" />
-                    </button>
-                    <button 
-                      className="p-2 text-xs font-medium text-fortunesly-primary bg-white border border-fortunesly-primary rounded-full hover:bg-gray-50 transition-colors"
-                      onClick={() => handleWithdrawClick(wallet)}
-                      title="Withdraw"
-                    >
-                      <ArrowUpFromLine className="h-4 w-4" />
-                    </button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+                  <ChevronRight className="h-4 w-4 text-gray-400" />
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
       )}
 
       {selectedWallet?.type === 'fiat' && (
