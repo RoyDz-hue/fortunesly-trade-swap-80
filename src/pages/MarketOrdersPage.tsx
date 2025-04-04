@@ -45,15 +45,19 @@ const MarketOrdersPage = () => {
     try {
       setIsLoading(true);
       
+      // Modified query to ensure we're getting all open orders
+      // Use explicit 'open' status check instead of nullable status
       const { data, error } = await supabase
         .from('orders')
         .select('*, users(username)')
-        .or('status.is.null,status.eq.open,status.eq.partially_filled')
+        .eq('status', 'open')
         .order('created_at', { ascending: false });
       
       if (error) {
         throw error;
       }
+      
+      console.log("Fetched market orders:", data);
       
       // Format the data to include username
       const formattedData = data.map(order => ({

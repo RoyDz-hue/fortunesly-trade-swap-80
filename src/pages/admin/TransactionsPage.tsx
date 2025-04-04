@@ -108,6 +108,11 @@ const TransactionsPage = () => {
         throw txError;
       }
       
+      // Verify that the transaction is in a pending state
+      if (transaction.status !== 'pending') {
+        throw new Error(`Cannot change status of a transaction that is already ${transaction.status}`);
+      }
+      
       if (newStatus === "approved" && transaction.type === "deposit") {
         // Update user's crypto balance when approving deposits
         const { success, error: balanceError } = await updateUserCryptoBalance(
@@ -119,12 +124,24 @@ const TransactionsPage = () => {
         if (!success) {
           throw new Error(balanceError || "Failed to update user balance");
         }
+      } else if (newStatus === "rejected" && transaction.type === "withdrawal") {
+        // Return funds to user's balance when rejecting withdrawals
+        const { success, error: returnError } = await updateUserCryptoBalance(
+          transaction.user_id, 
+          transaction.currency, 
+          transaction.amount
+        );
+        
+        if (!success) {
+          throw new Error(returnError || "Failed to return funds to user balance");
+        }
       }
       
-      // Update the transaction status
+      // Make sure we're using a valid status value - the constraint is limiting to specific values
+      // Update the transaction status - use enumerated values that match the constraint
       const { error } = await supabase
         .from('transactions')
-        .update({ status: newStatus })
+        .update({ status: newStatus === "approved" ? "approved" : "rejected" })
         .eq('id', id);
       
       if (error) {
