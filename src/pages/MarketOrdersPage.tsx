@@ -166,11 +166,11 @@ const MarketOrdersPage = () => {
           <div className="px-4 pt-4">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="sell" className="flex items-center">
-                <ArrowDown className="h-4 w-4 mr-2" />
+                <ArrowUp className="h-4 w-4 mr-2" />
                 Sell
               </TabsTrigger>
               <TabsTrigger value="buy" className="flex items-center">
-                <ArrowUp className="h-4 w-4 mr-2" />
+                <ArrowDown className="h-4 w-4 mr-2" />
                 Buy
               </TabsTrigger>
             </TabsList>
@@ -233,10 +233,10 @@ const MarketOrdersPage = () => {
             ) : marketOrders.length === 0 ? (
               <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-lg border border-dashed">
                 <div className="flex justify-center mb-2">
-                  {activeTab === 'buy' ? <ArrowUp className="h-12 w-12 text-gray-300" /> : <ArrowDown className="h-12 w-12 text-gray-300" />}
+                  {activeTab === 'buy' ? <ArrowDown className="h-12 w-12 text-gray-300" /> : <ArrowUp className="h-12 w-12 text-gray-300" />}
                 </div>
-                <h3 className="text-lg font-medium mb-1">No {activeTab === 'buy' ? 'sell' : 'buy'} orders available</h3>
-                <p className="text-sm">Be the first to create a {activeTab === 'buy' ? 'sell' : 'buy'} order!</p>
+                <h3 className="text-lg font-medium mb-1">No {activeTab === 'buy' ? 'buy' : 'sell'} orders available</h3>
+                <p className="text-sm">Be the first to create a {activeTab === 'buy' ? 'buy' : 'sell'} order!</p>
                 <Button 
                   onClick={handleCreateOrder} 
                   variant="outline"
@@ -249,7 +249,7 @@ const MarketOrdersPage = () => {
               <div className="grid gap-4">
                 {marketOrders.map((order) => {
                   const coinDetails = getCoinDetails(order.currency);
-                  const orderType = activeTab === 'buy' ? 'sell' : 'buy';
+                  const orderType = activeTab === 'buy' ? 'buy' : 'sell';
                   const buttonColorClass = orderType === 'buy' ? 
                     'bg-green-600 hover:bg-green-700 text-white' : 
                     'bg-red-600 hover:bg-red-700 text-white';
@@ -304,7 +304,7 @@ const MarketOrdersPage = () => {
                             onClick={() => handleTrade(order)}
                             className={buttonColorClass + " px-8 py-6 text-lg font-medium"}
                           >
-                            {orderType === 'buy' ? 'Buy' : 'Sell'}
+                            {orderType}
                           </Button>
                         </div>
                       </div>
