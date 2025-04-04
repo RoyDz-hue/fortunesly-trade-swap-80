@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,9 +71,13 @@ const ApproveCryptoDeposits = () => {
         }
       }
       
+      // Make sure we're using a valid status value - the constraint might be limiting to 'pending', 'approved', 'rejected'
+      const validStatus = newStatus === "rejected" ? "rejected" : 
+                           newStatus === "approved" ? "approved" : "pending";
+      
       const { error: statusError } = await supabase
         .from("transactions")
-        .update({ status: newStatus })
+        .update({ status: validStatus })
         .eq("id", id);
         
       if (statusError) throw statusError;

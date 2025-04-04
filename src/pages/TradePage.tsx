@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import OrderBook from "@/components/dashboard/OrderBook";
 import TradeForm from "@/components/dashboard/TradeForm";
@@ -220,9 +219,7 @@ const TradePage = () => {
     };
   }, []);
 
-  // Function to handle order selection for trading
   const handleOrderSelect = (order: any, type: 'buy' | 'sell') => {
-    // Navigate to market page with selected order
     window.location.href = `/market?orderId=${order.id}&type=${type}`;
   };
 
@@ -231,7 +228,7 @@ const TradePage = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Trade</h1>
         <Button asChild variant="outline" className="flex gap-1 items-center">
-          <Link to="/dashboard/market">
+          <Link to="/market/orders">
             View All Market Orders <ArrowRightCircle className="h-4 w-4 ml-1" />
           </Link>
         </Button>
