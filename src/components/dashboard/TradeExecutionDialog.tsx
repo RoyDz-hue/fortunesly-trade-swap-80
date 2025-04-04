@@ -27,11 +27,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
   useEffect(() => {
     if (order && amount) {
       const parsedAmount = parseFloat(amount);
-      if (!isNaN(parsedAmount)) {
-        setTotalAmount(parsedAmount * order.price);
-      } else {
-        setTotalAmount(0);
-      }
+      setTotalAmount(isNaN(parsedAmount) ? 0 : parsedAmount * order.price);
     }
   }, [amount, order]);
 
@@ -43,8 +39,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
         .eq('symbol', symbol)
         .single();
 
-      if (error) throw error;
-      setCoinDetails(data);
+      setCoinDetails(error ? { name: symbol, symbol, icon_url: null } : data);
     } catch (error) {
       console.error("Error fetching coin details:", error);
       setCoinDetails({ name: symbol, symbol, icon_url: null });
@@ -67,111 +62,37 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
       setIsLoading(true);
       const parsedAmount = parseFloat(amount);
 
-      if (isNaN(parsedAmount) || parsedAmount <= 0) {
-        toast({
-          title: "Invalid amount",
-          description: "Please enter a valid positive number",
-          variant: "destructive",
-        });
+      if (isNaN(parsedAmount) {
+        toast({ title: "Invalid amount", variant: "destructive" });
         return;
       }
 
       if (parsedAmount > order.amount) {
-        toast({
-          title: "Invalid amount",
-          description: "Amount exceeds available order quantity",
-          variant: "destructive",
-        });
+        toast({ title: "Amount exceeds available quantity", variant: "destructive" });
         return;
       }
 
-      // Check if this is a partial fill
-      const isPartialFill = parsedAmount < order.amount;
+      const { error } = await supabase.rpc('execute_trade', {
+        p_order_id: order.id,
+        p_user_id: user.id,
+        p_amount: parsedAmount,
+        p_price: order.price,
+        p_is_partial: parsedAmount < order.amount,
+        p_currency: order.currency,
+        p_type: order.type === 'buy' ? 'sell' : 'buy' // Invert type
+      });
 
-      // Start a database transaction
-      const { data: transaction, error: transactionError } = await supabase.rpc('begin_transaction');
-      if (transactionError) throw transactionError;
+      if (error) throw error;
 
-      try {
-        // 1. Insert the trade record
-        const { data: trade, error: tradeError } = await supabase
-          .from('trades')
-          .insert([{
-            order_id: order.id,
-            user_id: user.id,
-            counterparty_id: order.user_id,
-            amount: parsedAmount,
-            price: order.price,
-            currency: order.currency,
-            type: order.type === 'buy' ? 'sell' : 'buy', // Opposite type
-            status: 'completed'
-          }])
-          .select()
-          .single();
+      toast({
+        title: "Trade successful",
+        description: `You ${order.type === 'buy' ? 'sold' : 'bought'} ${parsedAmount} ${order.currency}`,
+      });
 
-        if (tradeError) throw tradeError;    
-
-        // 2. Update the order based on partial fill status    
-        if (isPartialFill) {    
-          const remainingAmount = order.amount - parsedAmount;    
-          
-          // For first partial fill, store the original amount    
-          if (!order.original_amount) {    
-            const { error: updateError } = await supabase    
-              .from('orders')    
-              .update({    
-                amount: remainingAmount,    
-                original_amount: order.amount,    
-                updated_at: new Date().toISOString()    
-              })    
-              .eq('id', order.id);    
-                
-            if (updateError) throw updateError;    
-          } else {    
-            // For subsequent partial fills    
-            const { error: updateError } = await supabase    
-              .from('orders')    
-              .update({    
-                amount: remainingAmount,    
-                updated_at: new Date().toISOString()    
-              })    
-              .eq('id', order.id);    
-                
-            if (updateError) throw updateError;    
-          }    
-        } else {    
-          // Complete order fill    
-          const { error: updateError } = await supabase    
-            .from('orders')    
-            .update({    
-              status: 'completed',    
-              amount: 0,    
-              updated_at: new Date().toISOString()    
-            })    
-            .eq('id', order.id);    
-            
-          if (updateError) throw updateError;    
-        }    
-        
-        // 3. Commit the transaction    
-        const { error: commitError } = await supabase.rpc('commit_transaction');    
-        if (commitError) throw commitError;    
-        
-        toast({    
-          title: "Trade executed successfully",    
-          description: `You have ${order.type === 'buy' ? 'sold' : 'bought'} ${parsedAmount} ${order.currency}`,    
-        });    
-
-        if (onSuccess) onSuccess();    
-        onClose();
-
-      } catch (innerError) {
-        // Rollback on error
-        await supabase.rpc('rollback_transaction');
-        throw innerError;
-      }
+      onSuccess?.();
+      onClose();
     } catch (error) {
-      console.error("Error executing trade:", error);
+      console.error("Trade error:", error);
       toast({
         title: "Trade failed",
         description: error.message,
@@ -183,14 +104,6 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
   };
 
   if (!order) return null;
-
-  const handleMaxAmount = () => {
-    setAmount(order.amount.toString());
-  };
-
-  const handleCustomAmount = (e) => {
-    setAmount(e.target.value);
-  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -210,9 +123,9 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
               <span className="text-sm font-medium">Price per unit:</span>
               <span className="font-bold">KES {order.price.toLocaleString()}</span>
             </div>
-            
+
             <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Available amount:</span>
+              <span className="text-sm font-medium">Available:</span>
               <div className="flex items-center gap-1">
                 <span className="font-bold">{order.amount.toLocaleString()}</span>
                 {coinDetails?.icon_url && (
@@ -227,11 +140,11 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
               </div>
             </div>
 
-            {order.original_amount && order.original_amount > order.amount && (
+            {order.original_amount > order.amount && (
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Order status:</span>
+                <span className="text-sm font-medium">Status:</span>
                 <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                  Partially filled
+                  Partially Filled
                 </Badge>
               </div>
             )}
@@ -247,8 +160,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
                   type="button" 
                   variant="outline" 
                   size="sm" 
-                  className="text-xs h-6"
-                  onClick={handleMaxAmount}
+                  onClick={() => setAmount(order.amount)}
                 >
                   Max
                 </Button>
@@ -256,8 +168,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="text-xs h-6"
-                  onClick={() => setAmount((parseFloat(order.amount) / 2).toString())}
+                  onClick={() => setAmount(order.amount / 2)}
                 >
                   Half
                 </Button>
@@ -270,23 +181,23 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
                 type="number"
                 step="any"
                 value={amount}
-                onChange={handleCustomAmount}
-                required
+                onChange={(e) => setAmount(e.target.value)}
                 min="0.000001"
                 max={order.amount}
+                required
               />
-              <div className="bg-gray-100 px-3 flex items-center rounded-md text-sm font-medium">
+              <div className="bg-gray-100 px-3 flex items-center rounded-md">
                 {order.currency}
               </div>
             </div>
 
             <p className="text-xs text-gray-500">
-              You can execute a partial order. The remaining amount will stay in the market.
+              Partial orders will keep remaining amount in the market
             </p>
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-lg flex justify-between items-center">
-            <span className="font-medium">Total amount:</span>
+          <div className="bg-gray-50 p-4 rounded-lg flex justify-between">
+            <span className="font-medium">Total:</span>
             <span className="font-bold text-lg">
               KES {totalAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
             </span>
