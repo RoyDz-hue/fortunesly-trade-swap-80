@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -30,7 +29,7 @@ const MarketOrdersPage = () => {
   useEffect(() => {
     fetchCoins();
     fetchOrders();
-    
+
     // Set up realtime subscription
     const channel = supabase
       .channel('market-orders-changes')
@@ -46,7 +45,7 @@ const MarketOrdersPage = () => {
         }
       )
       .subscribe();
-      
+
     return () => {
       supabase.removeChannel(channel);
     };
@@ -57,9 +56,9 @@ const MarketOrdersPage = () => {
       const { data, error } = await supabase
         .from('coins')
         .select('name, symbol, icon_url');
-      
+
       if (error) throw error;
-      
+
       setAvailableCoins(data || []);
     } catch (error) {
       console.error("Error fetching coins:", error);
@@ -69,40 +68,40 @@ const MarketOrdersPage = () => {
   const fetchOrders = async () => {
     try {
       setIsLoading(true);
-      
+
       // Build query
       let query = supabase
         .from('orders')
         .select('*, users(username)')
         .eq('status', 'open')
         .eq('type', activeTab === 'buy' ? 'sell' : 'buy'); // Inverse logic: "buy" tab shows 'sell' orders
-      
+
       // Apply coin filter if selected
       if (selectedCoin !== 'all') {
         query = query.eq('currency', selectedCoin);
       }
-      
+
       // Apply sorting if selected
       if (priceSort) {
         query = query.order('price', { ascending: priceSort === 'asc' });
       } else {
         query = query.order('created_at', { ascending: false });
       }
-      
+
       const { data, error } = await query;
-      
+
       if (error) {
         throw error;
       }
-      
+
       console.log("Fetched market orders:", data);
-      
+
       // Format the data to include username
       const formattedData = data.map(order => ({
         ...order,
         username: order.users?.username || 'Unknown'
       }));
-      
+
       setOrders(formattedData);
     } catch (error) {
       console.error("Error fetching orders:", error);
@@ -148,7 +147,7 @@ const MarketOrdersPage = () => {
     <div className="w-full py-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <h1 className="text-3xl font-bold">Market Orders</h1>
-        
+
         <Button 
           onClick={handleCreateOrder} 
           className="flex items-center gap-2"
@@ -157,26 +156,26 @@ const MarketOrdersPage = () => {
           Create Order
         </Button>
       </div>
-      
+
       <Card className="mb-6 border shadow-sm">
         <CardHeader className="pb-3 bg-gray-50 border-b">
           <CardTitle className="text-xl">Available Orders</CardTitle>
         </CardHeader>
-        
+
         <Tabs defaultValue="sell" value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="px-4 pt-4">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="sell" className="flex items-center">
                 <ArrowDown className="h-4 w-4 mr-2" />
-                Buy
+                Sell
               </TabsTrigger>
               <TabsTrigger value="buy" className="flex items-center">
                 <ArrowUp className="h-4 w-4 mr-2" />
-                Sell
+                Buy
               </TabsTrigger>
             </TabsList>
           </div>
-          
+
           <div className="p-4 border-t">
             <div className="flex flex-col sm:flex-row justify-between gap-4">
               <div className="flex items-center gap-2">
@@ -211,7 +210,7 @@ const MarketOrdersPage = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                
+
                 <Select value={priceSort} onValueChange={setPriceSort}>
                   <SelectTrigger className="w-[140px]">
                     <SelectValue placeholder="Sort by Price" />
@@ -225,7 +224,7 @@ const MarketOrdersPage = () => {
               </div>
             </div>
           </div>
-          
+
           <CardContent className="p-4">
             {isLoading ? (
               <div className="flex justify-center py-8">
@@ -254,7 +253,7 @@ const MarketOrdersPage = () => {
                   const buttonColorClass = orderType === 'buy' ? 
                     'bg-green-600 hover:bg-green-700 text-white' : 
                     'bg-red-600 hover:bg-red-700 text-white';
-                  
+
                   return (
                     <div key={order.id} className="border rounded-lg p-6 hover:shadow-md transition-shadow bg-white">
                       <div className="flex flex-col sm:flex-row justify-between gap-4">
@@ -268,7 +267,7 @@ const MarketOrdersPage = () => {
                               <p className="text-sm text-gray-500">Transactions: {Math.floor(Math.random() * 10) + 1}</p>
                             </div>
                           </div>
-                          
+
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">
                             <div className="bg-gray-50 p-3 rounded-lg">
                               <p className="text-sm text-gray-500 mb-1">Price</p>
@@ -299,7 +298,7 @@ const MarketOrdersPage = () => {
                             </div>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center">
                           <Button
                             onClick={() => handleTrade(order)}
@@ -317,7 +316,7 @@ const MarketOrdersPage = () => {
           </CardContent>
         </Tabs>
       </Card>
-      
+
       {/* Trade Execution Dialog */}
       <TradeExecutionDialog
         isOpen={showTradeDialog}
