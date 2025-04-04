@@ -113,6 +113,7 @@ const TransactionsPage = () => {
         throw new Error(`Cannot change status of a transaction that is already ${transaction.status}`);
       }
       
+      // Process based on transaction type and new status
       if (newStatus === "approved" && transaction.type === "deposit") {
         // Update user's crypto balance when approving deposits
         const { success, error: balanceError } = await updateUserCryptoBalance(
@@ -137,14 +138,17 @@ const TransactionsPage = () => {
         }
       }
       
-      // Make sure we're using a valid status value - the constraint is limiting to specific values
-      // Update the transaction status - use enumerated values that match the constraint
+      // Important: Use exact string values that match the enum constraint in the database
+      // The status column in transactions table likely has an enum check constraint
+      const statusValue = newStatus === "approved" ? "approved" : "rejected";
+      
       const { error } = await supabase
         .from('transactions')
-        .update({ status: newStatus === "approved" ? "approved" : "rejected" })
+        .update({ status: statusValue })
         .eq('id', id);
       
       if (error) {
+        console.error("Transaction update error:", error);
         throw error;
       }
       
