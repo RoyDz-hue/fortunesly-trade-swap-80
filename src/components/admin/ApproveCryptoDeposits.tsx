@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,23 +44,47 @@ const ApproveCryptoDeposits = () => {
     }
   };
 
-  const handleApprove = async (id) => {
+  const handleStatusChange = async (id, newStatus) => {
     setProcessingId(id);
     try {
       const { data: transaction, error: txError } = await supabase
         .from("transactions")
-        .select("*, users(id, balance_crypto)")
+        .select("*, users(id)")
         .eq("id", id)
         .single();
-      if (txError || !transaction) throw new Error("Transaction not found");
-      if (transaction.status === "approved") throw new Error("Already approved");
-      const { success, error } = await updateUserCryptoBalance(transaction.user_id, transaction.currency, transaction.amount);
-      if (!success) throw new Error(error);
-      const { error: statusError } = await supabase.from("transactions").update({ status: "approved" }).eq("id", id);
+      
+      if (txError) throw new Error("Transaction not found");
+      if (transaction.status !== "pending") throw new Error(`Transaction is already ${transaction.status}`);
+
+      if (newStatus === "approved") {
+        // Update the user's crypto balance
+        const { success, error: balanceError } = await updateUserCryptoBalance(
+          transaction.user_id,
+          transaction.currency,
+          transaction.amount
+        );
+        
+        if (!success) {
+          throw new Error(balanceError || "Failed to update balance");
+        }
+      }
+      
+      // Update the transaction status
+      const { error: statusError } = await supabase
+        .from("transactions")
+        .update({ status: newStatus })
+        .eq("id", id);
+        
       if (statusError) throw statusError;
-      toast({ title: "Success", description: `Deposit of ${transaction.amount} ${transaction.currency} approved.` });
+      
+      toast({ 
+        title: `Deposit ${newStatus}`, 
+        description: `${transaction.amount} ${transaction.currency} deposit has been ${newStatus}.` 
+      });
+      
       fetchDeposits();
     } catch (error) {
+      console.error("Error handling deposit:", error);
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setProcessingId(null);
@@ -93,14 +118,47 @@ const ApproveCryptoDeposits = () => {
                     <TableCell>{deposit.currency}</TableCell>
                     <TableCell>{deposit.amount}</TableCell>
                     <TableCell>
-                      {deposit.proof ? <Button onClick={() => setSelectedProof(deposit.proof)}>View Proof</Button> : "No proof"}
+                      {deposit.proof ? (
+                        <Button 
+                          size="sm"
+                          variant="outline"
+                          className="flex items-center"
+                          onClick={() => setSelectedProof(deposit.proof)}
+                        >
+                          <Image className="h-4 w-4 mr-1" />
+                          View Proof
+                        </Button>
+                      ) : "No proof"}
                     </TableCell>
                     <TableCell><Badge>{deposit.status}</Badge></TableCell>
-                    <TableCell>
+                    <TableCell className="space-x-2">
                       {deposit.status === "pending" && (
-                        <Button onClick={() => handleApprove(deposit.id)} disabled={processingId === deposit.id}>
-                          {processingId === deposit.id ? <Loader2 className="animate-spin" /> : <CheckCircle2 />} Approve
-                        </Button>
+                        <>
+                          <Button 
+                            size="sm"
+                            variant="outline"
+                            className="flex items-center text-green-600 hover:text-green-700 border-green-200 hover:bg-green-50"
+                            onClick={() => handleStatusChange(deposit.id, "approved")} 
+                            disabled={processingId === deposit.id}
+                          >
+                            {processingId === deposit.id ? 
+                              <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : 
+                              <CheckCircle2 className="h-4 w-4 mr-1" />} 
+                            Approve
+                          </Button>
+                          <Button 
+                            size="sm"
+                            variant="outline"
+                            className="flex items-center text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50"
+                            onClick={() => handleStatusChange(deposit.id, "rejected")} 
+                            disabled={processingId === deposit.id}
+                          >
+                            {processingId === deposit.id ? 
+                              <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : 
+                              <XCircle className="h-4 w-4 mr-1" />} 
+                            Reject
+                          </Button>
+                        </>
                       )}
                     </TableCell>
                   </TableRow>
@@ -116,7 +174,15 @@ const ApproveCryptoDeposits = () => {
             <DialogTitle>Transaction Proof</DialogTitle>
             <DialogDescription>Review the submitted proof image.</DialogDescription>
           </DialogHeader>
-          {selectedProof && <ImageWithFallback src={selectedProof} alt="Transaction Proof" />}
+          <div className="border rounded-md overflow-hidden">
+            {selectedProof && (
+              <ImageWithFallback 
+                src={selectedProof} 
+                alt="Transaction Proof" 
+                className="w-full object-contain max-h-[60vh]"
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

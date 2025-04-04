@@ -1,454 +1,360 @@
+
 import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { supabase } from "@/integrations/supabase/client";
-import { Check, X, Copy, AlertTriangle } from "lucide-react";
-import { updateUserCryptoBalance, updateUserFiatBalance } from "@/utils/walletUtils";
-
-type WithdrawalStatus = 'pending' | 'approved' | 'rejected' | 'forfeited';
-
-type WithdrawalAction = "approve" | "reject" | "forfeit";
-
-const mapActionToStatus = (action: WithdrawalAction): WithdrawalStatus => {
-  switch(action) {
-    case "approve": return "approved";
-    case "reject": return "rejected";
-    case "forfeit": return "forfeited";
-    default: return "pending";
-  }
-};
-
-interface Withdrawal {
-  id: string;
-  userId: string;
-  currency: string;
-  amount: number;
-  status: WithdrawalStatus;
-  createdAt: string;
-  userAddress: string;
-  username?: string;
-}
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 
 const ApproveWithdrawals = () => {
   const { toast } = useToast();
-  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
+  const [withdrawals, setWithdrawals] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedWithdrawal, setSelectedWithdrawal] = useState<Withdrawal | null>(null);
-  const [isActionDialogOpen, setIsActionDialogOpen] = useState(false);
-  const [actionType, setActionType] = useState<WithdrawalAction | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const [processingId, setProcessingId] = useState(null);
+  const [confirmReject, setConfirmReject] = useState(null);
+  const [showProcessDialog, setShowProcessDialog] = useState(false);
+  const [selectedWithdrawal, setSelectedWithdrawal] = useState(null);
+  const [txHash, setTxHash] = useState("");
+
   useEffect(() => {
     fetchWithdrawals();
-    
     const channel = supabase
-      .channel('admin-withdrawals-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'withdrawals' },
-        (payload) => {
-          console.log('Withdrawal change received:', payload);
-          fetchWithdrawals();
-        }
-      )
+      .channel("admin-withdrawals")
+      .on("postgres_changes", { event: "*", schema: "public", table: "withdrawals" }, fetchWithdrawals)
       .subscribe();
-      
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => supabase.removeChannel(channel);
   }, []);
-  
+
   const fetchWithdrawals = async () => {
     setIsLoading(true);
     try {
-      console.log("Fetching pending withdrawals...");
       const { data, error } = await supabase
-        .from('withdrawals')
-        .select(`
-          *,
-          users:user_id (username)
-        `)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
-        
+        .from("withdrawals")
+        .select("*, users(username, email)")
+        .order("created_at", { ascending: false });
       if (error) throw error;
-      
-      console.log("Fetched withdrawals:", data);
-      
-      const formattedWithdrawals: Withdrawal[] = data.map(item => ({
-        id: item.id,
-        userId: item.user_id,
-        currency: item.currency,
-        amount: item.amount,
-        status: item.status as WithdrawalStatus,
-        createdAt: item.created_at,
-        userAddress: item.user_address,
-        username: item.users?.username
-      }));
-      
-      setWithdrawals(formattedWithdrawals);
+      setWithdrawals(data.map(item => ({
+        ...item,
+        username: item.users?.username,
+        email: item.users?.email
+      })));
     } catch (error) {
-      console.error("Error fetching withdrawals:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load pending withdrawals",
-        variant: "destructive"
-      });
+      toast({ title: "Error", description: "Failed to load withdrawal requests", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
-  
-  const handleWithdrawalAction = (withdrawal: Withdrawal, action: WithdrawalAction) => {
+
+  const handleApprove = (withdrawal) => {
     setSelectedWithdrawal(withdrawal);
-    setActionType(action);
-    setIsActionDialogOpen(true);
+    setShowProcessDialog(true);
+    setTxHash("");
   };
-  
-  const executeWithdrawalAction = async () => {
-    if (!selectedWithdrawal || !actionType) return;
+
+  const processWithdrawal = async () => {
+    if (!selectedWithdrawal) return;
     
-    setIsSubmitting(true);
-    
+    setProcessingId(selectedWithdrawal.id);
     try {
-      console.log(`Executing ${actionType} action on withdrawal:`, selectedWithdrawal);
+      // Update withdrawal status to approved
+      const { error } = await supabase
+        .from("withdrawals")
+        .update({ 
+          status: "approved",
+          tx_hash: txHash.trim() || null
+        })
+        .eq("id", selectedWithdrawal.id);
       
-      const finalStatus = mapActionToStatus(actionType);
+      if (error) throw error;
       
-      const { error: updateError } = await supabase
-        .from('withdrawals')
-        .update({ status: finalStatus })
-        .eq('id', selectedWithdrawal.id);
-        
-      if (updateError) throw updateError;
+      // Also update the corresponding transaction if it exists
+      const { data: transactions } = await supabase
+        .from("transactions")
+        .select("id")
+        .eq("user_id", selectedWithdrawal.user_id)
+        .eq("type", "withdrawal")
+        .eq("amount", selectedWithdrawal.amount)
+        .eq("currency", selectedWithdrawal.currency)
+        .eq("status", "pending");
       
-      if (actionType === "reject") {
-        console.log("Refunding rejected withdrawal to user");
-        
-        let updateResult;
-        if (selectedWithdrawal.currency === "KES") {
-          updateResult = await updateUserFiatBalance(selectedWithdrawal.userId, selectedWithdrawal.amount);
-        } else {
-          updateResult = await updateUserCryptoBalance(
-            selectedWithdrawal.userId, 
-            selectedWithdrawal.currency, 
-            selectedWithdrawal.amount
-          );
-        }
-        
-        if (!updateResult.success) {
-          throw new Error(`Failed to update user's ${selectedWithdrawal.currency} balance: ${updateResult.error}`);
-        }
-        
-        console.log(`Successfully refunded ${selectedWithdrawal.amount} ${selectedWithdrawal.currency} to user ${selectedWithdrawal.userId}`);
-        
-        const { error: txError } = await supabase
-          .from('transactions')
-          .insert({
-            user_id: selectedWithdrawal.userId,
-            type: 'withdrawal_refund',
-            currency: selectedWithdrawal.currency,
-            amount: selectedWithdrawal.amount,
-            status: 'approved'
-          });
-          
-        if (txError) {
-          console.error("Error creating refund transaction:", txError);
-          // Non-critical error, continue
-        }
+      if (transactions && transactions.length > 0) {
+        await supabase
+          .from("transactions")
+          .update({ status: "approved" })
+          .eq("id", transactions[0].id);
       }
       
-      setWithdrawals(withdrawals.filter(w => w.id !== selectedWithdrawal.id));
-      setIsActionDialogOpen(false);
+      toast({ 
+        title: "Withdrawal Approved", 
+        description: `${selectedWithdrawal.amount} ${selectedWithdrawal.currency} withdrawal has been approved.` 
+      });
+      
       setSelectedWithdrawal(null);
-      
-      toast({
-        title: `Withdrawal ${finalStatus}`,
-        description: `The withdrawal has been ${finalStatus}${actionType === "reject" ? " and funds have been refunded to the user" : ""}`
-      });
-      
-    } catch (error: any) {
-      console.error(`Error ${actionType}ing withdrawal:`, error);
-      toast({
-        title: "Error",
-        description: error.message || `Failed to ${actionType} withdrawal`,
-        variant: "destructive"
-      });
+      setShowProcessDialog(false);
+      fetchWithdrawals();
+    } catch (error) {
+      console.error("Error processing withdrawal:", error);
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
-      setIsSubmitting(false);
+      setProcessingId(null);
     }
   };
-  
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({
-      title: "Copied to clipboard",
-      description: "The address has been copied to your clipboard"
-    });
-  };
-  
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
-  };
-  
-  return (
-    <>
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <h2 className="text-lg font-semibold mb-4">Pending Withdrawals</h2>
-        
-        <Tabs defaultValue="crypto" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="crypto">Crypto Withdrawals</TabsTrigger>
-            <TabsTrigger value="kes">KES Withdrawals</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="crypto">
-            {isLoading ? (
-              <div className="text-center py-8">
-                <div className="w-8 h-8 border-2 border-t-fortunesly-primary border-gray-200 rounded-full animate-spin mx-auto"></div>
-                <p className="mt-2 text-gray-500">Loading crypto withdrawals...</p>
-              </div>
-            ) : withdrawals.filter(w => w.currency !== "KES").length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <p>No pending crypto withdrawals</p>
-              </div>
-            ) : (
-              <div className="border rounded-md overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>User</TableHead>
-                      <TableHead>Currency</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Withdrawal Address</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {withdrawals
-                      .filter(withdrawal => withdrawal.currency !== "KES")
-                      .map((withdrawal) => (
-                        <TableRow key={withdrawal.id}>
-                          <TableCell>{formatDate(withdrawal.createdAt)}</TableCell>
-                          <TableCell>{withdrawal.username || withdrawal.userId}</TableCell>
-                          <TableCell>{withdrawal.currency}</TableCell>
-                          <TableCell>{withdrawal.amount}</TableCell>
-                          <TableCell className="max-w-[200px] truncate">
-                            <div className="flex items-center space-x-2">
-                              <span className="font-mono text-xs">{withdrawal.userAddress}</span>
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => copyToClipboard(withdrawal.userAddress)}
-                              >
-                                <Copy className="h-3 w-3" />
-                                <span className="sr-only">Copy</span>
-                              </Button>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex space-x-2">
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                className="bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700"
-                                onClick={() => handleWithdrawalAction(withdrawal, "approve")}
-                              >
-                                <Check className="h-3 w-3 mr-1" />
-                                Approve
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                className="bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700"
-                                onClick={() => handleWithdrawalAction(withdrawal, "reject")}
-                              >
-                                <X className="h-3 w-3 mr-1" />
-                                Reject
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                className="bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-700"
-                                onClick={() => handleWithdrawalAction(withdrawal, "forfeit")}
-                              >
-                                <AlertTriangle className="h-3 w-3 mr-1" />
-                                Forfeit
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="kes">
-            {isLoading ? (
-              <div className="text-center py-8">
-                <div className="w-8 h-8 border-2 border-t-fortunesly-primary border-gray-200 rounded-full animate-spin mx-auto"></div>
-                <p className="mt-2 text-gray-500">Loading KES withdrawals...</p>
-              </div>
-            ) : withdrawals.filter(w => w.currency === "KES").length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <p>No pending KES withdrawals</p>
-                <p className="text-xs mt-1">KES withdrawals are typically processed automatically</p>
-              </div>
-            ) : (
-              <div className="border rounded-md overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>User</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Phone Number</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {withdrawals
-                      .filter(withdrawal => withdrawal.currency === "KES")
-                      .map((withdrawal) => (
-                        <TableRow key={withdrawal.id}>
-                          <TableCell>{formatDate(withdrawal.createdAt)}</TableCell>
-                          <TableCell>{withdrawal.username || withdrawal.userId}</TableCell>
-                          <TableCell>{withdrawal.amount} KES</TableCell>
-                          <TableCell>{withdrawal.userAddress}</TableCell>
-                          <TableCell>
-                            <div className="flex space-x-2">
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                className="bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700"
-                                onClick={() => handleWithdrawalAction(withdrawal, "approve")}
-                              >
-                                <Check className="h-3 w-3 mr-1" />
-                                Approve
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                className="bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700"
-                                onClick={() => handleWithdrawalAction(withdrawal, "reject")}
-                              >
-                                <X className="h-3 w-3 mr-1" />
-                                Reject
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
+
+  const handleReject = async () => {
+    if (!confirmReject) return;
+    
+    setProcessingId(confirmReject.id);
+    try {
+      // Update withdrawal status to rejected
+      const { error } = await supabase
+        .from("withdrawals")
+        .update({ status: "rejected" })
+        .eq("id", confirmReject.id);
       
-      {selectedWithdrawal && (
-        <Dialog open={isActionDialogOpen} onOpenChange={setIsActionDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {actionType === "approve" 
-                  ? "Approve Withdrawal" 
-                  : actionType === "reject"
-                  ? "Reject Withdrawal"
-                  : "Forfeit Withdrawal"}
-              </DialogTitle>
-              <DialogDescription>
-                {actionType === "approve" 
-                  ? "Please confirm that you have sent the funds and want to approve this withdrawal." 
-                  : actionType === "reject"
-                  ? "This will refund the user's funds to their account balance."
-                  : "This will permanently forfeit the funds. They will not be refunded to the user."}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="py-4 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium">User</p>
-                  <p className="text-sm text-gray-500">{selectedWithdrawal.username || selectedWithdrawal.userId}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Date</p>
-                  <p className="text-sm text-gray-500">{formatDate(selectedWithdrawal.createdAt)}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Currency</p>
-                  <p className="text-sm text-gray-500">{selectedWithdrawal.currency}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Amount</p>
-                  <p className="text-sm text-gray-500">{selectedWithdrawal.amount}</p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-sm font-medium">
-                    {selectedWithdrawal.currency === "KES" ? "Phone Number" : "Withdrawal Address"}
-                  </p>
-                  <div className="flex items-center space-x-2">
-                    <p className="text-sm text-gray-500 font-mono">{selectedWithdrawal.userAddress}</p>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => copyToClipboard(selectedWithdrawal.userAddress)}
-                    >
-                      <Copy className="h-3 w-3" />
-                      <span className="sr-only">Copy</span>
-                    </Button>
-                  </div>
-                </div>
+      if (error) throw error;
+      
+      // Also update the corresponding transaction if it exists
+      const { data: transactions } = await supabase
+        .from("transactions")
+        .select("id")
+        .eq("user_id", confirmReject.user_id)
+        .eq("type", "withdrawal")
+        .eq("amount", confirmReject.amount)
+        .eq("currency", confirmReject.currency)
+        .eq("status", "pending");
+      
+      if (transactions && transactions.length > 0) {
+        await supabase
+          .from("transactions")
+          .update({ status: "rejected" })
+          .eq("id", transactions[0].id);
+      }
+      
+      // Return the funds to the user
+      const { success, error: balanceError } = await updateUserCryptoBalance(
+        confirmReject.user_id,
+        confirmReject.currency,
+        confirmReject.amount
+      );
+      
+      if (!success && balanceError) {
+        console.error("Error returning funds:", balanceError);
+      }
+      
+      toast({ 
+        title: "Withdrawal Rejected", 
+        description: `${confirmReject.amount} ${confirmReject.currency} withdrawal has been rejected and funds returned.` 
+      });
+      
+      setConfirmReject(null);
+      fetchWithdrawals();
+    } catch (error) {
+      console.error("Error rejecting withdrawal:", error);
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-4">Withdrawal Approvals</h1>
+      <Card>
+        <CardHeader>
+          <CardTitle>Withdrawal Requests</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? <p>Loading...</p> : withdrawals.length === 0 ? <p>No withdrawal requests found</p> : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Currency</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Address</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {withdrawals.map((withdrawal) => (
+                  <TableRow key={withdrawal.id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{withdrawal.username || "Unknown"}</p>
+                        <p className="text-sm text-gray-500">{withdrawal.email}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>{withdrawal.currency}</TableCell>
+                    <TableCell>{withdrawal.amount}</TableCell>
+                    <TableCell>
+                      <div className="max-w-[200px] truncate font-mono text-xs">
+                        {withdrawal.user_address}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={
+                        withdrawal.status === "pending" ? "bg-yellow-100 text-yellow-800 border-yellow-200" :
+                        withdrawal.status === "approved" ? "bg-green-100 text-green-800 border-green-200" : 
+                        "bg-red-100 text-red-800 border-red-200"
+                      }>
+                        {withdrawal.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="space-x-2">
+                      {withdrawal.status === "pending" && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex items-center text-green-600 hover:text-green-700 border-green-200 hover:bg-green-50"
+                            onClick={() => handleApprove(withdrawal)}
+                            disabled={processingId === withdrawal.id}
+                          >
+                            {processingId === withdrawal.id ? 
+                              <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : 
+                              <CheckCircle2 className="h-4 w-4 mr-1" />}
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex items-center text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50"
+                            onClick={() => setConfirmReject(withdrawal)}
+                            disabled={processingId === withdrawal.id}
+                          >
+                            {processingId === withdrawal.id ? 
+                              <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : 
+                              <XCircle className="h-4 w-4 mr-1" />}
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Process Withdrawal Dialog */}
+      <Dialog open={showProcessDialog} onOpenChange={setShowProcessDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Process Withdrawal</DialogTitle>
+            <DialogDescription>
+              Complete the withdrawal by sending {selectedWithdrawal?.amount} {selectedWithdrawal?.currency} to the address below.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div>
+              <Label htmlFor="address">Destination Address</Label>
+              <div className="p-2 border rounded bg-gray-50 font-mono text-sm break-all">
+                {selectedWithdrawal?.user_address}
               </div>
-              
-              {actionType === "forfeit" && (
-                <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                  <p className="text-sm text-red-600 font-medium flex items-center">
-                    <AlertTriangle className="h-4 w-4 mr-2" />
-                    Warning: This action cannot be undone
-                  </p>
-                  <p className="text-sm text-red-600 mt-1">
-                    Forfeited funds will not be refunded to the user and will be permanently removed from the system.
-                  </p>
-                </div>
-              )}
             </div>
-            
-            <DialogFooter>
-              <Button 
-                variant="outline" 
-                onClick={() => setIsActionDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={executeWithdrawalAction}
-                disabled={isSubmitting}
-                variant={actionType === "forfeit" ? "destructive" : "default"}
-              >
-                {isSubmitting 
-                  ? "Processing..." 
-                  : actionType === "approve" 
-                    ? "Approve Withdrawal" 
-                    : actionType === "reject"
-                      ? "Reject and Refund"
-                      : "Forfeit Funds"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-    </>
+            <div>
+              <Label htmlFor="tx-hash">Transaction Hash (Optional)</Label>
+              <Input
+                id="tx-hash"
+                value={txHash}
+                onChange={(e) => setTxHash(e.target.value)}
+                placeholder="Enter transaction hash/id"
+              />
+              <p className="text-xs text-gray-500 mt-1">Transaction hash for reference (optional)</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowProcessDialog(false)}>Cancel</Button>
+            <Button 
+              onClick={processWithdrawal} 
+              disabled={processingId === selectedWithdrawal?.id}
+            >
+              {processingId === selectedWithdrawal?.id ? 
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : 'Confirm Approval'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm Reject Alert */}
+      <AlertDialog open={!!confirmReject} onOpenChange={(open) => !open && setConfirmReject(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reject Withdrawal?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will reject the withdrawal request of {confirmReject?.amount} {confirmReject?.currency} and return the funds to the user's wallet.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleReject}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Reject Withdrawal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
+};
+
+// Helper function to update user crypto balance
+const updateUserCryptoBalance = async (userId, currency, amount) => {
+  try {
+    // First get the current balance
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('balance_crypto')
+      .eq('id', userId)
+      .single();
+
+    if (userError) throw userError;
+
+    // Parse and update the balance
+    const balances = userData.balance_crypto || {};
+    const currentBalance = parseFloat(String(balances[currency])) || 0;
+    const newBalance = currentBalance + amount;
+    
+    // Create updated balance object
+    const updatedBalance = {
+      ...(typeof balances === 'object' ? balances : {}),
+      [currency]: newBalance
+    };
+
+    // Update the user's balance
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ 
+        balance_crypto: updatedBalance 
+      })
+      .eq('id', userId);
+
+    if (updateError) throw updateError;
+
+    return { 
+      success: true, 
+      balance: newBalance,
+      error: null
+    };
+  } catch (error) {
+    console.error(`Error updating ${currency} balance for user ${userId}:`, error);
+    return { 
+      success: false, 
+      balance: null,
+      error: error.message || "Failed to update balance"
+    };
+  }
 };
 
 export default ApproveWithdrawals;

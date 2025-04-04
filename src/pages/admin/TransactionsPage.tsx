@@ -10,7 +10,10 @@ import { toast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { AlertTriangle, CheckCircle, Search, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle, Search, XCircle, Image } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import ImageWithFallback from "@/components/common/ImageWithFallback";
+import { updateUserCryptoBalance } from "@/utils/walletUtils";
 
 const statusColors = {
   pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
@@ -31,6 +34,7 @@ const TransactionsPage = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [processingId, setProcessingId] = useState(null);
+  const [selectedProofImage, setSelectedProofImage] = useState(null);
 
   useEffect(() => {
     fetchTransactions();
@@ -93,6 +97,31 @@ const TransactionsPage = () => {
     try {
       setProcessingId(id);
       
+      // Get the transaction details first
+      const { data: transaction, error: txError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('id', id)
+        .single();
+        
+      if (txError) {
+        throw txError;
+      }
+      
+      if (newStatus === "approved" && transaction.type === "deposit") {
+        // Update user's crypto balance when approving deposits
+        const { success, error: balanceError } = await updateUserCryptoBalance(
+          transaction.user_id, 
+          transaction.currency, 
+          transaction.amount
+        );
+        
+        if (!success) {
+          throw new Error(balanceError || "Failed to update user balance");
+        }
+      }
+      
+      // Update the transaction status
       const { error } = await supabase
         .from('transactions')
         .update({ status: newStatus })
@@ -244,6 +273,21 @@ const TransactionsPage = () => {
                           <TableCell>{transaction.currency}</TableCell>
                           <TableCell>{transaction.amount}</TableCell>
                           <TableCell>
+                            {transaction.proof ? (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="flex items-center"
+                                onClick={() => setSelectedProofImage(transaction.proof)}
+                              >
+                                <Image className="h-4 w-4 mr-1" />
+                                View
+                              </Button>
+                            ) : (
+                              <span className="text-sm text-gray-500">No proof</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
                             <Badge variant="outline" className={statusColors[transaction.status]}>
                               {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
                             </Badge>
@@ -288,6 +332,24 @@ const TransactionsPage = () => {
           </TabsContent>
         </Tabs>
       </Card>
+      
+      {/* Proof Image Preview Dialog */}
+      <Dialog open={!!selectedProofImage} onOpenChange={() => setSelectedProofImage(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Transaction Proof</DialogTitle>
+          </DialogHeader>
+          <div className="border rounded-md overflow-hidden">
+            {selectedProofImage && (
+              <ImageWithFallback
+                src={selectedProofImage}
+                alt="Transaction Proof"
+                className="w-full max-h-[60vh] object-contain"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
