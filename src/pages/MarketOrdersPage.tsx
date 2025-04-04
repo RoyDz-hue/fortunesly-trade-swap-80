@@ -145,9 +145,9 @@ const MarketOrdersPage = () => {
   };
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="w-full py-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <h1 className="text-2xl font-bold">Market Orders</h1>
+        <h1 className="text-3xl font-bold">Market Orders</h1>
         
         <Button 
           onClick={handleCreateOrder} 
@@ -158,13 +158,13 @@ const MarketOrdersPage = () => {
         </Button>
       </div>
       
-      <Card className="mb-6">
-        <CardHeader className="pb-3">
-          <CardTitle>Available Orders</CardTitle>
+      <Card className="mb-6 border shadow-sm">
+        <CardHeader className="pb-3 bg-gray-50 border-b">
+          <CardTitle className="text-xl">Available Orders</CardTitle>
         </CardHeader>
         
-        <Tabs defaultValue="sell" value={activeTab} onValueChange={setActiveTab}>
-          <div className="px-4">
+        <Tabs defaultValue="sell" value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <div className="px-4 pt-4">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="sell" className="flex items-center">
                 <ArrowDown className="h-4 w-4 mr-2" />
@@ -226,42 +226,59 @@ const MarketOrdersPage = () => {
             </div>
           </div>
           
-          <CardContent>
+          <CardContent className="p-4">
             {isLoading ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
               </div>
             ) : marketOrders.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">No {activeTab === 'buy' ? 'sell' : 'buy'} orders available</div>
+              <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-lg border border-dashed">
+                <div className="flex justify-center mb-2">
+                  {activeTab === 'buy' ? <ArrowUp className="h-12 w-12 text-gray-300" /> : <ArrowDown className="h-12 w-12 text-gray-300" />}
+                </div>
+                <h3 className="text-lg font-medium mb-1">No {activeTab === 'buy' ? 'sell' : 'buy'} orders available</h3>
+                <p className="text-sm">Be the first to create a {activeTab === 'buy' ? 'sell' : 'buy'} order!</p>
+                <Button 
+                  onClick={handleCreateOrder} 
+                  variant="outline"
+                  className="mt-4"
+                >
+                  Create Order
+                </Button>
+              </div>
             ) : (
-              <div className="space-y-4">
+              <div className="grid gap-4">
                 {marketOrders.map((order) => {
                   const coinDetails = getCoinDetails(order.currency);
+                  const orderType = activeTab === 'buy' ? 'sell' : 'buy';
+                  const buttonColorClass = orderType === 'buy' ? 
+                    'bg-green-600 hover:bg-green-700 text-white' : 
+                    'bg-red-600 hover:bg-red-700 text-white';
                   
                   return (
-                    <div key={order.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <div key={order.id} className="border rounded-lg p-6 hover:shadow-md transition-shadow bg-white">
                       <div className="flex flex-col sm:flex-row justify-between gap-4">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-8 w-8 bg-gray-200">
-                              <span className="text-xs">{order.username.charAt(0).toUpperCase()}</span>
+                          <div className="flex items-center gap-3 mb-4">
+                            <Avatar className="h-10 w-10 bg-gray-200">
+                              <span className="text-sm">{order.username.charAt(0).toUpperCase()}</span>
                             </Avatar>
                             <div>
-                              <p className="font-medium">{order.username}</p>
+                              <p className="font-medium text-lg">{order.username}</p>
                               <p className="text-sm text-gray-500">Transactions: {Math.floor(Math.random() * 10) + 1}</p>
                             </div>
                           </div>
                           
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">
-                            <div className="border-r pr-4">
-                              <p className="text-sm text-gray-500">Price</p>
-                              <p className="font-medium">KES {order.price}</p>
+                            <div className="bg-gray-50 p-3 rounded-lg">
+                              <p className="text-sm text-gray-500 mb-1">Price</p>
+                              <p className="font-medium text-lg">KES {order.price.toLocaleString()}</p>
                             </div>
-                            <div className="border-r pr-4">
-                              <p className="text-sm text-gray-500">Available</p>
-                              <div className="flex items-center gap-1 font-medium">
-                                {order.amount} 
-                                <div className="flex items-center">
+                            <div className="bg-gray-50 p-3 rounded-lg">
+                              <p className="text-sm text-gray-500 mb-1">Available</p>
+                              <div className="flex items-center gap-1 font-medium text-lg">
+                                {order.amount.toLocaleString()} 
+                                <div className="flex items-center ml-1">
                                   {coinDetails.icon_url ? (
                                     <ImageWithFallback 
                                       src={coinDetails.icon_url}
@@ -274,9 +291,11 @@ const MarketOrdersPage = () => {
                                 </div>
                               </div>
                             </div>
-                            <div>
-                              <p className="text-sm text-gray-500">Limit</p>
-                              <p className="font-medium">KES {(order.price * order.amount * 0.1).toFixed(0)} - {(order.price * order.amount).toFixed(0)}</p>
+                            <div className="bg-gray-50 p-3 rounded-lg">
+                              <p className="text-sm text-gray-500 mb-1">Limit</p>
+                              <p className="font-medium text-lg">
+                                KES {(order.price * order.amount * 0.1).toLocaleString(undefined, {maximumFractionDigits: 0})} - {(order.price * order.amount).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -284,13 +303,9 @@ const MarketOrdersPage = () => {
                         <div className="flex items-center">
                           <Button
                             onClick={() => handleTrade(order)}
-                            className={
-                              activeTab === 'sell' ? 
-                              'bg-red-600 hover:bg-red-700' : 
-                              'bg-green-600 hover:bg-green-700'
-                            }
+                            className={buttonColorClass + " px-8 py-6 text-lg font-medium"}
                           >
-                            {activeTab === 'sell' ? 'Buy' : 'Sell'}
+                            {orderType === 'buy' ? 'Buy' : 'Sell'}
                           </Button>
                         </div>
                       </div>
@@ -308,7 +323,9 @@ const MarketOrdersPage = () => {
         isOpen={showTradeDialog}
         onClose={() => setShowTradeDialog(false)}
         order={selectedOrder}
-        onSuccess={fetchOrders}
+        onSuccess={() => {
+          fetchOrders();
+        }}
       />
     </div>
   );
