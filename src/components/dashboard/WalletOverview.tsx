@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Wallet, Coin } from "@/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
 import DepositDialog from "./DepositDialog";
 import WithdrawDialog from "./WithdrawDialog";
@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 
 const WalletOverview = () => {
   const [wallets, setWallets] = useState<Wallet[]>([]);
@@ -233,28 +233,22 @@ const WalletOverview = () => {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-gray-900">Wallet Overview</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold text-gray-900">Wallet Overview</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="overflow-hidden border border-gray-200">
-              <CardHeader className="p-4 bg-gray-50 border-b border-gray-200">
-                <div className="flex items-center">
-                  <Skeleton className="w-8 h-8 mr-3 rounded-full" />
-                  <Skeleton className="h-4 w-24" />
-                </div>
-              </CardHeader>
-              <CardContent className="p-4">
-                <div className="flex justify-between items-center">
+            <Card key={i} className="overflow-hidden border border-gray-100">
+              <div className="flex items-center p-3">
+                <Skeleton className="w-6 h-6 mr-2 rounded-full" />
+                <Skeleton className="h-4 w-16" />
+                <div className="ml-auto">
                   <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-4 w-32" />
                 </div>
-                <div className="mt-6 grid grid-cols-2 gap-2">
-                  <Skeleton className="h-10" />
-                  <Skeleton className="h-10" />
-                </div>
-              </CardContent>
+              </div>
+              <div className="flex justify-end px-3 pb-3 pt-1 gap-2">
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <Skeleton className="h-8 w-8 rounded-full" />
+              </div>
             </Card>
           ))}
         </div>
@@ -264,16 +258,14 @@ const WalletOverview = () => {
 
   if (error) {
     return (
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-gray-900">Wallet Overview</h2>
-
-        <Alert variant="destructive">
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold text-gray-900">Wallet Overview</h2>
+        <Alert variant="destructive" className="py-2">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
-
         <button 
-          className="px-4 py-2 bg-fortunesly-primary text-white rounded-md hover:bg-fortunesly-primary/90"
+          className="px-3 py-1 bg-fortunesly-primary text-white text-sm rounded-md hover:bg-fortunesly-primary/90"
           onClick={() => window.location.reload()}
         >
           Retry
@@ -283,8 +275,8 @@ const WalletOverview = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Wallet Overview</h2>
+    <div className="space-y-4">
+      <h2 className="text-xl font-semibold text-gray-900">Wallet Overview</h2>
 
       {wallets.length === 0 ? (
         <Alert>
@@ -292,15 +284,15 @@ const WalletOverview = () => {
           <AlertDescription>No wallets found. Please contact support if you believe this is an error.</AlertDescription>
         </Alert>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {wallets.map((wallet) => {
             const coin = availableCoins.find(c => c.symbol === wallet.currency);
 
             return (
-              <Card key={wallet.id} className="overflow-hidden border border-gray-200 hover:shadow-md transition-shadow">
-                <CardHeader className="p-4 bg-gray-50 border-b border-gray-200">
-                  <div className="flex items-center">
-                    <div className="w-8 h-8 mr-3 rounded-full overflow-hidden flex-shrink-0">
+              <Card key={wallet.id} className="overflow-hidden border border-gray-100 hover:shadow-sm transition-shadow">
+                <CardContent className="p-0">
+                  <div className="flex items-center p-3">
+                    <div className="w-6 h-6 mr-2 rounded-full overflow-hidden flex-shrink-0 bg-gray-50">
                       <img 
                         src={wallet.currency === "KES" 
                           ? "https://bfsodqqylpfotszjlfuk.supabase.co/storage/v1/object/public/apps//kenya.png" 
@@ -314,28 +306,33 @@ const WalletOverview = () => {
                         }}
                       />
                     </div>
-                    <CardTitle className="text-base font-semibold">
-                      {coin?.name || wallet.currency} ({wallet.currency})
-                    </CardTitle>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {coin?.name || wallet.currency}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {wallet.currency}
+                      </div>
+                    </div>
+                    <div className="ml-auto text-right">
+                      <div className="font-medium text-sm">{wallet.balance.toLocaleString()}</div>
+                      <div className="text-xs text-gray-500">{wallet.currency}</div>
+                    </div>
                   </div>
-                </CardHeader>
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-center">
-                    <div className="text-gray-500 text-sm">Available Balance</div>
-                    <div className="font-medium">{wallet.balance.toLocaleString()} {wallet.currency}</div>
-                  </div>
-                  <div className="mt-6 grid grid-cols-2 gap-2">
+                  <div className="flex justify-end px-3 pb-3 pt-1 gap-2">
                     <button 
-                      className="py-2 text-xs font-medium text-center text-white bg-fortunesly-primary rounded-md hover:bg-fortunesly-primary/90 transition-colors"
+                      className="p-2 text-xs font-medium text-white bg-fortunesly-primary rounded-full hover:bg-fortunesly-primary/90 transition-colors"
                       onClick={() => handleDepositClick(wallet)}
+                      title="Deposit"
                     >
-                      Deposit
+                      <ArrowDownToLine className="h-4 w-4" />
                     </button>
                     <button 
-                      className="py-2 text-xs font-medium text-center text-fortunesly-primary bg-white border border-fortunesly-primary rounded-md hover:bg-gray-50 transition-colors"
+                      className="p-2 text-xs font-medium text-fortunesly-primary bg-white border border-fortunesly-primary rounded-full hover:bg-gray-50 transition-colors"
                       onClick={() => handleWithdrawClick(wallet)}
+                      title="Withdraw"
                     >
-                      Withdraw
+                      <ArrowUpFromLine className="h-4 w-4" />
                     </button>
                   </div>
                 </CardContent>
