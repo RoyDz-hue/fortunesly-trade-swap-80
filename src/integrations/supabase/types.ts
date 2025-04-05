@@ -167,8 +167,11 @@ export type Database = {
           amount: number
           created_at: string | null
           currency: string
+          description: string | null
           id: string
           proof: string | null
+          secondary_amount: number | null
+          secondary_currency: string | null
           status: string | null
           type: string
           user_id: string | null
@@ -178,8 +181,11 @@ export type Database = {
           amount: number
           created_at?: string | null
           currency: string
+          description?: string | null
           id?: string
           proof?: string | null
+          secondary_amount?: number | null
+          secondary_currency?: string | null
           status?: string | null
           type: string
           user_id?: string | null
@@ -189,8 +195,11 @@ export type Database = {
           amount?: number
           created_at?: string | null
           currency?: string
+          description?: string | null
           id?: string
           proof?: string | null
+          secondary_amount?: number | null
+          secondary_currency?: string | null
           status?: string | null
           type?: string
           user_id?: string | null

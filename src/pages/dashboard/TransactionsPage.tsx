@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Transaction } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +20,8 @@ const statusColors = {
 const typeColors = {
   deposit: "bg-blue-100 text-blue-800 border-blue-200",
   withdrawal: "bg-purple-100 text-purple-800 border-purple-200",
+  purchase: "bg-green-100 text-green-800 border-green-200",
+  sale: "bg-red-100 text-red-800 border-red-200",
 };
 
 const TransactionsPage = () => {
@@ -53,7 +54,12 @@ const TransactionsPage = () => {
       
       // Apply filters
       if (typeFilter !== "all") {
-        query = query.eq('type', typeFilter);
+        if (typeFilter === "trade") {
+          // Trade includes both purchase and sale
+          query = query.in('type', ['purchase', 'sale']);
+        } else {
+          query = query.eq('type', typeFilter);
+        }
       }
       
       if (statusFilter !== "all") {
@@ -78,13 +84,16 @@ const TransactionsPage = () => {
       const formattedTransactions: Transaction[] = data.map(item => ({
         id: item.id,
         userId: item.user_id,
-        type: item.type as 'deposit' | 'withdrawal',
+        type: item.type as 'deposit' | 'withdrawal' | 'purchase' | 'sale',
         currency: item.currency,
         amount: item.amount,
         status: item.status as 'pending' | 'approved' | 'rejected' | 'forfeited',
         createdAt: item.created_at,
         proof: item.proof || '',
-        withdrawalAddress: item.withdrawal_address || ''
+        withdrawalAddress: item.withdrawal_address || '',
+        secondaryCurrency: item.secondary_currency || '',
+        secondaryAmount: item.secondary_amount || 0,
+        description: item.description || ''
       }));
       
       setTransactions(formattedTransactions);
@@ -186,6 +195,9 @@ const TransactionsPage = () => {
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="deposit">Deposits</SelectItem>
                   <SelectItem value="withdrawal">Withdrawals</SelectItem>
+                  <SelectItem value="purchase">Purchases</SelectItem>
+                  <SelectItem value="sale">Sales</SelectItem>
+                  <SelectItem value="trade">Trades</SelectItem>
                 </SelectContent>
               </Select>
               <Select 
@@ -249,15 +261,27 @@ const TransactionsPage = () => {
                     <TableRow key={transaction.id}>
                       <TableCell>{formatDate(transaction.createdAt)}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={typeColors[transaction.type]}>
+                        <Badge variant="outline" className={typeColors[transaction.type] || "bg-gray-100 text-gray-800"}>
                           {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{transaction.currency}</TableCell>
-                      <TableCell 
-                        className={transaction.type === 'deposit' ? 'text-green-600' : 'text-red-600'}
-                      >
-                        {transaction.type === 'deposit' ? '+' : '-'}{transaction.amount}
+                      <TableCell>
+                        {transaction.currency}
+                        {transaction.secondaryCurrency && (
+                          <span className="text-xs text-gray-500 ml-1">
+                            / {transaction.secondaryCurrency}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className={transaction.type === 'deposit' || transaction.type === 'purchase' ? 'text-green-600' : 'text-red-600'}>
+                          {transaction.type === 'deposit' || transaction.type === 'purchase' ? '+' : '-'}{transaction.amount}
+                        </div>
+                        {transaction.secondaryAmount > 0 && (
+                          <div className={transaction.type === 'sale' ? 'text-green-600 text-xs' : 'text-red-600 text-xs'}>
+                            {transaction.type === 'sale' ? '+' : '-'}{transaction.secondaryAmount} {transaction.secondaryCurrency}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={statusColors[transaction.status]}>
@@ -272,7 +296,6 @@ const TransactionsPage = () => {
             </div>
           )}
           
-          {/* Pagination controls */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3">
               <div className="text-sm text-gray-500">
