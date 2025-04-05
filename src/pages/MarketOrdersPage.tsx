@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -164,7 +165,7 @@ const MarketOrdersPage = () => {
         </div>
       </div>
 
-      <Card className="border shadow-sm">
+      <Card className="border shadow-sm w-full">
         <Tabs defaultValue="sell" value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="flex flex-col sm:flex-row justify-between items-center p-4 border-b bg-gray-50">
             <CardTitle className="text-lg mb-3 sm:mb-0">Available Orders</CardTitle>

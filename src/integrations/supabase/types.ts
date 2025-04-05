@@ -60,6 +60,7 @@ export type Database = {
           created_at: string | null
           currency: string
           id: string
+          original_amount: number | null
           price: number
           status: string | null
           type: string
@@ -70,6 +71,7 @@ export type Database = {
           created_at?: string | null
           currency: string
           id?: string
+          original_amount?: number | null
           price: number
           status?: string | null
           type: string
@@ -80,6 +82,7 @@ export type Database = {
           created_at?: string | null
           currency?: string
           id?: string
+          original_amount?: number | null
           price?: number
           status?: string | null
           type?: string
@@ -88,6 +91,70 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "orders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trades: {
+        Row: {
+          amount: number
+          counterparty_id: string
+          created_at: string | null
+          currency: string
+          id: string
+          order_id: string
+          price: number
+          status: string
+          type: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          counterparty_id: string
+          created_at?: string | null
+          currency: string
+          id?: string
+          order_id: string
+          price: number
+          status?: string
+          type: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          counterparty_id?: string
+          created_at?: string | null
+          currency?: string
+          id?: string
+          order_id?: string
+          price?: number
+          status?: string
+          type?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trades_counterparty_id_fkey"
+            columns: ["counterparty_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trades_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trades_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -215,11 +282,19 @@ export type Database = {
         }
         Returns: Json
       }
+      begin_transaction: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       cancel_order: {
         Args: {
           order_id_param: string
         }
         Returns: Json
+      }
+      commit_transaction: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       create_order: {
         Args: {
@@ -238,6 +313,35 @@ export type Database = {
           trade_amount_param: number
         }
         Returns: Json
+      }
+      execute_trade:
+        | {
+            Args: {
+              p_order_id: number
+              p_user_id: string
+              p_amount: number
+              p_price: number
+              p_is_partial: boolean
+              p_currency: string
+              p_type: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_order_id: string
+              p_user_id: string
+              p_amount: number
+              p_price: number
+              p_is_partial: boolean
+              p_currency: string
+              p_type: string
+            }
+            Returns: Json
+          }
+      rollback_transaction: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
     }
     Enums: {

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import ImageWithFallback from '@/components/common/ImageWithFallback';
+import { executeTrade } from '@/utils/tradingUtils';
 
 const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
   const { toast } = useToast();
@@ -62,7 +64,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
       setIsLoading(true);
       const parsedAmount = parseFloat(amount);
 
-      if (isNaN(parsedAmount) {
+      if (isNaN(parsedAmount)) {
         toast({ title: "Invalid amount", variant: "destructive" });
         return;
       }
@@ -72,17 +74,16 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
         return;
       }
 
-      const { error } = await supabase.rpc('execute_trade', {
-        p_order_id: order.id,
-        p_user_id: user.id,
-        p_amount: parsedAmount,
-        p_price: order.price,
-        p_is_partial: parsedAmount < order.amount,
-        p_currency: order.currency,
-        p_type: order.type === 'buy' ? 'sell' : 'buy' // Invert type
-      });
+      // Use the executeTrade utility function
+      const result = await executeTrade(
+        order.id,
+        user.id,
+        parsedAmount
+      );
 
-      if (error) throw error;
+      if (!result.success) {
+        throw new Error(result.error);
+      }
 
       toast({
         title: "Trade successful",
