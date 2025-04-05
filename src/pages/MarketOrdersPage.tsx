@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -91,7 +90,7 @@ const MarketOrdersPage = () => {
       let query = supabase
         .from('orders')
         .select('*, users(username)')
-        .eq('status', 'open')
+        .not('status', 'in', ['filled', 'filed', 'completed', 'complete']) // Modified to exclude completed orders only
         .eq('type', activeTab === 'buy' ? 'sell' : 'buy'); // Inverse logic: "buy" tab shows 'sell' orders
 
       // Apply coin filter if selected
@@ -294,7 +293,7 @@ const MarketOrdersPage = () => {
                             <p className="text-xs text-gray-500">Price</p>
                             <p className="font-medium text-sm">KES {order.price.toLocaleString()}</p>
                           </div>
-                          
+
                           <div className="bg-gray-50 rounded-md px-3 py-2 text-center min-w-[120px]">
                             <p className="text-xs text-gray-500">Available</p>
                             <div className="flex items-center justify-center gap-1 font-medium text-sm">
@@ -311,7 +310,7 @@ const MarketOrdersPage = () => {
                                 <span className="ml-1">{order.currency}</span>
                               </div>
                             </div>
-                            
+
                             {/* Show fill status if partially filled */}
                             {order.filled_percentage && order.filled_percentage > 0 && (
                               <div className="mt-1">
@@ -325,7 +324,7 @@ const MarketOrdersPage = () => {
                               </div>
                             )}
                           </div>
-                          
+
                           <div className="bg-gray-50 rounded-md px-3 py-2 text-center min-w-[120px]">
                             <p className="text-xs text-gray-500">Limit</p>
                             <p className="font-medium text-sm">
