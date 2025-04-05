@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Transaction } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DownloadIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const statusColors = {
   pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
@@ -34,6 +36,7 @@ const TransactionsPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 10;
+  const isMobile = useIsMobile();
   
   const { user } = useAuth();
   
@@ -161,6 +164,83 @@ const TransactionsPage = () => {
     document.body.removeChild(link);
   };
 
+  // Format transaction amounts for display
+  const formatTransactionAmounts = (transaction: Transaction) => {
+    const primaryAmount = (
+      <div className={transaction.type === 'deposit' || transaction.type === 'purchase' ? 'text-green-600' : 'text-red-600'}>
+        {transaction.type === 'deposit' || transaction.type === 'purchase' ? '+' : '-'}{transaction.amount} {transaction.currency}
+      </div>
+    );
+    
+    const secondaryAmount = transaction.secondaryAmount > 0 && (
+      <div className={transaction.type === 'sale' ? 'text-green-600' : 'text-red-600'}>
+        {transaction.type === 'sale' ? '+' : '-'}{transaction.secondaryAmount} {transaction.secondaryCurrency}
+      </div>
+    );
+    
+    return (
+      <>
+        {primaryAmount}
+        {secondaryAmount}
+      </>
+    );
+  };
+
+  // For mobile view, we'll create a card-based layout
+  const renderMobileView = () => (
+    <div className="space-y-4">
+      {isLoading ? (
+        <div className="flex justify-center items-center p-8">
+          <div className="w-8 h-8 border-4 border-t-fortunesly-primary border-gray-200 rounded-full animate-spin"></div>
+          <span className="ml-2">Loading transactions...</span>
+        </div>
+      ) : filteredTransactions.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          {searchQuery || typeFilter !== "all" || statusFilter !== "all" ? 
+            "No transactions match your filters." : 
+            "You have no transactions yet."}
+        </div>
+      ) : (
+        filteredTransactions.map(transaction => (
+          <div key={transaction.id} className="bg-white rounded-lg shadow border p-4">
+            <div className="flex justify-between items-start mb-3">
+              <Badge variant="outline" className={typeColors[transaction.type]}>
+                {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
+              </Badge>
+              <span className="text-xs text-gray-500">{formatDate(transaction.createdAt)}</span>
+            </div>
+            
+            <div className="mb-2">
+              <div className="font-medium">
+                {transaction.type === 'deposit' 
+                  ? `Deposit of ${transaction.amount} ${transaction.currency}`
+                  : transaction.type === 'withdrawal'
+                  ? `Withdrawal of ${transaction.amount} ${transaction.currency}`
+                  : transaction.type === 'purchase'
+                  ? `Purchase of ${transaction.amount} ${transaction.currency}`
+                  : `Sale of ${transaction.amount} ${transaction.currency}`
+                }
+              </div>
+            </div>
+            
+            <div className="flex justify-between items-center">
+              <Badge variant="outline" className={statusColors[transaction.status]}>
+                {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+              </Badge>
+              <div className="text-right">
+                {formatTransactionAmounts(transaction)}
+              </div>
+            </div>
+            
+            <div className="mt-2 text-xs text-gray-500 truncate">
+              ID: {transaction.id.substring(0, 8)}...
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -243,6 +323,10 @@ const TransactionsPage = () => {
                 "No transactions match your filters." : 
                 "You have no transactions yet."}
             </div>
+          ) : isMobile ? (
+            <div className="p-4">
+              {renderMobileView()}
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -274,14 +358,7 @@ const TransactionsPage = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className={transaction.type === 'deposit' || transaction.type === 'purchase' ? 'text-green-600' : 'text-red-600'}>
-                          {transaction.type === 'deposit' || transaction.type === 'purchase' ? '+' : '-'}{transaction.amount}
-                        </div>
-                        {transaction.secondaryAmount > 0 && (
-                          <div className={transaction.type === 'sale' ? 'text-green-600 text-xs' : 'text-red-600 text-xs'}>
-                            {transaction.type === 'sale' ? '+' : '-'}{transaction.secondaryAmount} {transaction.secondaryCurrency}
-                          </div>
-                        )}
+                        {formatTransactionAmounts(transaction)}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={statusColors[transaction.status]}>

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Transaction } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -159,6 +160,7 @@ const RecentTransactions = () => {
     return tx.type === activeTab;
   });
   
+  // Modified function to get more comprehensive descriptions
   const getTransactionDescription = (transaction: Transaction) => {
     switch (transaction.type) {
       case 'deposit':
@@ -166,31 +168,50 @@ const RecentTransactions = () => {
       case 'withdrawal':
         return `Withdrawal of ${transaction.amount} ${transaction.currency}`;
       case 'purchase':
-        return `Purchase of ${transaction.amount} ${transaction.currency}${transaction.secondaryAmount ? ` for ${transaction.secondaryAmount} ${transaction.secondaryCurrency}` : ''}`;
+        return `Purchase of ${transaction.amount} ${transaction.currency}`;
       case 'sale':
-        return `Sale of ${transaction.amount} ${transaction.currency}${transaction.secondaryAmount ? ` for ${transaction.secondaryAmount} ${transaction.secondaryCurrency}` : ''}`;
+        return `Sale of ${transaction.amount} ${transaction.currency}`;
       default:
         return transaction.description || `${transaction.amount} ${transaction.currency}`;
     }
   };
 
-  const getTransactionChangeLabel = (transaction: Transaction) => {
+  // New function to format transaction change amounts with proper signs
+  const formatTransactionChanges = (transaction: Transaction) => {
     switch (transaction.type) {
       case 'deposit':
-        return `+${transaction.amount} ${transaction.currency}`;
+        return (
+          <span className="text-green-600">+{transaction.amount} {transaction.currency}</span>
+        );
       case 'withdrawal':
-        return `-${transaction.amount} ${transaction.currency}`;
+        return (
+          <span className="text-red-600">-{transaction.amount} {transaction.currency}</span>
+        );
       case 'purchase':
-        return `+${transaction.amount} ${transaction.currency}${transaction.secondaryAmount ? `, -${transaction.secondaryAmount} ${transaction.secondaryCurrency}` : ''}`;
+        return (
+          <div className="flex flex-col sm:flex-row sm:gap-2">
+            <span className="text-green-600">+{transaction.amount} {transaction.currency}</span>
+            {transaction.secondaryAmount > 0 && (
+              <span className="text-red-600">-{transaction.secondaryAmount} {transaction.secondaryCurrency}</span>
+            )}
+          </div>
+        );
       case 'sale':
-        return `-${transaction.amount} ${transaction.currency}${transaction.secondaryAmount ? `, +${transaction.secondaryAmount} ${transaction.secondaryCurrency}` : ''}`;
+        return (
+          <div className="flex flex-col sm:flex-row sm:gap-2">
+            <span className="text-red-600">-{transaction.amount} {transaction.currency}</span>
+            {transaction.secondaryAmount > 0 && (
+              <span className="text-green-600">+{transaction.secondaryAmount} {transaction.secondaryCurrency}</span>
+            )}
+          </div>
+        );
       default:
         return `${transaction.amount} ${transaction.currency}`;
     }
   };
   
   return (
-    <Card className="border border-gray-200">
+    <Card className="border border-gray-200 h-full">
       <CardHeader className="p-4 border-b border-gray-200">
         <div className="flex justify-between items-center">
           <CardTitle className="text-lg font-semibold">Recent Transactions</CardTitle>
@@ -204,52 +225,55 @@ const RecentTransactions = () => {
           </Tabs>
         </div>
       </CardHeader>
-      <CardContent className="p-0">
-        {isLoading ? (
-          renderSkeletons()
-        ) : error ? (
-          <div className="p-8 text-center text-red-500">
-            <p>{error}</p>
-            <button 
-              onClick={() => fetchTransactions()} 
-              className="mt-2 text-sm text-fortunesly-primary hover:underline"
-            >
-              Try again
-            </button>
-          </div>
-        ) : filteredTransactions.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            <p>No {activeTab !== "all" ? activeTab : ""} transactions found.</p>
-            <p className="text-xs mt-2">Your transaction history will appear here.</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-200">
-            {filteredTransactions.map((transaction) => (
-              <div key={transaction.id} className="p-4 hover:bg-gray-50 transition-colors">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex items-start space-x-2">
-                    <Badge variant="outline" className={typeColors[transaction.type]}>
-                      {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
-                    </Badge>
-                    <Badge variant="outline" className={statusColors[transaction.status]}>
-                      {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                    </Badge>
+      <CardContent className="p-0 overflow-hidden flex flex-col">
+        <div className="flex-grow overflow-auto">
+          {isLoading ? (
+            renderSkeletons()
+          ) : error ? (
+            <div className="p-8 text-center text-red-500">
+              <p>{error}</p>
+              <button 
+                onClick={() => fetchTransactions()} 
+                className="mt-2 text-sm text-fortunesly-primary hover:underline"
+              >
+                Try again
+              </button>
+            </div>
+          ) : filteredTransactions.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">
+              <p>No {activeTab !== "all" ? activeTab : ""} transactions found.</p>
+              <p className="text-xs mt-2">Your transaction history will appear here.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200">
+              {filteredTransactions.map((transaction) => (
+                <div key={transaction.id} className="p-4 hover:bg-gray-50 transition-colors">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex items-start space-x-2">
+                      <Badge variant="outline" className={typeColors[transaction.type]}>
+                        {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
+                      </Badge>
+                      <Badge variant="outline" className={statusColors[transaction.status]}>
+                        {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+                      </Badge>
+                    </div>
+                    <span className="text-sm text-gray-500">{formatDate(transaction.createdAt)}</span>
                   </div>
-                  <span className="text-sm text-gray-500">{formatDate(transaction.createdAt)}</span>
+                  
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
+                    <div className="text-sm text-gray-700 mb-1 sm:mb-0">
+                      {getTransactionDescription(transaction)}
+                    </div>
+                    <div className="text-sm font-medium">
+                      {formatTransactionChanges(transaction)}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex flex-col">
-                  <div className="text-sm text-gray-700">
-                    {getTransactionDescription(transaction)}
-                  </div>
-                  <div className="text-sm font-medium mt-1">
-                    {getTransactionChangeLabel(transaction)}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        <div className="p-4 border-t border-gray-200">
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="p-4 border-t border-gray-200 mt-auto">
           <button 
             className="w-full py-2 text-sm font-medium text-center text-fortunesly-primary hover:text-fortunesly-accent transition-colors"
             onClick={handleViewAllClick}

@@ -85,9 +85,15 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
         throw new Error(result.error);
       }
 
+      // Determine if this was a partial or complete order execution
+      const isPartial = parsedAmount < order.amount;
+      const orderMessage = isPartial 
+        ? `You ${order.type === 'buy' ? 'sold' : 'bought'} ${parsedAmount} ${order.currency} (partial order)`
+        : `You ${order.type === 'buy' ? 'sold' : 'bought'} ${parsedAmount} ${order.currency}`;
+
       toast({
         title: "Trade successful",
-        description: `You ${order.type === 'buy' ? 'sold' : 'bought'} ${parsedAmount} ${order.currency}`,
+        description: orderMessage,
       });
 
       onSuccess?.();

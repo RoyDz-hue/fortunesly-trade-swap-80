@@ -14,13 +14,18 @@ export const executeTrade = async (
   tradeAmount: number
 ) => {
   try {
+    console.log(`Executing trade: Order ${orderId}, Trader ${traderId}, Amount ${tradeAmount}`);
+    
     const { data, error } = await supabase.rpc('execute_market_order', {
       order_id_param: orderId,
       trader_id_param: traderId,
       trade_amount_param: tradeAmount
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Trade execution error:', error);
+      throw error;
+    }
     
     console.log("Trade execution result:", data);
     
@@ -44,11 +49,18 @@ export const executeTrade = async (
  */
 export const cancelOrder = async (orderId: string) => {
   try {
+    console.log(`Cancelling order: ${orderId}`);
+    
     const { data, error } = await supabase.rpc('cancel_order', {
       order_id_param: orderId
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Cancel order error:', error);
+      throw error;
+    }
+    
+    console.log("Cancel order result:", data);
     
     return {
       success: true,
@@ -76,6 +88,8 @@ export const getTransactionHistory = async (
   limit = 10
 ) => {
   try {
+    console.log(`Getting transaction history for user ${userId}, filter: ${filter}, limit: ${limit}`);
+    
     let query = supabase
       .from('transactions')
       .select('*')
@@ -97,7 +111,12 @@ export const getTransactionHistory = async (
     
     const { data, error } = await query;
     
-    if (error) throw error;
+    if (error) {
+      console.error('Transaction history error:', error);
+      throw error;
+    }
+    
+    console.log(`Retrieved ${data?.length || 0} transactions`);
     
     return {
       success: true,
