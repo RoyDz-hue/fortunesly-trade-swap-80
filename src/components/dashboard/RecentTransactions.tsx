@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Transaction } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -100,7 +99,7 @@ const RecentTransactions = () => {
         createdAt: item.created_at,
         proof: item.proof || '',
         withdrawalAddress: item.withdrawal_address || '',
-        // Now use the actual fields from the database
+        // Handle potentially missing properties
         secondaryCurrency: item.secondary_currency || '',
         secondaryAmount: item.secondary_amount || 0,
         description: item.description || ''
