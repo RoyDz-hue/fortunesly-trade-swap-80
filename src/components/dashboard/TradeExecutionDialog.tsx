@@ -141,7 +141,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
               </div>
             </div>
 
-            {order.original_amount > order.amount && (
+            {order.original_amount && order.original_amount > order.amount && (
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium">Status:</span>
                 <Badge variant="outline" className="bg-blue-50 text-blue-700">
@@ -161,7 +161,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
                   type="button" 
                   variant="outline" 
                   size="sm" 
-                  onClick={() => setAmount(order.amount)}
+                  onClick={() => setAmount(order.amount.toString())}
                 >
                   Max
                 </Button>
@@ -169,7 +169,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setAmount(order.amount / 2)}
+                  onClick={() => setAmount((order.amount / 2).toString())}
                 >
                   Half
                 </Button>

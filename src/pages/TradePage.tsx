@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import OrderBook from "@/components/dashboard/OrderBook";
 import TradeForm from "@/components/dashboard/TradeForm";
@@ -219,8 +220,8 @@ const TradePage = () => {
     };
   }, []);
 
-  const handleOrderSelect = (order: any, type: 'buy' | 'sell') => {
-    window.location.href = `/market?orderId=${order.id}&type=${type}`;
+  const handleOrderRefresh = async () => {
+    return fetchData();
   };
 
   return (
@@ -249,7 +250,7 @@ const TradePage = () => {
                 tradingPair={selectedPair} 
                 buyOrders={buyOrders}
                 sellOrders={sellOrders}
-                onOrderSelect={handleOrderSelect}
+                onRefresh={handleOrderRefresh}
               />
             </div>
             <div>

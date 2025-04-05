@@ -1,5 +1,6 @@
+
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ArrowUp, ArrowDown, RefreshCw } from "lucide-react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,9 +9,11 @@ const OrderBook = ({
   tradingPair = { baseCurrency: "BTC", quoteCurrency: "KES" },
   buyOrders = [],
   sellOrders = [],
-  onRefresh
+  onRefresh,
+  onOrderSelect
 }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
   const topOrders = { buy: buyOrders.slice(0, 3), sell: sellOrders.slice(0, 3) };
 
   const handleRefresh = (e) => {
@@ -19,10 +22,14 @@ const OrderBook = ({
     onRefresh?.().finally(() => setIsLoading(false));
   };
 
+  const handleCardClick = () => {
+    navigate("/market/orders");
+  };
+
   return (
     <Card 
       className="w-full shadow-sm border hover:shadow-md transition-shadow"
-      onClick={() => window.location = "/market/orders"}
+      onClick={handleCardClick}
     >
       <CardHeader className="p-4 pb-2">
         <div className="flex items-center justify-between">

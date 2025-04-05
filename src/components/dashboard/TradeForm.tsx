@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import CreateOrderForm from "@/components/dashboard/CreateOrderForm";
@@ -59,7 +60,7 @@ const TradeForm = ({
           availablePairs={availablePairs}
           availableBalances={availableBalances}
           availableCoins={availableCoins}
-          onOrderCreated={(orderDetails) => {
+          onOrderCreated={(orderDetails: any) => {
             toast({
               title: "Order Created",
               description: "Your order has been placed successfully",

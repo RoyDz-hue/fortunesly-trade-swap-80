@@ -14,17 +14,33 @@ import TradeExecutionDialog from '@/components/dashboard/TradeExecutionDialog';
 import { useNavigate } from 'react-router-dom';
 import ImageWithFallback from '@/components/common/ImageWithFallback';
 
+// Define the type for order objects
+interface OrderType {
+  id: string;
+  user_id: string;
+  type: string;
+  currency: string;
+  amount: number;
+  price: number;
+  status: string;
+  created_at: string;
+  original_amount?: number;
+  users: {
+    username: string;
+  };
+}
+
 const MarketOrdersPage = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState<OrderType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState<OrderType | null>(null);
   const [showTradeDialog, setShowTradeDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("sell"); // "sell" means showing buy orders, "buy" means showing sell orders
   const [selectedCoin, setSelectedCoin] = useState("all");
-  const [priceSort, setPriceSort] = useState(null);
+  const [priceSort, setPriceSort] = useState<string | null>(null);
   const [availableCoins, setAvailableCoins] = useState([]);
 
   useEffect(() => {
@@ -98,15 +114,14 @@ const MarketOrdersPage = () => {
       console.log("Fetched market orders:", data);
 
       // Format the data to include username
-      const formattedData = data.map(order => ({
+      const formattedData = data?.map(order => ({
         ...order,
         username: order.users?.username || 'Unknown',
         // Add tracking for partially filled orders
-        original_amount: order.original_amount || order.amount, // If original_amount exists, use it, otherwise use current amount
         filled_percentage: order.original_amount ? ((order.original_amount - order.amount) / order.original_amount * 100) : 0
       }));
 
-      setOrders(formattedData);
+      setOrders(formattedData || []);
     } catch (error) {
       console.error("Error fetching orders:", error);
       toast({
@@ -215,12 +230,12 @@ const MarketOrdersPage = () => {
                 </SelectContent>
               </Select>
 
-              <Select value={priceSort} onValueChange={setPriceSort}>
+              <Select value={priceSort || undefined} onValueChange={setPriceSort}>
                 <SelectTrigger className="h-8 w-[120px] text-xs">
                   <SelectValue placeholder="Sort by Price" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={null}>Default</SelectItem>
+                  <SelectItem value={undefined}>Default</SelectItem>
                   <SelectItem value="asc">Low to High</SelectItem>
                   <SelectItem value="desc">High to Low</SelectItem>
                 </SelectContent>
@@ -264,10 +279,10 @@ const MarketOrdersPage = () => {
                         {/* User Info - Minimized Version */}
                         <div className="flex items-center gap-2">
                           <Avatar className="h-8 w-8 bg-gray-100">
-                            <span className="text-xs">{order.username.charAt(0).toUpperCase()}</span>
+                            <span className="text-xs">{order.users.username.charAt(0).toUpperCase()}</span>
                           </Avatar>
                           <div>
-                            <p className="font-medium text-sm">{order.username}</p>
+                            <p className="font-medium text-sm">{order.users.username}</p>
                             <p className="text-xs text-gray-500">Transactions: {Math.floor(Math.random() * 10) + 1}</p>
                           </div>
                         </div>
