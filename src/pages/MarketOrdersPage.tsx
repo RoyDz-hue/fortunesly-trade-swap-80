@@ -90,7 +90,7 @@ const MarketOrdersPage = () => {
       let query = supabase
         .from('orders')
         .select('*, users(username)')
-        .not('status', 'in', ['filled', 'filed', 'completed', 'complete']) // Modified to exclude completed orders only
+        .not('status', 'in', ['filled', 'filed', 'completed', 'complete']) // Modified to exclude completed orders
         .eq('type', activeTab === 'buy' ? 'sell' : 'buy'); // Inverse logic: "buy" tab shows 'sell' orders
 
       // Apply coin filter if selected
