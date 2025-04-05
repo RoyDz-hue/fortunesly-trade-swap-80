@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Transaction } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,7 +73,6 @@ const RecentTransactions = () => {
       setIsLoading(true);
       console.log("Fetching transactions for user:", user.id);
       
-      // First, alter the query to select additional fields that might be available
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
@@ -101,10 +99,10 @@ const RecentTransactions = () => {
         createdAt: item.created_at,
         proof: item.proof || '',
         withdrawalAddress: item.withdrawal_address || '',
-        // Safely handle potentially missing fields
-        secondaryCurrency: item.secondary_currency || '',
-        secondaryAmount: item.secondary_amount || 0,
-        description: item.description || ''
+        // Default to empty values for optional fields
+        secondaryCurrency: '',
+        secondaryAmount: 0,
+        description: ''
       }));
       
       setTransactions(formattedTransactions);
