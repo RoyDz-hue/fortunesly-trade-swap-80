@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Home, Wallet, ArrowLeftRight, ListOrdered, Settings, LogOut, Menu, X } from "lucide-react";
@@ -10,7 +9,6 @@ import {
   SheetContent, 
   SheetTrigger 
 } from "@/components/ui/sheet";
-import { ROUTES } from "@/utils/routeUtils";
 
 interface SidebarLinkProps {
   href: string;
@@ -40,19 +38,13 @@ interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
-const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
+const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const location = useLocation();
   const { logout, user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   
   const isActive = (path: string) => {
-    if (path === ROUTES.DASHBOARD && location.pathname === ROUTES.DASHBOARD) {
-      return true;
-    }
-    if (path !== ROUTES.DASHBOARD && location.pathname.startsWith(path)) {
-      return true;
-    }
-    return false;
+    return location.pathname === path || location.pathname.startsWith(`${path}/`);
   };
 
   const closeMobileMenu = () => {
@@ -64,53 +56,32 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     closeMobileMenu();
   };
 
+  const navLinks = [
+    { href: "/dashboard", icon: <Home size={20} />, label: "Dashboard" },
+    { href: "/dashboard/wallet", icon: <Wallet size={20} />, label: "Wallet" },
+    { href: "/dashboard/trade", icon: <ArrowLeftRight size={20} />, label: "Trade" },
+    { href: "/dashboard/orders", icon: <ListOrdered size={20} />, label: "Orders" },
+    { href: "/dashboard/settings", icon: <Settings size={20} />, label: "Settings" },
+  ];
+
   const renderNavLinks = (isMobile: boolean = false) => (
     <nav className="space-y-2">
-      <SidebarLink 
-        href={ROUTES.DASHBOARD} 
-        icon={<Home size={20} />} 
-        isActive={isActive(ROUTES.DASHBOARD)}
-        onClick={isMobile ? closeMobileMenu : undefined}
-      >
-        Dashboard
-      </SidebarLink>
-      <SidebarLink 
-        href={ROUTES.DASHBOARD_WALLET} 
-        icon={<Wallet size={20} />} 
-        isActive={isActive(ROUTES.DASHBOARD_WALLET)}
-        onClick={isMobile ? closeMobileMenu : undefined}
-      >
-        Wallet
-      </SidebarLink>
-      <SidebarLink 
-        href={ROUTES.DASHBOARD_TRADE} 
-        icon={<ArrowLeftRight size={20} />} 
-        isActive={isActive(ROUTES.DASHBOARD_TRADE)}
-        onClick={isMobile ? closeMobileMenu : undefined}
-      >
-        Trade
-      </SidebarLink>
-      <SidebarLink 
-        href={ROUTES.DASHBOARD_ORDERS} 
-        icon={<ListOrdered size={20} />} 
-        isActive={isActive(ROUTES.DASHBOARD_ORDERS)}
-        onClick={isMobile ? closeMobileMenu : undefined}
-      >
-        Orders
-      </SidebarLink>
-      <SidebarLink 
-        href={ROUTES.DASHBOARD_SETTINGS} 
-        icon={<Settings size={20} />} 
-        isActive={isActive(ROUTES.DASHBOARD_SETTINGS)}
-        onClick={isMobile ? closeMobileMenu : undefined}
-      >
-        Settings
-      </SidebarLink>
+      {navLinks.map((link) => (
+        <SidebarLink 
+          key={link.href}
+          href={link.href} 
+          icon={link.icon} 
+          isActive={isActive(link.href)}
+          onClick={isMobile ? closeMobileMenu : undefined}
+        >
+          {link.label}
+        </SidebarLink>
+      ))}
     </nav>
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 flex overflow-hidden">
       {/* Desktop Sidebar */}
       <div className="hidden md:flex md:flex-col md:w-64 md:fixed md:inset-y-0 bg-white border-r border-gray-200">
         <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
@@ -141,7 +112,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       </div>
 
       {/* Main content */}
-      <div className="md:pl-64 flex flex-col flex-1">
+      <div className="md:pl-64 flex flex-col flex-1 w-full">
         {/* Mobile header */}
         <div className="sticky top-0 z-10 flex-shrink-0 flex bg-white border-b border-gray-200 md:hidden">
           <div className="flex-1 flex justify-between px-4 py-3">
@@ -177,7 +148,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                     </div>
                   </div>
                   
-                  <div className="flex-1 overflow-auto p-4">
+                  <div className="flex-1 overflow-y-auto p-4">
                     {renderNavLinks(true)}
                   </div>
                   
@@ -197,10 +168,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           </div>
         </div>
         
+        {/* Page content */}
         <main className="flex-1 pb-8">
           <div className="py-6">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-              {children}
+            <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8">
+              <div className="w-full overflow-x-hidden">
+                {children}
+              </div>
             </div>
           </div>
         </main>
