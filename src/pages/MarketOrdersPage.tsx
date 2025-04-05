@@ -90,7 +90,7 @@ const MarketOrdersPage = () => {
       let query = supabase
         .from('orders')
         .select('*, users(username)')
-        .not('status', 'in', ['filled', 'completed', 'complete']) // Fixed filter to exclude completed orders
+        .in('status', ['open', 'partially_filled']) // Show only open or partially filled orders
         .eq('type', activeTab === 'buy' ? 'sell' : 'buy'); // Inverse logic: "buy" tab shows 'sell' orders
 
       // Apply coin filter if selected
@@ -312,7 +312,7 @@ const MarketOrdersPage = () => {
                             </div>
 
                             {/* Show fill status if partially filled */}
-                            {order.filled_percentage && order.filled_percentage > 0 && (
+                            {order.status === 'partially_filled' && (
                               <div className="mt-1">
                                 <div className="w-full bg-gray-200 rounded-full h-1">
                                   <div 
