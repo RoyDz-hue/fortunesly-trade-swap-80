@@ -24,7 +24,9 @@ interface OrderType {
   status: string;
   created_at: string;
   original_amount?: number;
-  users: { username: string; };
+  users: {
+    username: string;
+  };
   filled_percentage?: number;
 }
 
@@ -64,7 +66,6 @@ const MarketOrdersPage = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-
   }, [activeTab, selectedCoin, priceSort]);
 
   const fetchCoins = async () => {
@@ -85,12 +86,11 @@ const MarketOrdersPage = () => {
     try {
       setIsLoading(true);
 
-      // Build query - IMPORTANT: We're still querying only for 'open' status from the database
-      // but we'll handle visibility of other statuses on the client side
+      // Build query
       let query = supabase
         .from('orders')
         .select('*, users(username)')
-        .eq('status', 'open')
+        .not('status', 'in', ['filled', 'filed', 'completed', 'complete']) // Modified to exclude completed orders
         .eq('type', activeTab === 'buy' ? 'sell' : 'buy'); // Inverse logic: "buy" tab shows 'sell' orders
 
       // Apply coin filter if selected
@@ -147,13 +147,8 @@ const MarketOrdersPage = () => {
     return availableCoins.find(coin => coin.symbol === symbol) || { name: symbol, icon_url: null };
   };
 
-  // Filter out user's own orders and apply the UI visibility fix
-  // This is where we implement the UI trick: show orders with any status except those that are fully completed
-  const marketOrders = user ? orders.filter(order => 
-    order.user_id !== user.id && 
-    // Keep orders visible unless they have these completed statuses
-    !['filled', 'filed', 'completed', 'complete'].includes(order.status.toLowerCase())
-  ) : orders;
+  // Filter out user's own orders
+  const marketOrders = user ? orders.filter(order => order.user_id !== user.id) : orders;
 
   const handleRefresh = () => {
     fetchOrders();
