@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Home, Wallet, ArrowLeftRight, ListOrdered, Settings, LogOut, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,15 +22,18 @@ const SidebarLink = ({ href, icon, children, isActive, onClick }: SidebarLinkPro
   <Link
     to={href}
     className={cn(
-      "flex items-center py-3 px-4 rounded-lg text-sm font-medium transition-colors",
+      "flex items-center py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 ease-in-out",
       isActive
-        ? "bg-fortunesly-primary text-white"
-        : "text-gray-600 hover:bg-gray-100"
+        ? "bg-gradient-to-r from-fortunesly-primary to-fortunesly-primary/90 text-white shadow-sm"
+        : "text-gray-600 hover:bg-gray-100 hover:translate-x-1"
     )}
     onClick={onClick}
   >
-    <div className="mr-3">{icon}</div>
-    {children}
+    <div className={cn("mr-3 transition-transform", isActive ? "scale-110" : "")}>{icon}</div>
+    <span className="flex-1">{children}</span>
+    {isActive && (
+      <div className="h-2 w-2 rounded-full bg-white animate-pulse"></div>
+    )}
   </Link>
 );
 
@@ -42,6 +45,20 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const location = useLocation();
   const { logout, user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    
+    return () => {
+      window.removeEventListener('resize', checkScreenSize);
+    };
+  }, []);
   
   const isActive = (path: string) => {
     return location.pathname === path || location.pathname.startsWith(`${path}/`);
@@ -83,18 +100,18 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   return (
     <div className="min-h-screen bg-gray-50 flex overflow-hidden">
       {/* Desktop Sidebar */}
-      <div className="hidden md:flex md:flex-col md:w-64 md:fixed md:inset-y-0 bg-white border-r border-gray-200">
+      <div className="hidden md:flex md:flex-col md:w-64 md:fixed md:inset-y-0 bg-white border-r border-gray-200 shadow-sm transition-all duration-300">
         <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
-          <div className="flex items-center justify-center px-4">
+          <div className="flex items-center justify-center px-4 mb-6">
             <Link to="/" className="flex items-center">
               <span className="text-xl font-bold text-fortunesly-primary">Fortunesly</span>
               <span className="text-xl font-bold text-fortunesly-secondary">.shop</span>
             </Link>
           </div>
-          <div className="mt-8 px-4">
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+          <div className="px-4">
+            <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-4 mb-6 shadow-sm border border-gray-100">
               <div className="text-sm text-gray-500 mb-1">Welcome,</div>
-              <div className="font-medium text-gray-900">{user?.username}</div>
+              <div className="font-medium text-gray-900 truncate">{user?.username}</div>
             </div>
             {renderNavLinks()}
           </div>
@@ -102,7 +119,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <div className="p-4 border-t border-gray-200">
           <Button
             variant="outline"
-            className="w-full justify-start text-red-500 hover:text-red-700 hover:bg-red-50"
+            className="w-full justify-start text-red-500 hover:text-red-700 hover:bg-red-50 transition-all duration-200"
             onClick={logout}
           >
             <LogOut className="mr-2 h-4 w-4" />
@@ -114,8 +131,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       {/* Main content */}
       <div className="md:pl-64 flex flex-col flex-1 w-full">
         {/* Mobile header */}
-        <div className="sticky top-0 z-10 flex-shrink-0 flex bg-white border-b border-gray-200 md:hidden">
-          <div className="flex-1 flex justify-between px-4 py-3">
+        <div className="sticky top-0 z-10 flex-shrink-0 flex h-16 bg-white border-b border-gray-200 md:hidden shadow-sm">
+          <div className="flex-1 flex justify-between items-center px-4">
             <Link to="/" className="flex items-center">
               <span className="text-xl font-bold text-fortunesly-primary">Fortunesly</span>
               <span className="text-xl font-bold text-fortunesly-secondary">.shop</span>
@@ -125,11 +142,11 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="md:hidden">
-                  <Menu className="h-6 w-6" />
+                  <Menu className="h-6 w-6 text-gray-600" />
                   <span className="sr-only">Open menu</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-[80%] sm:w-[350px] p-0">
+              <SheetContent side="left" className="w-[85%] sm:w-[350px] p-0 border-r-0">
                 <div className="flex flex-col h-full">
                   <div className="border-b border-gray-200 p-4">
                     <div className="flex items-center justify-between mb-6">
@@ -137,14 +154,14 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                         <span className="text-xl font-bold text-fortunesly-primary">Fortunesly</span>
                         <span className="text-xl font-bold text-fortunesly-secondary">.shop</span>
                       </Link>
-                      <Button variant="ghost" size="icon" onClick={closeMobileMenu}>
-                        <X className="h-5 w-5" />
+                      <Button variant="ghost" size="icon" onClick={closeMobileMenu} className="hover:bg-gray-100">
+                        <X className="h-5 w-5 text-gray-600" />
                       </Button>
                     </div>
                     
-                    <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-4 mb-4 shadow-sm border border-gray-100">
                       <div className="text-sm text-gray-500 mb-1">Welcome,</div>
-                      <div className="font-medium text-gray-900">{user?.username}</div>
+                      <div className="font-medium text-gray-900 truncate">{user?.username}</div>
                     </div>
                   </div>
                   
@@ -155,7 +172,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                   <div className="p-4 border-t border-gray-200">
                     <Button
                       variant="outline"
-                      className="w-full justify-start text-red-500 hover:text-red-700 hover:bg-red-50"
+                      className="w-full justify-start text-red-500 hover:text-red-700 hover:bg-red-50 transition-all duration-200"
                       onClick={handleLogout}
                     >
                       <LogOut className="mr-2 h-4 w-4" />
@@ -169,9 +186,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </div>
         
         {/* Page content */}
-        <main className="flex-1 pb-8">
-          <div className="py-6">
-            <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8">
+        <main className="flex-1">
+          <div className="py-4 sm:py-6">
+            <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
               <div className="w-full overflow-x-hidden">
                 {children}
               </div>
