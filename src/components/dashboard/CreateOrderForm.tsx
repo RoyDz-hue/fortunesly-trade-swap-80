@@ -172,12 +172,13 @@ const CreateOrderForm = ({
     try {
       // Now we'll use the create_order database function that handles balance withholding
       const { data, error } = await supabase.rpc('create_order', {
-        user_id_param: user.id,
-        order_type_param: orderType,
-        currency_param: baseCurrency,
-        amount_param: numericAmount,
-        price_param: numericPrice
-      });
+  user_id_param: user.id,
+  order_type_param: orderType,
+  currency_param: baseCurrency,
+  amount_param: numericAmount,
+  price_param: numericPrice,
+  original_amount_param: numericAmount  // Added this line
+});
       
       if (error) throw error;
       
