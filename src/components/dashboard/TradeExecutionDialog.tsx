@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -147,6 +146,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
               </div>
             </div>
 
+            {/* Display status badge for partially-filled orders */}
             {order.original_amount && order.original_amount > order.amount && (
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium">Status:</span>
