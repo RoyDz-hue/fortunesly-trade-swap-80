@@ -12,7 +12,7 @@ interface OrderBookProps {
   };
   buyOrders?: any[];
   sellOrders?: any[];
-  onRefresh?: () => void;
+  onRefresh?: () => void | Promise<void>;
   onOrderSelect?: (order: any, type: "buy" | "sell") => void;
 }
 
@@ -27,16 +27,22 @@ const OrderBook = ({
   const navigate = useNavigate();
   const topOrders = { buy: buyOrders.slice(0, 3), sell: sellOrders.slice(0, 3) };
 
-  const handleRefresh = (e) => {
+  const handleRefresh = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsLoading(true);
     
     if (onRefresh) {
-      const result = onRefresh();
-      // Only call finally if the result has a finally method (is a Promise)
-      if (result && typeof result.finally === 'function') {
-        result.finally(() => setIsLoading(false));
-      } else {
+      try {
+        const result = onRefresh();
+        // Check if result is a Promise
+        if (result instanceof Promise) {
+          result.finally(() => setIsLoading(false));
+        } else {
+          // If not a Promise, just set loading to false
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error("Error refreshing orders:", error);
         setIsLoading(false);
       }
     } else {
@@ -48,7 +54,7 @@ const OrderBook = ({
     navigate("/market/orders");
   };
 
-  const handleOrderClick = (order, type) => {
+  const handleOrderClick = (order: any, type: "buy" | "sell") => {
     if (onOrderSelect) {
       onOrderSelect(order, type);
     }

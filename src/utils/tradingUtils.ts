@@ -85,10 +85,7 @@ export const getTransactionHistory = async (
     if (filter && filter !== 'all') {
       if (filter === 'trade') {
         // Trade includes both purchase and sale
-        query = query.eq('type', 'trade');
-      } else if (filter === 'purchase' || filter === 'sale') {
-        // These may be handled differently depending on your data structure
-        query = query.in('type', ['purchase', 'sale', 'trade']);
+        query = query.in('type', ['purchase', 'sale']);
       } else {
         query = query.eq('type', filter);
       }
