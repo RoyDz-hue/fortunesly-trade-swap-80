@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -15,7 +14,33 @@ export const executeTrade = async (
 ) => {
   try {
     console.log(`Executing trade: Order ${orderId}, Trader ${traderId}, Amount ${tradeAmount}`);
-    
+
+    // First, get the current order data to check if this is the first partial execution
+    const { data: orderData, error: orderError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', orderId)
+      .single();
+
+    if (orderError) {
+      console.error('Error fetching order data:', orderError);
+      throw orderError;
+    }
+
+    // If this is the first partial execution, store the original amount
+    if (!orderData.original_amount) {
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ original_amount: orderData.amount })
+        .eq('id', orderId);
+
+      if (updateError) {
+        console.error('Error updating original amount:', updateError);
+        throw updateError;
+      }
+    }
+
+    // Execute the trade through RPC
     const { data, error } = await supabase.rpc('execute_market_order', {
       order_id_param: orderId,
       trader_id_param: traderId,
@@ -26,9 +51,34 @@ export const executeTrade = async (
       console.error('Trade execution error:', error);
       throw error;
     }
-    
+
+    // Update order status based on partial or complete execution
+    if (orderData.amount === tradeAmount) {
+      // Full execution - mark as filled
+      const { error: statusError } = await supabase
+        .from('orders')
+        .update({ status: 'filled' })
+        .eq('id', orderId);
+
+      if (statusError) {
+        console.error('Error updating order status:', statusError);
+        throw statusError;
+      }
+    } else {
+      // Partial execution - mark as partially-filled
+      const { error: statusError } = await supabase
+        .from('orders')
+        .update({ status: 'partially-filled' })
+        .eq('id', orderId);
+
+      if (statusError) {
+        console.error('Error updating order status:', statusError);
+        throw statusError;
+      }
+    }
+
     console.log("Trade execution result:", data);
-    
+
     return {
       success: true,
       data
@@ -50,7 +100,7 @@ export const executeTrade = async (
 export const cancelOrder = async (orderId: string) => {
   try {
     console.log(`Cancelling order: ${orderId}`);
-    
+
     const { data, error } = await supabase.rpc('cancel_order', {
       order_id_param: orderId
     });
@@ -59,9 +109,9 @@ export const cancelOrder = async (orderId: string) => {
       console.error('Cancel order error:', error);
       throw error;
     }
-    
+
     console.log("Cancel order result:", data);
-    
+
     return {
       success: true,
       data
@@ -89,13 +139,13 @@ export const getTransactionHistory = async (
 ) => {
   try {
     console.log(`Getting transaction history for user ${userId}, filter: ${filter}, limit: ${limit}`);
-    
+
     let query = supabase
       .from('transactions')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
-    
+
     if (filter && filter !== 'all') {
       if (filter === 'trade') {
         // Trade includes both purchase and sale
@@ -104,20 +154,20 @@ export const getTransactionHistory = async (
         query = query.eq('type', filter);
       }
     }
-    
+
     if (limit) {
       query = query.limit(limit);
     }
-    
+
     const { data, error } = await query;
-    
+
     if (error) {
       console.error('Transaction history error:', error);
       throw error;
     }
-    
+
     console.log(`Retrieved ${data?.length || 0} transactions`);
-    
+
     return {
       success: true,
       data
