@@ -22,6 +22,8 @@ export const executeTrade = async (
 
     if (error) throw error;
     
+    console.log("Trade execution result:", data);
+    
     return {
       success: true,
       data
@@ -54,6 +56,54 @@ export const cancelOrder = async (orderId: string) => {
     };
   } catch (error: any) {
     console.error('Error canceling order:', error);
+    return {
+      success: false,
+      error: error.message || 'An unknown error occurred'
+    };
+  }
+};
+
+/**
+ * Gets transaction history for a user with additional filtering options
+ * @param userId The ID of the user
+ * @param filter Optional filter by transaction type
+ * @param limit Optional limit of results to return
+ * @returns Promise with the transaction data
+ */
+export const getTransactionHistory = async (
+  userId: string,
+  filter?: 'all' | 'deposit' | 'withdrawal' | 'purchase' | 'sale',
+  limit = 10
+) => {
+  try {
+    let query = supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    
+    if (filter && filter !== 'all') {
+      if (filter === 'purchase' || filter === 'sale') {
+        query = query.in('type', ['purchase', 'sale']);
+      } else {
+        query = query.eq('type', filter);
+      }
+    }
+    
+    if (limit) {
+      query = query.limit(limit);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    
+    return {
+      success: true,
+      data
+    };
+  } catch (error: any) {
+    console.error('Error fetching transaction history:', error);
     return {
       success: false,
       error: error.message || 'An unknown error occurred'

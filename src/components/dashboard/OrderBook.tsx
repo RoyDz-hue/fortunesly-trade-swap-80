@@ -1,9 +1,20 @@
 
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { ArrowUp, ArrowDown, RefreshCw } from "lucide-react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+
+interface OrderBookProps {
+  tradingPair?: { 
+    baseCurrency: string; 
+    quoteCurrency: string; 
+  };
+  buyOrders?: any[];
+  sellOrders?: any[];
+  onRefresh?: () => void;
+  onOrderSelect?: (order: any, type: "buy" | "sell") => void;
+}
 
 const OrderBook = ({
   tradingPair = { baseCurrency: "BTC", quoteCurrency: "KES" },
@@ -11,7 +22,7 @@ const OrderBook = ({
   sellOrders = [],
   onRefresh,
   onOrderSelect
-}) => {
+}: OrderBookProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const topOrders = { buy: buyOrders.slice(0, 3), sell: sellOrders.slice(0, 3) };
@@ -24,6 +35,12 @@ const OrderBook = ({
 
   const handleCardClick = () => {
     navigate("/market/orders");
+  };
+
+  const handleOrderClick = (order, type) => {
+    if (onOrderSelect) {
+      onOrderSelect(order, type);
+    }
   };
 
   return (
@@ -56,7 +73,14 @@ const OrderBook = ({
               Buy
             </div>
             {topOrders.buy.map((order) => (
-              <div key={order.id} className="flex justify-between text-sm">
+              <div 
+                key={order.id} 
+                className="flex justify-between text-sm cursor-pointer hover:bg-gray-50 p-1 rounded"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOrderClick(order, "buy");
+                }}
+              >
                 <span className="text-foreground">{order.amount.toFixed(4)}</span>
                 <span className="text-green-600">{order.price.toFixed(2)}</span>
               </div>
@@ -70,7 +94,14 @@ const OrderBook = ({
               Sell
             </div>
             {topOrders.sell.map((order) => (
-              <div key={order.id} className="flex justify-between text-sm">
+              <div 
+                key={order.id} 
+                className="flex justify-between text-sm cursor-pointer hover:bg-gray-50 p-1 rounded"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOrderClick(order, "sell");
+                }}
+              >
                 <span className="text-red-600">{order.price.toFixed(2)}</span>
                 <span className="text-foreground">{order.amount.toFixed(4)}</span>
               </div>
@@ -79,13 +110,16 @@ const OrderBook = ({
         </div>
 
         <div className="mt-4 text-center">
-          <Link 
-            to="/market/orders"
+          <Button
+            variant="link"
             className="text-sm text-primary hover:underline"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate("/market/orders");
+            }}
           >
             View full market →
-          </Link>
+          </Button>
         </div>
       </CardContent>
     </Card>

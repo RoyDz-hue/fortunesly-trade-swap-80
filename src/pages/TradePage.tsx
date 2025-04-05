@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import OrderBook from "@/components/dashboard/OrderBook";
 import TradeForm from "@/components/dashboard/TradeForm";
@@ -41,7 +40,6 @@ const TradePage = () => {
         symbol: coin.symbol,
         depositAddress: coin.deposit_address,
         deposit_address: coin.deposit_address,
-        // Prioritize icon_url over image for better icon display
         image: coin.icon_url || `https://via.placeholder.com/40/6E59A5/ffffff?text=${coin.symbol}`,
         icon_url: coin.icon_url,
         taxRate: 10
@@ -224,8 +222,12 @@ const TradePage = () => {
     return fetchData();
   };
 
+  const handleOrderSelect = (order, type) => {
+    console.log(`Selected ${type} order:`, order);
+  };
+
   return (
-    <div>
+    <div className="w-full">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Trade</h1>
         <Button asChild variant="outline" className="flex gap-1 items-center">
@@ -251,6 +253,7 @@ const TradePage = () => {
                 buyOrders={buyOrders}
                 sellOrders={sellOrders}
                 onRefresh={handleOrderRefresh}
+                onOrderSelect={handleOrderSelect}
               />
             </div>
             <div>

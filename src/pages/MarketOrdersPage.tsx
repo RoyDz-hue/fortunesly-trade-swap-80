@@ -28,6 +28,7 @@ interface OrderType {
   users: {
     username: string;
   };
+  filled_percentage?: number;
 }
 
 const MarketOrdersPage = () => {
@@ -140,7 +141,7 @@ const MarketOrdersPage = () => {
   };
 
   const handleCreateOrder = () => {
-    navigate('/dashboard/orders');
+    navigate('/dashboard/trade'); // Changed from /dashboard/orders to /dashboard/trade
   };
 
   const getCoinDetails = (symbol) => {
@@ -312,7 +313,7 @@ const MarketOrdersPage = () => {
                             </div>
                             
                             {/* Show fill status if partially filled */}
-                            {order.filled_percentage > 0 && (
+                            {order.filled_percentage && order.filled_percentage > 0 && (
                               <div className="mt-1">
                                 <div className="w-full bg-gray-200 rounded-full h-1">
                                   <div 

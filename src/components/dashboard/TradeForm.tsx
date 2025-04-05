@@ -50,6 +50,13 @@ const TradeForm = ({
     );
   }
 
+  const handleOrderCreated = (orderDetails: any) => {
+    toast({
+      title: "Order Created",
+      description: "Your order has been placed successfully",
+    });
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -60,12 +67,7 @@ const TradeForm = ({
           availablePairs={availablePairs}
           availableBalances={availableBalances}
           availableCoins={availableCoins}
-          onOrderCreated={(orderDetails: any) => {
-            toast({
-              title: "Order Created",
-              description: "Your order has been placed successfully",
-            });
-          }}
+          onOrderCreated={handleOrderCreated}
         />
       </CardContent>
     </Card>

@@ -7,6 +7,9 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Filter } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const statusColors = {
   pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
@@ -18,6 +21,8 @@ const statusColors = {
 const typeColors = {
   deposit: "bg-blue-100 text-blue-800 border-blue-200",
   withdrawal: "bg-purple-100 text-purple-800 border-purple-200",
+  purchase: "bg-green-100 text-green-800 border-green-200",
+  sale: "bg-red-100 text-red-800 border-red-200",
 };
 
 const RecentTransactions = () => {
@@ -26,6 +31,7 @@ const RecentTransactions = () => {
   const [error, setError] = useState<string | null>(null);
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("all");
   
   useEffect(() => {
     if (!isAuthenticated || !user) {
@@ -87,13 +93,16 @@ const RecentTransactions = () => {
       const formattedTransactions: Transaction[] = data.map(item => ({
         id: item.id,
         userId: item.user_id,
-        type: item.type as 'deposit' | 'withdrawal',
+        type: item.type as 'deposit' | 'withdrawal' | 'purchase' | 'sale',
         currency: item.currency,
         amount: item.amount,
         status: item.status as 'pending' | 'approved' | 'rejected' | 'forfeited',
         createdAt: item.created_at,
         proof: item.proof || '',
-        withdrawalAddress: item.withdrawal_address || ''
+        withdrawalAddress: item.withdrawal_address || '',
+        secondaryCurrency: item.secondary_currency || '',
+        secondaryAmount: item.secondary_amount || 0,
+        description: item.description || ''
       }));
       
       setTransactions(formattedTransactions);
@@ -143,11 +152,57 @@ const RecentTransactions = () => {
   if (error) {
     console.error("Transaction component error:", error);
   }
+
+  const filteredTransactions = transactions.filter(tx => {
+    if (activeTab === "all") return true;
+    if (activeTab === "trade") return tx.type === "purchase" || tx.type === "sale";
+    return tx.type === activeTab;
+  });
+  
+  const getTransactionDescription = (transaction: Transaction) => {
+    switch (transaction.type) {
+      case 'deposit':
+        return `Deposit of ${transaction.amount} ${transaction.currency}`;
+      case 'withdrawal':
+        return `Withdrawal of ${transaction.amount} ${transaction.currency}`;
+      case 'purchase':
+        return `Purchase of ${transaction.amount} ${transaction.currency} for ${transaction.secondaryAmount} ${transaction.secondaryCurrency}`;
+      case 'sale':
+        return `Sale of ${transaction.amount} ${transaction.currency} for ${transaction.secondaryAmount} ${transaction.secondaryCurrency}`;
+      default:
+        return transaction.description || `${transaction.amount} ${transaction.currency}`;
+    }
+  };
+
+  const getTransactionChangeLabel = (transaction: Transaction) => {
+    switch (transaction.type) {
+      case 'deposit':
+        return `+${transaction.amount} ${transaction.currency}`;
+      case 'withdrawal':
+        return `-${transaction.amount} ${transaction.currency}`;
+      case 'purchase':
+        return `+${transaction.amount} ${transaction.currency}, -${transaction.secondaryAmount} ${transaction.secondaryCurrency}`;
+      case 'sale':
+        return `-${transaction.amount} ${transaction.currency}, +${transaction.secondaryAmount} ${transaction.secondaryCurrency}`;
+      default:
+        return `${transaction.amount} ${transaction.currency}`;
+    }
+  };
   
   return (
     <Card className="border border-gray-200">
       <CardHeader className="p-4 border-b border-gray-200">
-        <CardTitle className="text-lg font-semibold">Recent Transactions</CardTitle>
+        <div className="flex justify-between items-center">
+          <CardTitle className="text-lg font-semibold">Recent Transactions</CardTitle>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
+            <TabsList className="grid grid-cols-4 h-8">
+              <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
+              <TabsTrigger value="deposit" className="text-xs">Deposits</TabsTrigger>
+              <TabsTrigger value="withdrawal" className="text-xs">Withdrawals</TabsTrigger>
+              <TabsTrigger value="trade" className="text-xs">Trades</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </CardHeader>
       <CardContent className="p-0">
         {isLoading ? (
@@ -162,14 +217,14 @@ const RecentTransactions = () => {
               Try again
             </button>
           </div>
-        ) : transactions.length === 0 ? (
+        ) : filteredTransactions.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
-            <p>No transactions found. Start by depositing or withdrawing funds.</p>
+            <p>No {activeTab !== "all" ? activeTab : ""} transactions found.</p>
             <p className="text-xs mt-2">Your transaction history will appear here.</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {transactions.map((transaction) => (
+            {filteredTransactions.map((transaction) => (
               <div key={transaction.id} className="p-4 hover:bg-gray-50 transition-colors">
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-start space-x-2">
@@ -182,14 +237,12 @@ const RecentTransactions = () => {
                   </div>
                   <span className="text-sm text-gray-500">{formatDate(transaction.createdAt)}</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col">
                   <div className="text-sm text-gray-700">
-                    {transaction.type === 'deposit' 
-                      ? `Deposit of ${transaction.amount} ${transaction.currency}` 
-                      : `Withdrawal of ${transaction.amount} ${transaction.currency}`}
+                    {getTransactionDescription(transaction)}
                   </div>
-                  <div className={`font-medium ${transaction.type === 'deposit' ? 'text-green-600' : 'text-red-600'}`}>
-                    {transaction.type === 'deposit' ? '+' : '-'}{transaction.amount} {transaction.currency}
+                  <div className="text-sm font-medium mt-1">
+                    {getTransactionChangeLabel(transaction)}
                   </div>
                 </div>
               </div>
