@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   username: string;
@@ -35,7 +36,7 @@ export interface Coin {
 export interface Transaction {
   id: string;
   userId: string;
-  type: 'deposit' | 'withdrawal';
+  type: 'deposit' | 'withdrawal' | 'purchase' | 'sale';
   currency: string;
   amount: number;
   status: 'pending' | 'approved' | 'rejected' | 'forfeited';
@@ -43,6 +44,9 @@ export interface Transaction {
   updatedAt?: string;
   proof?: string;
   withdrawalAddress?: string;
+  secondaryCurrency?: string;
+  secondaryAmount?: number;
+  description?: string;
 }
 
 export interface Order {

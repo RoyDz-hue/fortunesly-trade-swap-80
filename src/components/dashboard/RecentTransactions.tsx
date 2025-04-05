@@ -93,7 +93,7 @@ const RecentTransactions = () => {
       const formattedTransactions: Transaction[] = data.map(item => ({
         id: item.id,
         userId: item.user_id,
-        type: item.type as 'deposit' | 'withdrawal' | 'purchase' | 'sale',
+        type: (item.type === 'trade' ? 'purchase' : item.type) as 'deposit' | 'withdrawal' | 'purchase' | 'sale',
         currency: item.currency,
         amount: item.amount,
         status: item.status as 'pending' | 'approved' | 'rejected' | 'forfeited',
@@ -166,9 +166,9 @@ const RecentTransactions = () => {
       case 'withdrawal':
         return `Withdrawal of ${transaction.amount} ${transaction.currency}`;
       case 'purchase':
-        return `Purchase of ${transaction.amount} ${transaction.currency} for ${transaction.secondaryAmount} ${transaction.secondaryCurrency}`;
+        return `Purchase of ${transaction.amount} ${transaction.currency}${transaction.secondaryAmount ? ` for ${transaction.secondaryAmount} ${transaction.secondaryCurrency}` : ''}`;
       case 'sale':
-        return `Sale of ${transaction.amount} ${transaction.currency} for ${transaction.secondaryAmount} ${transaction.secondaryCurrency}`;
+        return `Sale of ${transaction.amount} ${transaction.currency}${transaction.secondaryAmount ? ` for ${transaction.secondaryAmount} ${transaction.secondaryCurrency}` : ''}`;
       default:
         return transaction.description || `${transaction.amount} ${transaction.currency}`;
     }
@@ -181,9 +181,9 @@ const RecentTransactions = () => {
       case 'withdrawal':
         return `-${transaction.amount} ${transaction.currency}`;
       case 'purchase':
-        return `+${transaction.amount} ${transaction.currency}, -${transaction.secondaryAmount} ${transaction.secondaryCurrency}`;
+        return `+${transaction.amount} ${transaction.currency}${transaction.secondaryAmount ? `, -${transaction.secondaryAmount} ${transaction.secondaryCurrency}` : ''}`;
       case 'sale':
-        return `-${transaction.amount} ${transaction.currency}, +${transaction.secondaryAmount} ${transaction.secondaryCurrency}`;
+        return `-${transaction.amount} ${transaction.currency}${transaction.secondaryAmount ? `, +${transaction.secondaryAmount} ${transaction.secondaryCurrency}` : ''}`;
       default:
         return `${transaction.amount} ${transaction.currency}`;
     }

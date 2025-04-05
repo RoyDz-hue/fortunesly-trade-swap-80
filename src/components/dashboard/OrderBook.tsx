@@ -30,7 +30,18 @@ const OrderBook = ({
   const handleRefresh = (e) => {
     e.stopPropagation();
     setIsLoading(true);
-    onRefresh?.().finally(() => setIsLoading(false));
+    
+    if (onRefresh) {
+      const result = onRefresh();
+      // Only call finally if the result has a finally method (is a Promise)
+      if (result && typeof result.finally === 'function') {
+        result.finally(() => setIsLoading(false));
+      } else {
+        setIsLoading(false);
+      }
+    } else {
+      setIsLoading(false);
+    }
   };
 
   const handleCardClick = () => {

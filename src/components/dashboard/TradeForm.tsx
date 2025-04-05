@@ -50,7 +50,7 @@ const TradeForm = ({
     );
   }
 
-  const handleOrderCreated = (orderDetails: any) => {
+  const handleOrderCreated = () => {
     toast({
       title: "Order Created",
       description: "Your order has been placed successfully",

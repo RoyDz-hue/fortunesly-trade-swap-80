@@ -72,7 +72,7 @@ export const cancelOrder = async (orderId: string) => {
  */
 export const getTransactionHistory = async (
   userId: string,
-  filter?: 'all' | 'deposit' | 'withdrawal' | 'purchase' | 'sale',
+  filter?: 'all' | 'deposit' | 'withdrawal' | 'purchase' | 'sale' | 'trade',
   limit = 10
 ) => {
   try {
@@ -83,8 +83,12 @@ export const getTransactionHistory = async (
       .order('created_at', { ascending: false });
     
     if (filter && filter !== 'all') {
-      if (filter === 'purchase' || filter === 'sale') {
-        query = query.in('type', ['purchase', 'sale']);
+      if (filter === 'trade') {
+        // Trade includes both purchase and sale
+        query = query.eq('type', 'trade');
+      } else if (filter === 'purchase' || filter === 'sale') {
+        // These may be handled differently depending on your data structure
+        query = query.in('type', ['purchase', 'sale', 'trade']);
       } else {
         query = query.eq('type', filter);
       }
@@ -106,7 +110,7 @@ export const getTransactionHistory = async (
     console.error('Error fetching transaction history:', error);
     return {
       success: false,
-      error: error.message || 'An unknown error occurred'
+      error: error.message || 'An unexpected error occurred'
     };
   }
 };
