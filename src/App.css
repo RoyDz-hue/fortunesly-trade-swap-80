@@ -1,8 +1,17 @@
 #root {
-  max-width: 1280px;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1rem; /* Reduced padding for mobile */
   text-align: center;
+  overflow-x: hidden; /* Prevents horizontal scroll */
+}
+
+/* Add media query for larger screens */
+@media (min-width: 768px) {
+  #root {
+    max-width: 1280px;
+    padding: 2rem;
+  }
 }
 
 .logo {
@@ -35,6 +44,13 @@
 
 .card {
   padding: 2em;
+}
+
+/* Make card responsive on mobile */
+@media (max-width: 640px) {
+  .card {
+    padding: 1em;
+  }
 }
 
 .read-the-docs {
