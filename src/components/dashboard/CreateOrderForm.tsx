@@ -222,8 +222,7 @@ const CreateOrderForm = ({
         quote_currency_param: quoteCurrency,
         amount_param: numericAmount,
         price_param: numericPrice,
-        original_amount_param: numericAmount,
-        pair_id_param: selectedPair
+        original_amount_param: numericAmount
       });
 
       if (error) {
