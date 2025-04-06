@@ -153,25 +153,23 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
         return;
       }
 
-      // Execute the trade with proper transaction details
-      const tradeDetails = {
-        orderId: order.id,
-        buyerId: order.type === 'buy' ? order.user_id : user.id,
-        sellerId: order.type === 'buy' ? user.id : order.user_id,
-        amount: parsedAmount,
-        price: order.price,
-        currency: order.currency,
-        quoteCurrency: order.quote_currency || 'KES'
+      // Prepare transaction data according to SQL function parameters
+      // Based on the SQL function:
+      // insert_or_update_transaction(executing_user_id UUID, order_owner_id UUID, order_type TEXT, amount NUMERIC, currency TEXT)
+      const transactionData = {
+        executing_user_id: user.id,            // Currently logged-in user
+        order_owner_id: order.user_id,         // The order creator
+        order_type: order.type,                // Original order type (buy/sell)
+        amount: parsedAmount,                  // Amount being traded
+        currency: order.currency               // Currency being traded
       };
 
-      // Use the executeTrade utility function with both user IDs to record for both parties
+      // Use the executeTrade utility function with proper transaction parameters
       const result = await executeTrade(
         order.id,
         user.id,
         parsedAmount,
-        order.user_id, // Include the order creator's ID to record transaction for them too
-        order.type === 'buy' ? 'sell' : 'buy', // Pass transaction type from the user's perspective
-        tradeDetails // Pass additional trade details for better transaction recording
+        transactionData  // Pass data formatted for the SQL function
       );
 
       if (!result.success) {
