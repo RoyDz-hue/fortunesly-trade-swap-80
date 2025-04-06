@@ -17,13 +17,17 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
   const [totalAmount, setTotalAmount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [coinDetails, setCoinDetails] = useState(null);
+  const [userBalance, setUserBalance] = useState(null);
 
   useEffect(() => {
     if (order) {
       setAmount(order.amount.toString());
       fetchCoinDetails(order.currency);
+      if (user) {
+        fetchUserBalance();
+      }
     }
-  }, [order]);
+  }, [order, user]);
 
   useEffect(() => {
     if (order && amount) {
@@ -31,6 +35,32 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
       setTotalAmount(isNaN(parsedAmount) ? 0 : parsedAmount * order.price);
     }
   }, [amount, order]);
+
+  const fetchUserBalance = async () => {
+    try {
+      // Determine the currency to check based on order type
+      const currencyToCheck = order.type === 'buy' 
+        ? order.currency  // For buy orders, check if user has enough of the currency being sold
+        : order.quote_currency || 'KES';  // For sell orders, check if user has enough of the quoted currency
+
+      const { data, error } = await supabase
+        .from('user_balances')
+        .select('amount')
+        .eq('user_id', user.id)
+        .eq('currency', currencyToCheck)
+        .single();
+
+      if (error) {
+        console.error("Error fetching user balance:", error);
+        setUserBalance(0);
+      } else {
+        setUserBalance(data?.amount || 0);
+      }
+    } catch (error) {
+      console.error("Error in balance fetch:", error);
+      setUserBalance(0);
+    }
+  };
 
   const fetchCoinDetails = async (symbol) => {
     try {
@@ -57,6 +87,18 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
     return 'KES';
   };
 
+  const hasEnoughBalance = () => {
+    if (!userBalance) return false;
+    
+    if (order.type === 'buy') {
+      // If user is selling to a buy order, check if they have enough of the currency
+      return userBalance >= parseFloat(amount);
+    } else {
+      // If user is buying from a sell order, check if they have enough of the quoted currency
+      return userBalance >= totalAmount;
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -72,7 +114,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
     try {
       setIsLoading(true);
       const parsedAmount = parseFloat(amount);
-
+      
       if (isNaN(parsedAmount)) {
         toast({ title: "Invalid amount", variant: "destructive" });
         return;
@@ -83,12 +125,27 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
         return;
       }
 
+      // Validate user has enough balance for the transaction
+      if (!hasEnoughBalance()) {
+        const currencyNeeded = order.type === 'buy' 
+          ? order.currency 
+          : order.quote_currency || 'KES';
+
+        toast({ 
+          title: "Insufficient balance", 
+          description: `You don't have enough ${currencyNeeded} to complete this transaction`,
+          variant: "destructive"
+        });
+        return;
+      }
+
       // Use the executeTrade utility function with both user IDs to record for both parties
       const result = await executeTrade(
         order.id,
         user.id,
         parsedAmount,
-        order.user_id // Include the order creator's ID to record transaction for them too
+        order.user_id, // Include the order creator's ID to record transaction for them too
+        order.type === 'buy' ? 'sell' : 'buy' // Pass transaction type from the user's perspective
       );
 
       if (!result.success) {
@@ -97,13 +154,28 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
 
       // Determine if this was a partial or complete order execution
       const isPartial = parsedAmount < order.amount;
-      const orderMessage = isPartial 
-        ? `You ${order.type === 'buy' ? 'sold' : 'bought'} ${parsedAmount} ${order.currency} (partial order)`
-        : `You ${order.type === 'buy' ? 'sold' : 'bought'} ${parsedAmount} ${order.currency}`;
+      
+      // Construct appropriate success message with currency amounts
+      const tradedCurrency = order.currency;
+      const quotedCurrency = order.quote_currency || 'KES';
+      const quoteAmount = totalAmount.toFixed(2);
+      
+      let successMessage = '';
+      if (order.type === 'buy') {
+        // User is selling to a buy order
+        successMessage = `You sold ${parsedAmount} ${tradedCurrency} for ${quoteAmount} ${quotedCurrency}`;
+      } else {
+        // User is buying from a sell order
+        successMessage = `You bought ${parsedAmount} ${tradedCurrency} for ${quoteAmount} ${quotedCurrency}`;
+      }
+      
+      if (isPartial) {
+        successMessage += " (partial order)";
+      }
 
       toast({
         title: "Trade successful",
-        description: orderMessage,
+        description: successMessage,
       });
 
       onSuccess?.();
@@ -136,14 +208,12 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
             Trade with {order.users?.username || 'Unknown'}
           </DialogDescription>
         </DialogHeader>
-
         <form onSubmit={handleSubmit} className="space-y-6 py-4">
           <div className="bg-gray-50 p-4 rounded-lg space-y-2">
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Price per unit:</span>
               <span className="font-bold">{priceCurrency} {order.price.toLocaleString()}</span>
             </div>
-
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Available:</span>
               <div className="flex items-center gap-1">
@@ -159,7 +229,6 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
                 <span>{order.currency}</span>
               </div>
             </div>
-
             {/* Display status badge for partially-filled orders */}
             {order.original_amount && order.original_amount > order.amount && (
               <div className="flex justify-between items-center">
@@ -169,6 +238,18 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
                 </Badge>
               </div>
             )}
+            {/* Display user's balance */}
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Your balance:</span>
+              <div className="flex items-center gap-1">
+                <span className="font-bold">{userBalance?.toLocaleString() || '0'}</span>
+                <span>
+                  {order.type === 'buy' ? 
+                    order.currency : 
+                    (order.quote_currency || 'KES')}
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -195,7 +276,6 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
                 </Button>
               </div>
             </div>
-
             <div className="flex gap-2">
               <Input
                 id="amount"
@@ -211,7 +291,6 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
                 {order.currency}
               </div>
             </div>
-
             <p className="text-xs text-gray-500">
               Partial orders will keep remaining amount in the market
             </p>
@@ -230,7 +309,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
             </Button>
             <Button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || !hasEnoughBalance()}
               className={order.type === 'buy' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}
             >
               {isLoading ? 'Processing...' : `${order.type === 'buy' ? 'Sell' : 'Buy'} Now`}
