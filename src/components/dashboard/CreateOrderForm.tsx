@@ -241,7 +241,6 @@ const CreateOrderForm = ({
             amount: numericAmount,
             price: numericPrice,
             original_amount: numericAmount,
-            trading_pair_id: selectedPair,
             status: 'open'
           });
           
