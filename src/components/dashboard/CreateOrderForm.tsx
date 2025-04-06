@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,7 +49,7 @@ const CreateOrderForm = ({
   // User tries to select a trading pair
   const handlePairChange = (pairId: string) => {
     const pair = availablePairs.find(p => p.id === pairId);
-    
+
     if (pair) {
       setSelectedPair(pairId);
       setBaseCurrency(pair.baseCurrency);
@@ -59,7 +58,7 @@ const CreateOrderForm = ({
         minOrderSize: pair.minOrderSize,
         maxOrderSize: pair.maxOrderSize
       });
-      
+
       // Calculate max amount based on balances
       if (orderType === 'buy') {
         // When buying, limited by KES balance and price
@@ -79,10 +78,10 @@ const CreateOrderForm = ({
   // When order type changes, recalculate max amount
   const handleOrderTypeChange = (type: 'buy' | 'sell') => {
     setOrderType(type);
-    
+
     if (selectedPair) {
       const pair = availablePairs.find(p => p.id === selectedPair);
-      
+
       if (pair && price) {
         if (type === 'buy' && pair.quoteCurrency === 'KES') {
           // When buying, limited by KES balance and price
@@ -101,10 +100,10 @@ const CreateOrderForm = ({
   // When price changes, recalculate max amount for buy orders
   const handlePriceChange = (value: string) => {
     setPrice(value);
-    
+
     if (orderType === 'buy' && selectedPair && value) {
       const pair = availablePairs.find(p => p.id === selectedPair);
-      
+
       if (pair && pair.quoteCurrency === 'KES') {
         const balance = availableBalances['KES'] || 0;
         const maxBuyAmount = balance / Number(value);
@@ -115,7 +114,7 @@ const CreateOrderForm = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!user) {
       toast({
         title: "Authentication required",
@@ -124,7 +123,7 @@ const CreateOrderForm = ({
       });
       return;
     }
-    
+
     if (!selectedPair || !amount || !price) {
       toast({
         title: "Invalid order",
@@ -133,10 +132,10 @@ const CreateOrderForm = ({
       });
       return;
     }
-    
+
     const numericAmount = Number(amount);
     const numericPrice = Number(price);
-    
+
     if (isNaN(numericAmount) || numericAmount <= 0 || isNaN(numericPrice) || numericPrice <= 0) {
       toast({
         title: "Invalid values",
@@ -145,7 +144,7 @@ const CreateOrderForm = ({
       });
       return;
     }
-    
+
     // Check min/max order size
     if (pairDetails) {
       if (numericAmount < pairDetails.minOrderSize) {
@@ -156,7 +155,7 @@ const CreateOrderForm = ({
         });
         return;
       }
-      
+
       if (numericAmount > pairDetails.maxOrderSize) {
         toast({
           title: "Order too large",
@@ -166,35 +165,36 @@ const CreateOrderForm = ({
         return;
       }
     }
-    
+
     setIsSubmitting(true);
-    
+
     try {
-      // Now we'll use the create_order database function that handles balance withholding
+      // Updated to pass quote_currency_param to the create_order database function
       const { data, error } = await supabase.rpc('create_order', {
-  user_id_param: user.id,
-  order_type_param: orderType,
-  currency_param: baseCurrency,
-  amount_param: numericAmount,
-  price_param: numericPrice,
-  original_amount_param: numericAmount  // Added this line
-});
-      
+        user_id_param: user.id,
+        order_type_param: orderType,
+        currency_param: baseCurrency,
+        quote_currency_param: quoteCurrency, // Added this line to pass quote currency
+        amount_param: numericAmount,
+        price_param: numericPrice,
+        original_amount_param: numericAmount
+      });
+
       if (error) throw error;
-      
+
       // Reset form
       setAmount("");
       setPrice("");
-      
+
       toast({
         title: "Order created",
-        description: `Your ${orderType} order for ${numericAmount} ${baseCurrency} at ${numericPrice} KES has been created`,
+        description: `Your ${orderType} order for ${numericAmount} ${baseCurrency} at ${numericPrice} ${quoteCurrency} has been created`,
       });
-      
+
       if (onOrderCreated) {
         onOrderCreated();
       }
-      
+
     } catch (error: any) {
       console.error("Error creating order:", error);
       toast({
@@ -236,7 +236,7 @@ const CreateOrderForm = ({
             Sell
           </Button>
         </div>
-        
+
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -258,7 +258,7 @@ const CreateOrderForm = ({
               </SelectContent>
             </Select>
           </div>
-          
+
           <div>
             <div className="flex justify-between">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -282,7 +282,7 @@ const CreateOrderForm = ({
               min="0"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Price ({quoteCurrency || "KES"})
@@ -298,7 +298,7 @@ const CreateOrderForm = ({
           </div>
         </div>
       </div>
-      
+
       {baseCurrency && price && amount && (
         <Card className="bg-gray-50 border border-gray-200">
           <CardContent className="pt-4">
@@ -311,7 +311,7 @@ const CreateOrderForm = ({
           </CardContent>
         </Card>
       )}
-      
+
       <Button
         type="submit"
         className="w-full"
