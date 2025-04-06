@@ -236,7 +236,7 @@ const CreateOrderForm = ({
           .from('orders')
           .insert({
             user_id: user.id,
-            order_type: orderType,
+            type: orderType,
             currency: baseCurrency,
             quote_currency: quoteCurrency,
             amount: numericAmount,
