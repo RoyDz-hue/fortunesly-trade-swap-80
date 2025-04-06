@@ -21,6 +21,7 @@ interface OrderType {
   currency: string;
   amount: number;
   price: number;
+  quote_currency: string | null; // Added quote_currency field
   status: string;
   created_at: string;
   original_amount?: number;
@@ -145,6 +146,16 @@ const MarketOrdersPage = () => {
 
   const getCoinDetails = (symbol) => {
     return availableCoins.find(coin => coin.symbol === symbol) || { name: symbol, icon_url: null };
+  };
+
+  // Function to get price currency display based on quote_currency field
+  const getPriceCurrency = (order) => {
+    // If quote_currency exists and is not empty, use it
+    if (order.quote_currency) {
+      return order.quote_currency;
+    }
+    // Otherwise fall back to KES
+    return 'KES';
   };
 
   // Filter out user's own orders
@@ -272,6 +283,9 @@ const MarketOrdersPage = () => {
                   const buttonColorClass = orderType === 'buy' ? 
                     'bg-green-600 hover:bg-green-700 text-white' : 
                     'bg-red-600 hover:bg-red-700 text-white';
+                  
+                  // Get the correct currency for price display
+                  const priceCurrency = getPriceCurrency(order);
 
                   return (
                     <div key={order.id} className="border rounded-lg p-3 hover:shadow-sm transition-shadow bg-white">
@@ -291,7 +305,7 @@ const MarketOrdersPage = () => {
                         <div className="flex flex-1 flex-wrap gap-2">
                           <div className="bg-gray-50 rounded-md px-3 py-2 text-center min-w-[100px]">
                             <p className="text-xs text-gray-500">Price</p>
-                            <p className="font-medium text-sm">KES {order.price.toLocaleString()}</p>
+                            <p className="font-medium text-sm">{priceCurrency} {order.price.toLocaleString()}</p>
                           </div>
 
                           <div className="bg-gray-50 rounded-md px-3 py-2 text-center min-w-[120px]">
@@ -328,7 +342,7 @@ const MarketOrdersPage = () => {
                           <div className="bg-gray-50 rounded-md px-3 py-2 text-center min-w-[120px]">
                             <p className="text-xs text-gray-500">Limit</p>
                             <p className="font-medium text-sm">
-                              KES {(order.price * order.amount * 0.1).toLocaleString(undefined, {maximumFractionDigits: 0})} - {(order.price * order.amount).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                              {priceCurrency} {(order.price * order.amount * 0.1).toLocaleString(undefined, {maximumFractionDigits: 0})} - {(order.price * order.amount).toLocaleString(undefined, {maximumFractionDigits: 0})}
                             </p>
                           </div>
                         </div>
