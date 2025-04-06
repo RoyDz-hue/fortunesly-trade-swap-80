@@ -217,7 +217,7 @@ const CreateOrderForm = ({
       // First, check if the database function has been updated to use quote_currency correctly
       const { data, error } = await supabase.rpc('create_order', {
         user_id_param: user.id,
-        order_type_param: orderType,
+        type_param: orderType,
         currency_param: baseCurrency,
         quote_currency_param: quoteCurrency,
         amount_param: numericAmount,
