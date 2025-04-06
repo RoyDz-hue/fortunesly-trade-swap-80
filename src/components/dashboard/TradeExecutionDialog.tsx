@@ -47,6 +47,16 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
     }
   };
 
+  // Function to get price currency display based on quote_currency field
+  const getPriceCurrency = (order) => {
+    // If quote_currency exists and is not empty, use it
+    if (order.quote_currency) {
+      return order.quote_currency;
+    }
+    // Otherwise fall back to KES
+    return 'KES';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -112,6 +122,9 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
 
   if (!order) return null;
 
+  // Get the correct currency for price display
+  const priceCurrency = getPriceCurrency(order);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
@@ -128,7 +141,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
           <div className="bg-gray-50 p-4 rounded-lg space-y-2">
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Price per unit:</span>
-              <span className="font-bold">KES {order.price.toLocaleString()}</span>
+              <span className="font-bold">{priceCurrency} {order.price.toLocaleString()}</span>
             </div>
 
             <div className="flex justify-between items-center">
@@ -207,7 +220,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
           <div className="bg-gray-50 p-4 rounded-lg flex justify-between">
             <span className="font-medium">Total:</span>
             <span className="font-bold text-lg">
-              KES {totalAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              {priceCurrency} {totalAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
             </span>
           </div>
 
