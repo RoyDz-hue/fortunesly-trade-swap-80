@@ -73,11 +73,12 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
         return;
       }
 
-      // Use the executeTrade utility function
+      // Use the executeTrade utility function with both user IDs to record for both parties
       const result = await executeTrade(
         order.id,
         user.id,
-        parsedAmount
+        parsedAmount,
+        order.user_id // Include the order creator's ID to record transaction for them too
       );
 
       if (!result.success) {
