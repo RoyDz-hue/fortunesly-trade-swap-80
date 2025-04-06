@@ -5,12 +5,20 @@ import { supabase } from "@/integrations/supabase/client";
  * @param orderId The ID of the order
  * @param traderId The ID of the trader (person executing the trade)
  * @param tradeAmount The amount to trade
+ * @param transactionData Additional data needed for transaction records
  * @returns Promise with the result
  */
 export const executeTrade = async (
   orderId: string,
   traderId: string,
-  tradeAmount: number
+  tradeAmount: number,
+  transactionData: {
+    executing_user_id: string;
+    order_owner_id: string;
+    order_type: string;
+    amount: number;
+    currency: string;
+  }
 ) => {
   try {
     console.log(`Executing trade: Order ${orderId}, Trader ${traderId}, Amount ${tradeAmount}`);
@@ -40,11 +48,13 @@ export const executeTrade = async (
       }
     }
 
-    // Execute the trade through RPC
+    // Execute the trade through RPC with the additional transaction data parameters
     const { data, error } = await supabase.rpc('execute_market_order', {
       order_id_param: orderId,
       trader_id_param: traderId,
-      trade_amount_param: tradeAmount
+      trade_amount_param: tradeAmount,
+      order_owner_id_param: transactionData.order_owner_id,
+      order_type_param: transactionData.order_type
     });
 
     if (error) {
@@ -68,7 +78,10 @@ export const executeTrade = async (
       // Partial execution - mark as partially-filled
       const { error: statusError } = await supabase
         .from('orders')
-        .update({ status: 'partially-filled' })
+        .update({ 
+          status: 'partially-filled',
+          amount: orderData.amount - tradeAmount  // Update remaining amount
+        })
         .eq('id', orderId);
 
       if (statusError) {
@@ -77,6 +90,9 @@ export const executeTrade = async (
       }
     }
 
+    // Create transaction records for both parties if needed
+    // This might be handled by the RPC function, but we can add additional logic here if needed
+    
     console.log("Trade execution result:", data);
 
     return {
