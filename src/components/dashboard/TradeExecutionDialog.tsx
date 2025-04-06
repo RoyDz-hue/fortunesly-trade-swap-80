@@ -18,16 +18,20 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [coinDetails, setCoinDetails] = useState(null);
   const [userBalance, setUserBalance] = useState(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
 
   useEffect(() => {
     if (order) {
       setAmount(order.amount.toString());
       fetchCoinDetails(order.currency);
-      if (user) {
-        fetchUserBalance();
-      }
     }
-  }, [order, user]);
+  }, [order]);
+
+  useEffect(() => {
+    if (order && user && isOpen) {
+      fetchUserBalance();
+    }
+  }, [order, user, isOpen]);
 
   useEffect(() => {
     if (order && amount) {
@@ -37,12 +41,16 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
   }, [amount, order]);
 
   const fetchUserBalance = async () => {
+    if (!user || !order) return;
+    
     try {
+      setBalanceLoading(true);
       // Determine the currency to check based on order type
       const currencyToCheck = order.type === 'buy' 
         ? order.currency  // For buy orders, check if user has enough of the currency being sold
         : order.quote_currency || 'KES';  // For sell orders, check if user has enough of the quoted currency
 
+      // First try to get the balance directly
       const { data, error } = await supabase
         .from('user_balances')
         .select('amount')
@@ -50,15 +58,36 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
         .eq('currency', currencyToCheck)
         .single();
 
-      if (error) {
-        console.error("Error fetching user balance:", error);
+      if (error && error.code === 'PGRST116') {
+        // No rows found - user has no balance record for this currency
+        console.log("No balance record found for this currency");
         setUserBalance(0);
+      } else if (error) {
+        // Some other error occurred
+        console.error("Error fetching user balance:", error);
+        
+        // Try an alternative approach - get all balances and find the match
+        const { data: allBalances, error: balancesError } = await supabase
+          .from('user_balances')
+          .select('*')
+          .eq('user_id', user.id);
+          
+        if (balancesError) {
+          console.error("Failed to fetch all balances:", balancesError);
+          setUserBalance(0);
+        } else {
+          const matchingBalance = allBalances.find(b => b.currency === currencyToCheck);
+          setUserBalance(matchingBalance ? matchingBalance.amount : 0);
+        }
       } else {
+        // Successfully got balance
         setUserBalance(data?.amount || 0);
       }
     } catch (error) {
-      console.error("Error in balance fetch:", error);
+      console.error("Exception in balance fetch:", error);
       setUserBalance(0);
+    } finally {
+      setBalanceLoading(false);
     }
   };
 
@@ -88,11 +117,11 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
   };
 
   const hasEnoughBalance = () => {
-    if (!userBalance) return false;
+    if (userBalance === null) return false;
     
     if (order.type === 'buy') {
       // If user is selling to a buy order, check if they have enough of the currency
-      return userBalance >= parseFloat(amount);
+      return userBalance >= parseFloat(amount || 0);
     } else {
       // If user is buying from a sell order, check if they have enough of the quoted currency
       return userBalance >= totalAmount;
@@ -139,18 +168,33 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
         return;
       }
 
+      // Execute the trade with proper transaction details
+      const tradeDetails = {
+        orderId: order.id,
+        buyerId: order.type === 'buy' ? order.user_id : user.id,
+        sellerId: order.type === 'buy' ? user.id : order.user_id,
+        amount: parsedAmount,
+        price: order.price,
+        currency: order.currency,
+        quoteCurrency: order.quote_currency || 'KES'
+      };
+
       // Use the executeTrade utility function with both user IDs to record for both parties
       const result = await executeTrade(
         order.id,
         user.id,
         parsedAmount,
         order.user_id, // Include the order creator's ID to record transaction for them too
-        order.type === 'buy' ? 'sell' : 'buy' // Pass transaction type from the user's perspective
+        order.type === 'buy' ? 'sell' : 'buy', // Pass transaction type from the user's perspective
+        tradeDetails // Pass additional trade details for better transaction recording
       );
 
       if (!result.success) {
         throw new Error(result.error);
       }
+
+      // Refresh the user's balance after successful trade
+      fetchUserBalance();
 
       // Determine if this was a partial or complete order execution
       const isPartial = parsedAmount < order.amount;
@@ -196,6 +240,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
 
   // Get the correct currency for price display
   const priceCurrency = getPriceCurrency(order);
+  const balanceCurrency = order.type === 'buy' ? order.currency : (order.quote_currency || 'KES');
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -240,14 +285,16 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
             )}
             {/* Display user's balance */}
             <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Your balance:</span>
+              <span className="text-sm font-medium">Your {balanceCurrency} balance:</span>
               <div className="flex items-center gap-1">
-                <span className="font-bold">{userBalance?.toLocaleString() || '0'}</span>
-                <span>
-                  {order.type === 'buy' ? 
-                    order.currency : 
-                    (order.quote_currency || 'KES')}
-                </span>
+                {balanceLoading ? (
+                  <span className="text-gray-400">Loading...</span>
+                ) : (
+                  <span className={`font-bold ${hasEnoughBalance() ? 'text-green-600' : 'text-red-600'}`}>
+                    {typeof userBalance === 'number' ? userBalance.toLocaleString(undefined, { maximumFractionDigits: 8 }) : '0'}
+                  </span>
+                )}
+                <span>{balanceCurrency}</span>
               </div>
             </div>
           </div>
@@ -309,7 +356,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
             </Button>
             <Button
               type="submit"
-              disabled={isLoading || !hasEnoughBalance()}
+              disabled={isLoading || !hasEnoughBalance() || balanceLoading}
               className={order.type === 'buy' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}
             >
               {isLoading ? 'Processing...' : `${order.type === 'buy' ? 'Sell' : 'Buy'} Now`}
