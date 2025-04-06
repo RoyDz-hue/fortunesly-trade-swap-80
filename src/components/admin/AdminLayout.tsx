@@ -40,7 +40,7 @@ const SidebarLink = ({ href, icon, children, isActive, onClick, showTooltip = fa
       onClick={onClick}
     >
       <div className="mr-3">{icon}</div>
-      {children}
+      <span className="whitespace-nowrap">{children}</span>
     </Link>
   );
 
@@ -67,7 +67,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const { logout, user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  
+
   const isActive = (path: string) => {
     if (path === '/admin' && location.pathname === '/admin') {
       return true;
@@ -104,6 +104,29 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     return user.username.charAt(0).toUpperCase();
   };
 
+  // Mobile bottom navigation component
+  const MobileBottomNav = () => (
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 py-2 px-4 md:hidden">
+      <div className="flex justify-between items-center">
+        {navItems.map((item) => (
+          <Link
+            key={item.path}
+            to={item.path}
+            className={cn(
+              "flex flex-col items-center py-1 px-2 rounded transition-colors",
+              isActive(item.path)
+                ? "text-fortunesly-primary"
+                : "text-gray-500 hover:text-fortunesly-primary"
+            )}
+          >
+            <div>{item.icon}</div>
+            <span className="text-xs mt-1 whitespace-nowrap">{item.label}</span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+
   const renderNavLinks = (isMobile: boolean = false) => (
     <nav className="space-y-2">
       {navItems.map((item) => (
@@ -126,7 +149,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       {/* Desktop Sidebar */}
       <div 
         className={cn(
-          "hidden md:flex md:flex-col md:fixed md:inset-y-0 bg-white border-r border-gray-200 transition-all duration-300 ease-in-out",
+          "hidden md:flex md:flex-col md:fixed md:inset-y-0 bg-white border-r border-gray-200 transition-all duration-300 ease-in-out z-30",
           collapsed ? "md:w-20" : "md:w-64"
         )}
       >
@@ -222,14 +245,14 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         collapsed ? "md:pl-20" : "md:pl-64"
       )}>
         {/* Mobile header */}
-        <div className="sticky top-0 z-10 flex-shrink-0 flex bg-white border-b border-gray-200 md:hidden">
+        <div className="sticky top-0 z-20 flex-shrink-0 flex bg-white border-b border-gray-200 md:hidden">
           <div className="flex-1 flex justify-between items-center px-4 py-3">
             <Link to="/" className="flex items-center">
               <span className="text-xl font-bold text-fortunesly-primary">Fortunesly</span>
               <span className="text-xl font-bold text-fortunesly-secondary">.shop</span>
               <span className="ml-2 text-xs font-bold bg-fortunesly-secondary text-white px-2 py-0.5 rounded">ADMIN</span>
             </Link>
-            
+
             {/* Mobile menu button */}
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
               <SheetTrigger asChild>
@@ -251,7 +274,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                         <X className="h-5 w-5" />
                       </Button>
                     </div>
-                    
+
                     <div className="bg-gray-50 rounded-lg p-4 mb-4 flex items-center">
                       <Avatar className="h-10 w-10 mr-3">
                         <AvatarImage src={user?.avatarUrl} alt={user?.username} />
@@ -263,11 +286,11 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex-1 overflow-auto p-4">
                     {renderNavLinks(true)}
                   </div>
-                  
+
                   <div className="p-4 border-t border-gray-200">
                     <Button
                       variant="outline"
@@ -283,14 +306,17 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             </Sheet>
           </div>
         </div>
-        
-        <main className="flex-1 pb-8">
+
+        <main className="flex-1 pb-24 md:pb-8">
           <div className="py-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
               {children}
             </div>
           </div>
         </main>
+        
+        {/* Mobile bottom navigation */}
+        <MobileBottomNav />
       </div>
     </div>
   );
