@@ -45,6 +45,27 @@ const CreateOrderForm = ({
     minOrderSize: number;
     maxOrderSize: number;
   } | null>(null);
+  
+  // Effect to update balances when order is created
+  useEffect(() => {
+    if (selectedPair) {
+      const pair = availablePairs.find(p => p.id === selectedPair);
+      if (pair) {
+        if (orderType === 'buy') {
+          // When buying, calculate max amount based on quote currency balance and price
+          if (price) {
+            const quoteBalance = availableBalances[pair.quoteCurrency] || 0;
+            const maxBuyAmount = quoteBalance / Number(price);
+            setMaxAmount(Math.floor(maxBuyAmount * 100000) / 100000);
+          }
+        } else {
+          // When selling, max amount is the base currency balance
+          const baseBalance = availableBalances[pair.baseCurrency] || 0;
+          setMaxAmount(baseBalance);
+        }
+      }
+    }
+  }, [selectedPair, availableBalances, orderType, price, availablePairs]);
 
   // User tries to select a trading pair
   const handlePairChange = (pairId: string) => {
@@ -165,6 +186,30 @@ const CreateOrderForm = ({
         return;
       }
     }
+    
+    // Validate balance
+    if (orderType === 'sell') {
+      const availableBalance = availableBalances[baseCurrency] || 0;
+      if (numericAmount > availableBalance) {
+        toast({
+          title: "Insufficient balance",
+          description: `You only have ${availableBalance.toFixed(6)} ${baseCurrency} available`,
+          variant: "destructive",
+        });
+        return;
+      }
+    } else if (orderType === 'buy') {
+      const totalCost = numericAmount * numericPrice;
+      const availableBalance = availableBalances[quoteCurrency] || 0;
+      if (totalCost > availableBalance) {
+        toast({
+          title: "Insufficient balance",
+          description: `You need ${totalCost.toFixed(2)} ${quoteCurrency}, but only have ${availableBalance.toFixed(2)} available`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
 
     setIsSubmitting(true);
 
@@ -266,16 +311,15 @@ const CreateOrderForm = ({
               </label>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500">
-                  Available: {(availableBalances[baseCurrency] || 0).toFixed(6)}
+                  Available: {orderType === 'sell' ? (availableBalances[baseCurrency] || 0).toFixed(6) : (maxAmount > 0 ? maxAmount.toFixed(6) : '0.000000')}
                 </span>
-                {maxAmount > 0 && (
-                  <span 
-                    className="text-xs text-blue-600 cursor-pointer font-medium bg-blue-50 px-2 py-0.5 rounded hover:bg-blue-100"
-                    onClick={handleSetMaxAmount}
-                  >
-                    MAX
-                  </span>
-                )}
+                <button 
+                  type="button"
+                  className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded hover:bg-blue-100"
+                  onClick={handleSetMaxAmount}
+                >
+                  MAX
+                </button>
               </div>
             </div>
             <Input
