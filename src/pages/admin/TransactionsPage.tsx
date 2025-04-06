@@ -198,11 +198,11 @@ const TransactionsPage = () => {
     <Card className="mb-4">
       <CardContent className="p-4">
         <div className="flex justify-between items-start mb-3">
-          <div>
-            <p className="font-medium">{transaction.users.username}</p>
-            <p className="text-xs text-gray-500">{transaction.users.email}</p>
+          <div className="overflow-hidden">
+            <p className="font-medium truncate">{transaction.users.username}</p>
+            <p className="text-xs text-gray-500 truncate">{transaction.users.email}</p>
           </div>
-          <Badge variant="outline" className={statusColors[transaction.status]}>
+          <Badge variant="outline" className={`${statusColors[transaction.status]} ml-2 shrink-0`}>
             {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
           </Badge>
         </div>
@@ -216,7 +216,7 @@ const TransactionsPage = () => {
           </div>
           <div>
             <p className="text-xs text-gray-500">Date</p>
-            <p className="text-sm">{formatDate(transaction.created_at)}</p>
+            <p className="text-sm truncate">{formatDate(transaction.created_at)}</p>
           </div>
           <div>
             <p className="text-xs text-gray-500">Currency</p>
@@ -228,7 +228,7 @@ const TransactionsPage = () => {
           </div>
         </div>
         
-        <div className="flex justify-between items-center">
+        <div className="flex flex-wrap justify-between items-center gap-2">
           {transaction.proof && (
             <Button 
               size="sm" 
@@ -242,7 +242,7 @@ const TransactionsPage = () => {
           )}
           
           {transaction.status === "pending" && (
-            <div className="flex space-x-2 ml-auto">
+            <div className="flex flex-wrap gap-2 ml-auto">
               <Button
                 size="sm"
                 variant="outline"
@@ -301,12 +301,12 @@ const TransactionsPage = () => {
         </CardHeader>
 
         <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-          <div className="px-4 overflow-x-auto">
-            <TabsList className="w-full justify-start mb-2 flex">
-              <TabsTrigger value="all" className="whitespace-nowrap">All</TabsTrigger>
-              <TabsTrigger value="pending" className="whitespace-nowrap">Pending</TabsTrigger>
-              <TabsTrigger value="approved" className="whitespace-nowrap">Approved</TabsTrigger>
-              <TabsTrigger value="rejected" className="whitespace-nowrap">Rejected</TabsTrigger>
+          <div className="px-4 overflow-x-auto pb-1">
+            <TabsList className="w-full justify-start mb-2">
+              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="pending">Pending</TabsTrigger>
+              <TabsTrigger value="approved">Approved</TabsTrigger>
+              <TabsTrigger value="rejected">Rejected</TabsTrigger>
             </TabsList>
           </div>
 
@@ -361,9 +361,9 @@ const TransactionsPage = () => {
                           <TableRow key={transaction.id}>
                             <TableCell className="whitespace-nowrap">{formatDate(transaction.created_at)}</TableCell>
                             <TableCell>
-                              <div>
-                                <p className="font-medium">{transaction.users.username}</p>
-                                <p className="text-sm text-gray-500">{transaction.users.email}</p>
+                              <div className="max-w-xs">
+                                <p className="font-medium truncate">{transaction.users.username}</p>
+                                <p className="text-sm text-gray-500 truncate">{transaction.users.email}</p>
                               </div>
                             </TableCell>
                             <TableCell>
@@ -444,7 +444,7 @@ const TransactionsPage = () => {
 
       {/* Proof Image Preview Dialog */}
       <Dialog open={!!selectedProofImage} onOpenChange={() => setSelectedProofImage(null)}>
-        <DialogContent className="sm:max-w-md max-w-[85vw]">
+        <DialogContent className="sm:max-w-md max-w-[90vw] p-4">
           <DialogHeader>
             <DialogTitle>Transaction Proof</DialogTitle>
           </DialogHeader>
