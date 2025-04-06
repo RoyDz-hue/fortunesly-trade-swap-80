@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-import ImageWithFallback from '@/components/common/ImageWithFallback';
 import { executeTrade } from '@/utils/tradingUtils';
 
 const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
@@ -28,10 +27,10 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
   }, [order]);
 
   useEffect(() => {
-    if (order && user && isOpen) {
+    if (user) {
       fetchUserBalance();
     }
-  }, [order, user, isOpen]);
+  }, [user, order]);
 
   useEffect(() => {
     if (order && amount) {
@@ -42,7 +41,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
 
   const fetchUserBalance = async () => {
     if (!user || !order) return;
-    
+
     try {
       setBalanceLoading(true);
       // Determine the currency to check based on order type
@@ -50,38 +49,24 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
         ? order.currency  // For buy orders, check if user has enough of the currency being sold
         : order.quote_currency || 'KES';  // For sell orders, check if user has enough of the quoted currency
 
-      // First try to get the balance directly
       const { data, error } = await supabase
-        .from('user_balances')
-        .select('amount')
-        .eq('user_id', user.id)
-        .eq('currency', currencyToCheck)
+        .from('users')
+        .select('balance_crypto, balance_fiat')
+        .eq('id', user.id)
         .single();
 
-      if (error && error.code === 'PGRST116') {
-        // No rows found - user has no balance record for this currency
-        console.log("No balance record found for this currency");
+      if (error) {
+        console.error('Error fetching user balances:', error);
         setUserBalance(0);
-      } else if (error) {
-        // Some other error occurred
-        console.error("Error fetching user balance:", error);
-        
-        // Try an alternative approach - get all balances and find the match
-        const { data: allBalances, error: balancesError } = await supabase
-          .from('user_balances')
-          .select('*')
-          .eq('user_id', user.id);
-          
-        if (balancesError) {
-          console.error("Failed to fetch all balances:", balancesError);
-          setUserBalance(0);
+      } else if (data) {
+        if (currencyToCheck === 'KES') {
+          // Handle fiat currency (KES)
+          setUserBalance(data.balance_fiat || 0);
         } else {
-          const matchingBalance = allBalances.find(b => b.currency === currencyToCheck);
-          setUserBalance(matchingBalance ? matchingBalance.amount : 0);
+          // Handle crypto currency
+          const cryptoBalances = data.balance_crypto || {};
+          setUserBalance((cryptoBalances[currencyToCheck] || 0));
         }
-      } else {
-        // Successfully got balance
-        setUserBalance(data?.amount || 0);
       }
     } catch (error) {
       console.error("Exception in balance fetch:", error);
@@ -118,7 +103,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
 
   const hasEnoughBalance = () => {
     if (userBalance === null) return false;
-    
+
     if (order.type === 'buy') {
       // If user is selling to a buy order, check if they have enough of the currency
       return userBalance >= parseFloat(amount || 0);
@@ -143,7 +128,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
     try {
       setIsLoading(true);
       const parsedAmount = parseFloat(amount);
-      
+
       if (isNaN(parsedAmount)) {
         toast({ title: "Invalid amount", variant: "destructive" });
         return;
@@ -198,12 +183,12 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
 
       // Determine if this was a partial or complete order execution
       const isPartial = parsedAmount < order.amount;
-      
+
       // Construct appropriate success message with currency amounts
       const tradedCurrency = order.currency;
       const quotedCurrency = order.quote_currency || 'KES';
       const quoteAmount = totalAmount.toFixed(2);
-      
+
       let successMessage = '';
       if (order.type === 'buy') {
         // User is selling to a buy order
@@ -212,7 +197,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
         // User is buying from a sell order
         successMessage = `You bought ${parsedAmount} ${tradedCurrency} for ${quoteAmount} ${quotedCurrency}`;
       }
-      
+
       if (isPartial) {
         successMessage += " (partial order)";
       }
@@ -264,11 +249,15 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
               <div className="flex items-center gap-1">
                 <span className="font-bold">{order.amount.toLocaleString()}</span>
                 {coinDetails?.icon_url && (
-                  <ImageWithFallback 
+                  <img 
                     src={coinDetails.icon_url}
                     alt={coinDetails.name}
                     className="h-4 w-4"
-                    fallbackSrc="/placeholder.svg"
+                    onError={(e) => {
+                      const target = e.target;
+                      target.src = `https://via.placeholder.com/20/6E59A5/ffffff?text=${coinDetails.symbol}`;
+                      target.onerror = null;
+                    }}
                   />
                 )}
                 <span>{order.currency}</span>
