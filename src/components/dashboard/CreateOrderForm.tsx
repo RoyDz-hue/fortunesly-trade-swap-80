@@ -45,7 +45,7 @@ const CreateOrderForm = ({
     minOrderSize: number;
     maxOrderSize: number;
   } | null>(null);
-  
+
   // Effect to update balances when order is created
   useEffect(() => {
     if (selectedPair) {
@@ -186,7 +186,7 @@ const CreateOrderForm = ({
         return;
       }
     }
-    
+
     // Validate balance
     if (orderType === 'sell') {
       const availableBalance = availableBalances[baseCurrency] || 0;
@@ -214,15 +214,16 @@ const CreateOrderForm = ({
     setIsSubmitting(true);
 
     try {
-      // Updated to pass quote_currency_param to the create_order database function
+      // Include the trading pair ID in the call to create_order
       const { data, error } = await supabase.rpc('create_order', {
         user_id_param: user.id,
         order_type_param: orderType,
         currency_param: baseCurrency,
-        quote_currency_param: quoteCurrency, // Added this line to pass quote currency
+        quote_currency_param: quoteCurrency,
         amount_param: numericAmount,
         price_param: numericPrice,
-        original_amount_param: numericAmount
+        original_amount_param: numericAmount,
+        pair_id_param: selectedPair // Add the pair ID parameter
       });
 
       if (error) throw error;
