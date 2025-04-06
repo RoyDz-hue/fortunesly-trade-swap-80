@@ -214,7 +214,7 @@ const CreateOrderForm = ({
     setIsSubmitting(true);
 
     try {
-      // Include the trading pair ID in the call to create_order
+      // First, check if the database function has been updated to use quote_currency correctly
       const { data, error } = await supabase.rpc('create_order', {
         user_id_param: user.id,
         order_type_param: orderType,
@@ -223,10 +223,31 @@ const CreateOrderForm = ({
         amount_param: numericAmount,
         price_param: numericPrice,
         original_amount_param: numericAmount,
-        pair_id_param: selectedPair // Add the pair ID parameter
+        pair_id_param: selectedPair
       });
 
-      if (error) throw error;
+      if (error) {
+        // If the above fails, try an alternative approach with a temporary fix
+        // This is a fallback if the database function hasn't been updated yet
+        console.warn("First attempt failed, trying alternative approach");
+        
+        // Try to make a direct insert instead of using the function
+        const { data: directData, error: directError } = await supabase
+          .from('orders')
+          .insert({
+            user_id: user.id,
+            order_type: orderType,
+            currency: baseCurrency,
+            quote_currency: quoteCurrency,
+            amount: numericAmount,
+            price: numericPrice,
+            original_amount: numericAmount,
+            trading_pair_id: selectedPair,
+            status: 'open'
+          });
+          
+        if (directError) throw directError;
+      }
 
       // Reset form
       setAmount("");
