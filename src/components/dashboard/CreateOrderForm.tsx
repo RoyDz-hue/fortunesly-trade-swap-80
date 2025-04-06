@@ -264,14 +264,19 @@ const CreateOrderForm = ({
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Amount ({baseCurrency || "—"})
               </label>
-              {maxAmount > 0 && (
-                <span 
-                  className="text-xs text-blue-600 cursor-pointer"
-                  onClick={handleSetMaxAmount}
-                >
-                  Max: {maxAmount.toFixed(6)}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">
+                  Available: {(availableBalances[baseCurrency] || 0).toFixed(6)}
                 </span>
-              )}
+                {maxAmount > 0 && (
+                  <span 
+                    className="text-xs text-blue-600 cursor-pointer font-medium bg-blue-50 px-2 py-0.5 rounded hover:bg-blue-100"
+                    onClick={handleSetMaxAmount}
+                  >
+                    MAX
+                  </span>
+                )}
+              </div>
             </div>
             <Input
               type="number"
