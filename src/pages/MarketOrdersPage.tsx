@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -170,16 +169,16 @@ const MarketOrdersPage = () => {
   };
 
   return (
-    <div className="w-full py-4">
+    <div className="w-full py-4 bg-gray-900 text-gray-200">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
-        <h1 className="text-2xl font-bold">Market Orders</h1>
+        <h1 className="text-2xl font-bold text-white">Market Orders</h1>
 
         <div className="flex gap-2">
           <Button 
             variant="outline" 
             size="sm" 
             onClick={handleRefresh}
-            className="flex items-center gap-1"
+            className="flex items-center gap-1 bg-gray-800 text-gray-200 border-gray-700 hover:bg-gray-700"
           >
             <RefreshCw size={14} />
             Refresh
@@ -187,7 +186,7 @@ const MarketOrdersPage = () => {
           <Button 
             onClick={handleCreateOrder} 
             size="sm"
-            className="flex items-center gap-1"
+            className="flex items-center gap-1 bg-gray-700 hover:bg-gray-600 text-white"
           >
             <Plus size={14} />
             Create Order
@@ -195,33 +194,33 @@ const MarketOrdersPage = () => {
         </div>
       </div>
 
-      <Card className="border shadow-sm w-full">
+      <Card className="border-gray-700 shadow-md w-full bg-gray-800 text-gray-200">
         <Tabs defaultValue="sell" value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="flex flex-col sm:flex-row justify-between items-center p-4 border-b bg-gray-50">
-            <CardTitle className="text-lg mb-3 sm:mb-0">Available Orders</CardTitle>
-            <TabsList className="grid w-full max-w-[240px] grid-cols-2">
-              <TabsTrigger value="sell" className="flex items-center gap-1">
+          <div className="flex flex-col sm:flex-row justify-between items-center p-4 border-b border-gray-700 bg-gray-800">
+            <CardTitle className="text-lg mb-3 sm:mb-0 text-white">Available Orders</CardTitle>
+            <TabsList className="grid w-full max-w-[240px] grid-cols-2 bg-gray-700">
+              <TabsTrigger value="sell" className="flex items-center gap-1 data-[state=active]:bg-gray-600">
                 <ArrowUp className="h-3 w-3" />
                 Sell
               </TabsTrigger>
-              <TabsTrigger value="buy" className="flex items-center gap-1">
+              <TabsTrigger value="buy" className="flex items-center gap-1 data-[state=active]:bg-gray-600">
                 <ArrowDown className="h-3 w-3" />
                 Buy
               </TabsTrigger>
             </TabsList>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2 p-3 border-b bg-white">
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-between gap-2 p-3 border-b border-gray-700 bg-gray-800">
+            <div className="flex items-center gap-1 text-xs text-gray-400">
               <Filter className="h-3 w-3" />
               <span>Filters:</span>
             </div>
             <div className="flex flex-wrap gap-2">
               <Select value={selectedCoin} onValueChange={setSelectedCoin}>
-                <SelectTrigger className="h-8 w-[120px] text-xs">
+                <SelectTrigger className="h-8 w-[120px] text-xs bg-gray-700 border-gray-600 text-gray-200">
                   <SelectValue placeholder="Select Coin" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-gray-700 border-gray-600 text-gray-200">
                   <SelectItem value="all">All Coins</SelectItem>
                   {availableCoins.map((coin) => (
                     <SelectItem key={coin.symbol} value={coin.symbol}>
@@ -234,7 +233,7 @@ const MarketOrdersPage = () => {
                             fallbackSrc="/placeholder.svg"
                           />
                         ) : (
-                          <span className="h-4 w-4 flex items-center justify-center text-xs bg-gray-100 rounded-full">
+                          <span className="h-4 w-4 flex items-center justify-center text-xs bg-gray-600 rounded-full">
                             {coin.symbol.charAt(0)}
                           </span>
                         )}
@@ -246,10 +245,10 @@ const MarketOrdersPage = () => {
               </Select>
 
               <Select value={priceSort || undefined} onValueChange={setPriceSort}>
-                <SelectTrigger className="h-8 w-[120px] text-xs">
+                <SelectTrigger className="h-8 w-[120px] text-xs bg-gray-700 border-gray-600 text-gray-200">
                   <SelectValue placeholder="Sort by Price" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-gray-700 border-gray-600 text-gray-200">
                   <SelectItem value={undefined}>Default</SelectItem>
                   <SelectItem value="asc">Low to High</SelectItem>
                   <SelectItem value="desc">High to Low</SelectItem>
@@ -258,23 +257,23 @@ const MarketOrdersPage = () => {
             </div>
           </div>
 
-          <CardContent className="p-2 sm:p-3">
+          <CardContent className="p-2 sm:p-3 bg-gray-800">
             {isLoading ? (
               <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-300"></div>
               </div>
             ) : marketOrders.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-dashed">
+              <div className="text-center py-8 text-gray-400 bg-gray-800 rounded-lg border border-dashed border-gray-700">
                 <div className="flex justify-center mb-2">
-                  {activeTab === 'buy' ? <ArrowDown className="h-8 w-8 text-gray-300" /> : <ArrowUp className="h-8 w-8 text-gray-300" />}
+                  {activeTab === 'buy' ? <ArrowDown className="h-8 w-8 text-gray-600" /> : <ArrowUp className="h-8 w-8 text-gray-600" />}
                 </div>
-                <h3 className="text-base font-medium mb-1">No {activeTab === 'buy' ? 'buy' : 'sell'} orders available</h3>
-                <p className="text-xs">Be the first to create a {activeTab === 'buy' ? 'buy' : 'sell'} order!</p>
+                <h3 className="text-base font-medium mb-1 text-gray-300">No {activeTab === 'buy' ? 'buy' : 'sell'} orders available</h3>
+                <p className="text-xs text-gray-400">Be the first to create a {activeTab === 'buy' ? 'buy' : 'sell'} order!</p>
                 <Button 
                   onClick={handleCreateOrder} 
                   size="sm"
                   variant="outline"
-                  className="mt-3"
+                  className="mt-3 bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600"
                 >
                   Create Order
                 </Button>
@@ -285,36 +284,36 @@ const MarketOrdersPage = () => {
                   const coinDetails = getCoinDetails(order.currency);
                   const orderType = activeTab === 'buy' ? 'buy' : 'sell';
                   const buttonColorClass = orderType === 'buy' ? 
-                    'bg-green-600 hover:bg-green-700 text-white' : 
-                    'bg-red-600 hover:bg-red-700 text-white';
-                  
+                    'bg-green-700 hover:bg-green-600 text-white' : 
+                    'bg-red-700 hover:bg-red-600 text-white';
+
                   // Get the correct currency for price display
                   const priceCurrency = getPriceCurrency(order);
 
                   return (
-                    <div key={order.id} className="border rounded-lg p-3 hover:shadow-sm transition-shadow bg-white">
+                    <div key={order.id} className="border border-gray-700 rounded-lg p-3 hover:shadow-md transition-shadow bg-gray-800">
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                         {/* User Info - Minimized Version */}
                         <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8 bg-gray-100">
-                            <span className="text-xs">{order.users.username.charAt(0).toUpperCase()}</span>
+                          <Avatar className="h-8 w-8 bg-gray-700">
+                            <span className="text-xs text-gray-200">{order.users.username.charAt(0).toUpperCase()}</span>
                           </Avatar>
                           <div>
-                            <p className="font-medium text-sm">{order.users.username}</p>
-                            <p className="text-xs text-gray-500">Transactions: {Math.floor(Math.random() * 10) + 1}</p>
+                            <p className="font-medium text-sm text-gray-200">{order.users.username}</p>
+                            <p className="text-xs text-gray-400">Transactions: {Math.floor(Math.random() * 10) + 1}</p>
                           </div>
                         </div>
 
                         {/* Order Details - Compact Grid */}  
                         <div className="flex flex-1 flex-wrap gap-2">
-                          <div className="bg-gray-50 rounded-md px-3 py-2 text-center min-w-[100px]">
-                            <p className="text-xs text-gray-500">Price</p>
-                            <p className="font-medium text-sm">{priceCurrency} {order.price.toLocaleString()}</p>
+                          <div className="bg-gray-700 rounded-md px-3 py-2 text-center min-w-[100px]">
+                            <p className="text-xs text-gray-400">Price</p>
+                            <p className="font-medium text-sm text-gray-200">{priceCurrency} {order.price.toLocaleString()}</p>
                           </div>
 
-                          <div className="bg-gray-50 rounded-md px-3 py-2 text-center min-w-[120px]">
-                            <p className="text-xs text-gray-500">Available</p>
-                            <div className="flex items-center justify-center gap-1 font-medium text-sm">
+                          <div className="bg-gray-700 rounded-md px-3 py-2 text-center min-w-[120px]">
+                            <p className="text-xs text-gray-400">Available</p>
+                            <div className="flex items-center justify-center gap-1 font-medium text-sm text-gray-200">
                               {order.amount.toLocaleString()} 
                               <div className="flex items-center">
                                 {coinDetails.icon_url ? (
@@ -332,20 +331,20 @@ const MarketOrdersPage = () => {
                             {/* Show fill status if partially filled */}
                             {order.status === 'partially_filled' && (
                               <div className="mt-1">
-                                <div className="w-full bg-gray-200 rounded-full h-1">
+                                <div className="w-full bg-gray-600 rounded-full h-1">
                                   <div 
                                     className="bg-blue-500 h-1 rounded-full" 
                                     style={{ width: `${order.filled_percentage}%` }}
                                   ></div>
                                 </div>
-                                <p className="text-xs text-gray-500 mt-1">{order.filled_percentage.toFixed(0)}% filled</p>
+                                <p className="text-xs text-gray-400 mt-1">{order.filled_percentage.toFixed(0)}% filled</p>
                               </div>
                             )}
                           </div>
 
-                          <div className="bg-gray-50 rounded-md px-3 py-2 text-center min-w-[120px]">
-                            <p className="text-xs text-gray-500">Limit</p>
-                            <p className="font-medium text-sm">
+                          <div className="bg-gray-700 rounded-md px-3 py-2 text-center min-w-[120px]">
+                            <p className="text-xs text-gray-400">Limit</p>
+                            <p className="font-medium text-sm text-gray-200">
                               {priceCurrency} {(order.price * order.amount * 0.1).toLocaleString(undefined, {maximumFractionDigits: 0})} - {(order.price * order.amount).toLocaleString(undefined, {maximumFractionDigits: 0})}
                             </p>
                           </div>
