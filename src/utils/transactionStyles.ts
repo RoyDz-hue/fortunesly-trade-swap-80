@@ -1,19 +1,19 @@
 
 // src/utils/transactionStyles.ts
 
-// Status Colors - Updated to match the new teal gradient theme
+// Status Colors - Updated to match the new purple/blue gradient theme
 export const statusColors = {
-  complete: '#26a69a',    // Teal 400
-  approved: '#4db6ac',    // Teal 300
-  purchase: '#00897b',    // Teal 600
-  sale: '#004d40',        // Teal 900
-  deposit: '#009688',     // Teal 500
-  withdrawal: 'linear-gradient(45deg, #00695c, #26a69a)'  // Gradient from Teal 800 to Teal 400
+  complete: '#9b87f5',    // Light purple
+  approved: '#7E69AB',    // Medium purple
+  purchase: '#6E59A5',    // Dark purple
+  sale: '#1A1F2C',        // Dark blue
+  deposit: '#8B5CF6',     // Bright purple
+  withdrawal: 'linear-gradient(45deg, #403E43, #7E69AB)'  // Gradient from dark to medium purple
 };
 
 // Value Colors
 export const valueColors = {
-  positive: '#00897b',    // Teal 600 for received values
+  positive: '#7E69AB',    // Medium purple for received values
   negative: '#f44336'     // Red for sent values - kept distinct for clarity
 };
 

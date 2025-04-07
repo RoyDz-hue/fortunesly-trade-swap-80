@@ -64,23 +64,23 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				},
 				fortunesly: {
-					primary: '#00897b',    // Updated to match gradient theme
-					secondary: '#26a69a',  // Updated to match gradient theme
-					dark: '#004d40',       // Updated to match gradient theme
+					primary: '#6E59A5',    // Updated to purple
+					secondary: '#9b87f5',  // Updated to lighter purple
+					dark: '#1A1F2C',       // Updated to dark blue/black
 					light: '#F6F6F7',
-					accent: '#4db6ac',     // Updated to match gradient theme
+					accent: '#7E69AB',     // Updated to medium purple
 				},
-				teal: {
-					50: '#e0f2f1',
-					100: '#b2dfdb',
-					200: '#80cbc4',
-					300: '#4db6ac',
-					400: '#26a69a',
-					500: '#009688',
-					600: '#00897b',
-					700: '#00796b',
-					800: '#00695c',
-					900: '#004d40',
+				purple: {
+					50: '#F5F3FF',
+					100: '#EDE9FE',
+					200: '#DDD6FE',
+					300: '#C4B5FD',
+					400: '#A78BFA',
+					500: '#8B5CF6',
+					600: '#7C3AED',
+					700: '#6D28D9',
+					800: '#5B21B6',
+					900: '#4C1D95',
 				}
 			},
 			borderRadius: {
