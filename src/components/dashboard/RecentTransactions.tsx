@@ -7,15 +7,17 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Filter } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
+// Define type-safe colors for badges
 const statusColors = {
   pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
   approved: "bg-green-100 text-green-800 border-green-200",
   rejected: "bg-red-100 text-red-800 border-red-200",
   forfeited: "bg-gray-100 text-gray-800 border-gray-200",
+  completed: "bg-amber-100 text-amber-800 border-amber-200", // Gold-like for completed
 };
 
 const typeColors = {
@@ -117,13 +119,13 @@ const RecentTransactions = () => {
   };
   
   const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
+    try {
+      const date = new Date(dateString);
+      return format(date, 'MMM d, HH:mm');
+    } catch (e) {
+      console.error('Error formatting date:', e);
+      return dateString;
+    }
   };
   
   const renderSkeletons = () => (
@@ -181,27 +183,27 @@ const RecentTransactions = () => {
     switch (transaction.type) {
       case 'deposit':
         return (
-          <span className="text-green-600">+{transaction.amount} {transaction.currency}</span>
+          <span className="text-green-600 font-semibold">+{transaction.amount} {transaction.currency}</span>
         );
       case 'withdrawal':
         return (
-          <span className="text-red-600">-{transaction.amount} {transaction.currency}</span>
+          <span className="text-red-600 font-semibold">-{transaction.amount} {transaction.currency}</span>
         );
       case 'purchase':
         return (
           <div className="flex flex-col sm:flex-row sm:gap-2">
-            <span className="text-green-600">+{transaction.amount} {transaction.currency}</span>
+            <span className="text-green-600 font-semibold">+{transaction.amount} {transaction.currency}</span>
             {transaction.secondaryAmount > 0 && (
-              <span className="text-red-600">-{transaction.secondaryAmount} {transaction.secondaryCurrency}</span>
+              <span className="text-red-600 font-semibold">-{transaction.secondaryAmount} {transaction.secondaryCurrency}</span>
             )}
           </div>
         );
       case 'sale':
         return (
           <div className="flex flex-col sm:flex-row sm:gap-2">
-            <span className="text-red-600">-{transaction.amount} {transaction.currency}</span>
+            <span className="text-red-600 font-semibold">-{transaction.amount} {transaction.currency}</span>
             {transaction.secondaryAmount > 0 && (
-              <span className="text-green-600">+{transaction.secondaryAmount} {transaction.secondaryCurrency}</span>
+              <span className="text-green-600 font-semibold">+{transaction.secondaryAmount} {transaction.secondaryCurrency}</span>
             )}
           </div>
         );
@@ -247,13 +249,34 @@ const RecentTransactions = () => {
           ) : (
             <div className="divide-y divide-gray-200">
               {filteredTransactions.map((transaction) => (
-                <div key={transaction.id} className="p-4 hover:bg-gray-50 transition-colors">
+                <div 
+                  key={transaction.id} 
+                  className="p-4 hover:bg-gray-50 transition-colors duration-200"
+                  style={{
+                    background: 
+                      transaction.status.toLowerCase() === 'completed' ? 'rgba(255, 215, 0, 0.1)' : // Golden for completed
+                      transaction.status.toLowerCase() === 'approved' ? 'rgba(144, 238, 144, 0.1)' : // Light green for approved
+                      'inherit'
+                  }}
+                >
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex items-start space-x-2">
-                      <Badge variant="outline" className={typeColors[transaction.type]}>
+                      <Badge 
+                        variant="outline" 
+                        className={cn(
+                          typeColors[transaction.type],
+                          "transition-all duration-200 hover:opacity-80"
+                        )}
+                      >
                         {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
                       </Badge>
-                      <Badge variant="outline" className={statusColors[transaction.status]}>
+                      <Badge 
+                        variant="outline" 
+                        className={cn(
+                          statusColors[transaction.status],
+                          "transition-all duration-200 hover:opacity-80"
+                        )}
+                      >
                         {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
                       </Badge>
                     </div>
