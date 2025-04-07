@@ -12,17 +12,17 @@ import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const statusColors = {
-  pending: "bg-yellow-800 text-yellow-100 border-yellow-700",
-  approved: "bg-green-800 text-green-100 border-green-700",
-  rejected: "bg-red-800 text-red-100 border-red-700",
-  forfeited: "bg-gray-800 text-gray-100 border-gray-700",
+  pending: "bg-yellow-950 text-yellow-400 border-yellow-900",
+  approved: "bg-green-950 text-green-400 border-green-900",
+  rejected: "bg-red-950 text-red-400 border-red-900",
+  forfeited: "bg-gray-950 text-gray-400 border-gray-900",
 };
 
 const typeColors = {
-  deposit: "bg-blue-800 text-blue-100 border-blue-700",
-  withdrawal: "bg-purple-800 text-purple-100 border-purple-700",
-  purchase: "bg-green-800 text-green-100 border-green-700",
-  sale: "bg-red-800 text-red-100 border-red-700",
+  deposit: "bg-blue-950 text-blue-400 border-blue-900",
+  withdrawal: "bg-purple-950 text-purple-400 border-purple-900",
+  purchase: "bg-green-950 text-green-400 border-green-900",
+  sale: "bg-red-950 text-red-400 border-red-900",
 };
 
 const TransactionsPage = () => {
@@ -190,7 +190,7 @@ const TransactionsPage = () => {
     <div className="space-y-4">
       {isLoading ? (
         <div className="flex justify-center items-center p-8 text-gray-300">
-          <div className="w-8 h-8 border-4 border-t-fortunesly-primary border-gray-700 rounded-full animate-spin"></div>
+          <div className="w-8 h-8 border-4 border-t-fortunesly-primary border-gray-800 rounded-full animate-spin"></div>
           <span className="ml-2">Loading transactions...</span>
         </div>
       ) : filteredTransactions.length === 0 ? (
@@ -201,7 +201,7 @@ const TransactionsPage = () => {
         </div>
       ) : (
         filteredTransactions.map(transaction => (
-          <div key={transaction.id} className="bg-gray-900 rounded-lg shadow border border-gray-700 p-4">
+          <div key={transaction.id} className="bg-zinc-950 rounded-lg shadow border border-zinc-800 p-4">
             <div className="flex justify-between items-start mb-3">
               <Badge variant="outline" className={typeColors[transaction.type]}>
                 {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
@@ -210,7 +210,7 @@ const TransactionsPage = () => {
             </div>
 
             <div className="mb-2">
-              <div className="font-medium text-gray-100">
+              <div className="font-medium text-gray-200">
                 {transaction.type === 'deposit' 
                   ? `Deposit of ${transaction.amount} ${transaction.currency}`
                   : transaction.type === 'withdrawal'
@@ -231,7 +231,7 @@ const TransactionsPage = () => {
               </div>
             </div>
 
-            <div className="mt-2 text-xs text-gray-400 truncate">
+            <div className="mt-2 text-xs text-gray-500 truncate">
               ID: {transaction.id.substring(0, 8)}...
             </div>
           </div>
@@ -241,16 +241,17 @@ const TransactionsPage = () => {
   );
 
   return (
-    <div className="space-y-6 bg-black text-gray-100">
+    <div className="space-y-6 bg-zinc-950 text-gray-200">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-100">Transaction History</h1>
-        <Button variant="outline" onClick={exportToCsv} disabled={transactions.length === 0} className="bg-gray-800 text-gray-100 border-gray-700 hover:bg-gray-700">
+        <Button variant="outline" onClick={exportToCsv} disabled={transactions.length === 0}
+          className="bg-zinc-900 text-gray-200 border-zinc-800 hover:bg-zinc-800">
           <DownloadIcon className="mr-2 h-4 w-4" /> Export CSV
         </Button>
       </div>
 
-      <Card className="border border-gray-800 bg-gray-900">
-        <CardHeader className="p-4 border-b border-gray-800">
+      <Card className="border border-zinc-800 bg-zinc-950">
+        <CardHeader className="p-4 border-b border-zinc-800">
           <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
             <CardTitle className="text-lg font-semibold text-gray-100">All Transactions</CardTitle>
             <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
@@ -258,7 +259,7 @@ const TransactionsPage = () => {
                 placeholder="Search by currency or ID"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="max-w-[250px] bg-gray-800 text-gray-100 border-gray-700 placeholder-gray-500"
+                className="max-w-[250px] bg-zinc-900 text-gray-200 border-zinc-800 placeholder-gray-500"
               />
               <Select 
                 value={typeFilter} 
@@ -267,10 +268,10 @@ const TransactionsPage = () => {
                   setCurrentPage(1);
                 }}
               >
-                <SelectTrigger className="w-[150px] bg-gray-800 text-gray-100 border-gray-700">
+                <SelectTrigger className="w-[150px] bg-zinc-900 text-gray-200 border-zinc-800">
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-800 text-gray-100 border-gray-700">
+                <SelectContent className="bg-zinc-900 text-gray-200 border-zinc-800">
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="deposit">Deposits</SelectItem>
                   <SelectItem value="withdrawal">Withdrawals</SelectItem>
@@ -286,10 +287,10 @@ const TransactionsPage = () => {
                   setCurrentPage(1);
                 }}
               >
-                <SelectTrigger className="w-[150px] bg-gray-800 text-gray-100 border-gray-700">
+                <SelectTrigger className="w-[150px] bg-zinc-900 text-gray-200 border-zinc-800">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-800 text-gray-100 border-gray-700">
+                <SelectContent className="bg-zinc-900 text-gray-200 border-zinc-800">
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="approved">Approved</SelectItem>
@@ -303,7 +304,7 @@ const TransactionsPage = () => {
         <CardContent className="p-0">
           {isLoading ? (
             <div className="flex justify-center items-center p-8 text-gray-300">
-              <div className="w-8 h-8 border-4 border-t-fortunesly-primary border-gray-700 rounded-full animate-spin"></div>
+              <div className="w-8 h-8 border-4 border-t-fortunesly-primary border-zinc-800 rounded-full animate-spin"></div>
               <span className="ml-2">Loading transactions...</span>
             </div>
           ) : error ? (
@@ -328,9 +329,9 @@ const TransactionsPage = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <Table className="text-gray-100">
-                <TableHeader className="bg-gray-800">
-                  <TableRow className="border-gray-700">
+              <Table className="bg-zinc-950">
+                <TableHeader>
+                  <TableRow className="border-zinc-800">
                     <TableHead className="text-gray-300">Date</TableHead>
                     <TableHead className="text-gray-300">Type</TableHead>
                     <TableHead className="text-gray-300">Currency</TableHead>
@@ -341,17 +342,17 @@ const TransactionsPage = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredTransactions.map(transaction => (
-                    <TableRow key={transaction.id} className="border-gray-800 hover:bg-gray-800">
+                    <TableRow key={transaction.id} className="border-zinc-800 hover:bg-zinc-900">
                       <TableCell className="text-gray-300">{formatDate(transaction.createdAt)}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={typeColors[transaction.type] || "bg-gray-800 text-gray-100"}>
+                        <Badge variant="outline" className={typeColors[transaction.type] || "bg-zinc-900 text-gray-300"}>
                           {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-gray-300">
                         {transaction.currency}
                         {transaction.secondaryCurrency && (
-                          <span className="text-xs text-gray-400 ml-1">
+                          <span className="text-xs text-gray-500 ml-1">
                             / {transaction.secondaryCurrency}
                           </span>
                         )}
@@ -364,7 +365,7 @@ const TransactionsPage = () => {
                           {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="font-mono text-xs text-gray-300">{transaction.id.substring(0, 8)}...</TableCell>
+                      <TableCell className="font-mono text-xs text-gray-400">{transaction.id.substring(0, 8)}...</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -373,7 +374,7 @@ const TransactionsPage = () => {
           )}
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-between border-t border-gray-800 px-4 py-3">
+            <div className="flex items-center justify-between border-t border-zinc-800 px-4 py-3">
               <div className="text-sm text-gray-400">
                 Page {currentPage} of {totalPages}
               </div>
@@ -383,7 +384,7 @@ const TransactionsPage = () => {
                   size="sm" 
                   onClick={handlePrevPage}
                   disabled={currentPage === 1}
-                  className="bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700"
+                  className="bg-zinc-900 text-gray-200 border-zinc-800 hover:bg-zinc-800 disabled:bg-zinc-950 disabled:text-gray-700"
                 >
                   <ChevronLeft className="h-4 w-4" />
                   <span className="sr-only">Previous</span>
@@ -393,7 +394,7 @@ const TransactionsPage = () => {
                   size="sm" 
                   onClick={handleNextPage}
                   disabled={currentPage === totalPages}
-                  className="bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700"
+                  className="bg-zinc-900 text-gray-200 border-zinc-800 hover:bg-zinc-800 disabled:bg-zinc-950 disabled:text-gray-700"
                 >
                   <ChevronRight className="h-4 w-4" />
                   <span className="sr-only">Next</span>
