@@ -44,10 +44,9 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
 
     try {
       setBalanceLoading(true);
-      // Determine the currency to check based on order type
       const currencyToCheck = order.type === 'buy' 
-        ? order.currency  // For buy orders, check if user has enough of the currency being sold
-        : order.quote_currency || 'KES';  // For sell orders, check if user has enough of the quoted currency
+        ? order.currency 
+        : order.quote_currency || 'KES';
 
       const { data, error } = await supabase
         .from('users')
@@ -60,10 +59,8 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
         setUserBalance(0);
       } else if (data) {
         if (currencyToCheck === 'KES') {
-          // Handle fiat currency (KES)
           setUserBalance(data.balance_fiat || 0);
         } else {
-          // Handle crypto currency
           const cryptoBalances = data.balance_crypto || {};
           setUserBalance((cryptoBalances[currencyToCheck] || 0));
         }
@@ -91,13 +88,10 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
     }
   };
 
-  // Function to get price currency display based on quote_currency field
   const getPriceCurrency = (order) => {
-    // If quote_currency exists and is not empty, use it
     if (order.quote_currency) {
       return order.quote_currency;
     }
-    // Otherwise fall back to KES
     return 'KES';
   };
 
@@ -105,10 +99,8 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
     if (userBalance === null) return false;
 
     if (order.type === 'buy') {
-      // If user is selling to a buy order, check if they have enough of the currency
-      return userBalance >= parseFloat(amount || 0);
+      return userBalance >= parseFloat(amount || '0');
     } else {
-      // If user is buying from a sell order, check if they have enough of the quoted currency
       return userBalance >= totalAmount;
     }
   };
@@ -139,7 +131,6 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
         return;
       }
 
-      // Validate user has enough balance for the transaction
       if (!hasEnoughBalance()) {
         const currencyNeeded = order.type === 'buy' 
           ? order.currency 
@@ -153,46 +144,36 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
         return;
       }
 
-      // Prepare transaction data according to SQL function parameters
-      // Based on the SQL function:
-      // insert_or_update_transaction(executing_user_id UUID, order_owner_id UUID, order_type TEXT, amount NUMERIC, currency TEXT)
       const transactionData = {
-        executing_user_id: user.id,            // Currently logged-in user
-        order_owner_id: order.user_id,         // The order creator
-        order_type: order.type,                // Original order type (buy/sell)
-        amount: parsedAmount,                  // Amount being traded
-        currency: order.currency               // Currency being traded
+        executing_user_id: user.id,
+        order_owner_id: order.user_id,
+        order_type: order.type,
+        amount: parsedAmount,
+        currency: order.currency
       };
 
-      // Use the executeTrade utility function with proper transaction parameters
       const result = await executeTrade(
         order.id,
         user.id,
         parsedAmount,
-        transactionData  // Pass data formatted for the SQL function
+        transactionData
       );
 
       if (!result.success) {
         throw new Error(result.error);
       }
 
-      // Refresh the user's balance after successful trade
       fetchUserBalance();
 
-      // Determine if this was a partial or complete order execution
       const isPartial = parsedAmount < order.amount;
-
-      // Construct appropriate success message with currency amounts
       const tradedCurrency = order.currency;
       const quotedCurrency = order.quote_currency || 'KES';
       const quoteAmount = totalAmount.toFixed(2);
 
       let successMessage = '';
       if (order.type === 'buy') {
-        // User is selling to a buy order
         successMessage = `You sold ${parsedAmount} ${tradedCurrency} for ${quoteAmount} ${quotedCurrency}`;
       } else {
-        // User is buying from a sell order
         successMessage = `You bought ${parsedAmount} ${tradedCurrency} for ${quoteAmount} ${quotedCurrency}`;
       }
 
@@ -221,7 +202,6 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
 
   if (!order) return null;
 
-  // Get the correct currency for price display
   const priceCurrency = getPriceCurrency(order);
   const balanceCurrency = order.type === 'buy' ? order.currency : (order.quote_currency || 'KES');
 
@@ -252,7 +232,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
                     alt={coinDetails.name}
                     className="h-4 w-4"
                     onError={(e) => {
-                      const target = e.target;
+                      const target = e.target as HTMLImageElement;
                       target.src = `https://via.placeholder.com/20/6E59A5/ffffff?text=${coinDetails.symbol}`;
                       target.onerror = null;
                     }}
@@ -261,7 +241,6 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
                 <span>{order.currency}</span>
               </div>
             </div>
-            {/* Display status badge for partially-filled orders */}
             {order.original_amount && order.original_amount > order.amount && (
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium">Status:</span>
@@ -270,7 +249,6 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
                 </Badge>
               </div>
             )}
-            {/* Display user's balance */}
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Your {balanceCurrency} balance:</span>
               <div className="flex items-center gap-1">

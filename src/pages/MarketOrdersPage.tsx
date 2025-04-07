@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +30,7 @@ interface OrderType {
     username: string;
   };
   filled_percentage?: number;
+  username?: string; // Added as optional for backward compatibility
 }
 
 const MarketOrdersPage = () => {
@@ -114,15 +116,17 @@ const MarketOrdersPage = () => {
 
       console.log("Fetched market orders:", data);
 
-      // Format the data to include username
-      const formattedData = data?.map(order => ({
+      // Format the data to include username and ensure all required properties are present
+      const formattedData: OrderType[] = data?.map(order => ({
         ...order,
         username: order.users?.username || 'Unknown',
         // Add tracking for partially filled orders
-        filled_percentage: order.original_amount ? ((order.original_amount - order.amount) / order.original_amount * 100) : 0
-      }));
+        filled_percentage: order.original_amount ? ((order.original_amount - order.amount) / order.original_amount * 100) : 0,
+        // Ensure quote_currency is present (even if null)
+        quote_currency: order.quote_currency || null
+      })) || [];
 
-      setOrders(formattedData || []);
+      setOrders(formattedData);
     } catch (error) {
       console.error("Error fetching orders:", error);
       toast({

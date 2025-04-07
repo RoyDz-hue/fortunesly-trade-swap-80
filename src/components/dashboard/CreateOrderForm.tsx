@@ -46,20 +46,17 @@ const CreateOrderForm = ({
     maxOrderSize: number;
   } | null>(null);
 
-  // Effect to update balances when order is created
   useEffect(() => {
     if (selectedPair) {
       const pair = availablePairs.find(p => p.id === selectedPair);
       if (pair) {
         if (orderType === 'buy') {
-          // When buying, calculate max amount based on quote currency balance and price
           if (price) {
             const quoteBalance = availableBalances[pair.quoteCurrency] || 0;
             const maxBuyAmount = quoteBalance / Number(price);
             setMaxAmount(Math.floor(maxBuyAmount * 100000) / 100000);
           }
         } else {
-          // When selling, max amount is the base currency balance
           const baseBalance = availableBalances[pair.baseCurrency] || 0;
           setMaxAmount(baseBalance);
         }
@@ -67,7 +64,6 @@ const CreateOrderForm = ({
     }
   }, [selectedPair, availableBalances, orderType, price, availablePairs]);
 
-  // User tries to select a trading pair
   const handlePairChange = (pairId: string) => {
     const pair = availablePairs.find(p => p.id === pairId);
 
@@ -80,23 +76,19 @@ const CreateOrderForm = ({
         maxOrderSize: pair.maxOrderSize
       });
 
-      // Calculate max amount based on balances
       if (orderType === 'buy') {
-        // When buying, limited by KES balance and price
         if (pair.quoteCurrency === 'KES' && price) {
           const balance = availableBalances['KES'] || 0;
           const maxBuyAmount = balance / Number(price);
           setMaxAmount(Math.floor(maxBuyAmount * 100000) / 100000);
         }
       } else {
-        // When selling, limited by crypto balance
         const balance = availableBalances[pair.baseCurrency] || 0;
         setMaxAmount(balance);
       }
     }
   };
 
-  // When order type changes, recalculate max amount
   const handleOrderTypeChange = (type: 'buy' | 'sell') => {
     setOrderType(type);
 
@@ -105,12 +97,10 @@ const CreateOrderForm = ({
 
       if (pair && price) {
         if (type === 'buy' && pair.quoteCurrency === 'KES') {
-          // When buying, limited by KES balance and price
           const balance = availableBalances['KES'] || 0;
           const maxBuyAmount = balance / Number(price);
           setMaxAmount(Math.floor(maxBuyAmount * 100000) / 100000);
         } else if (type === 'sell') {
-          // When selling, limited by crypto balance
           const balance = availableBalances[pair.baseCurrency] || 0;
           setMaxAmount(balance);
         }
@@ -118,7 +108,6 @@ const CreateOrderForm = ({
     }
   };
 
-  // When price changes, recalculate max amount for buy orders
   const handlePriceChange = (value: string) => {
     setPrice(value);
 
@@ -166,7 +155,6 @@ const CreateOrderForm = ({
       return;
     }
 
-    // Check min/max order size
     if (pairDetails) {
       if (numericAmount < pairDetails.minOrderSize) {
         toast({
@@ -187,7 +175,6 @@ const CreateOrderForm = ({
       }
     }
 
-    // Validate balance
     if (orderType === 'sell') {
       const availableBalance = availableBalances[baseCurrency] || 0;
       if (numericAmount > availableBalance) {
@@ -214,10 +201,9 @@ const CreateOrderForm = ({
     setIsSubmitting(true);
 
     try {
-      // First, check if the database function has been updated to use quote_currency correctly
       const { data, error } = await supabase.rpc('create_order', {
         user_id_param: user.id,
-        type_param: orderType,
+        order_type_param: orderType,
         currency_param: baseCurrency,
         quote_currency_param: quoteCurrency,
         amount_param: numericAmount,
@@ -226,11 +212,8 @@ const CreateOrderForm = ({
       });
 
       if (error) {
-        // If the above fails, try an alternative approach with a temporary fix
-        // This is a fallback if the database function hasn't been updated yet
         console.warn("First attempt failed, trying alternative approach");
         
-        // Try to make a direct insert instead of using the function
         const { data: directData, error: directError } = await supabase
           .from('orders')
           .insert({
@@ -247,7 +230,6 @@ const CreateOrderForm = ({
         if (directError) throw directError;
       }
 
-      // Reset form
       setAmount("");
       setPrice("");
 

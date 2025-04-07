@@ -1,4 +1,21 @@
+
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+
+/**
+ * Formats transaction time to a human-readable format
+ * @param dateString ISO date string
+ * @returns Formatted date string
+ */
+export const formatTransactionTime = (dateString: string): string => {
+  try {
+    const date = new Date(dateString);
+    return format(date, 'MMM d, HH:mm');
+  } catch (e) {
+    console.error('Error formatting date:', e);
+    return dateString;
+  }
+};
 
 /**
  * Executes a trade between two users
@@ -48,13 +65,15 @@ export const executeTrade = async (
       }
     }
 
-    // Execute the trade through RPC with the additional transaction data parameters
+    // Execute the trade through RPC with the correct parameter names
     const { data, error } = await supabase.rpc('execute_market_order', {
       order_id_param: orderId,
       trader_id_param: traderId,
       trade_amount_param: tradeAmount,
-      order_owner_id_param: transactionData.order_owner_id,
-      order_type_param: transactionData.order_type
+      // Additional parameters needed by the function - pass them directly from transactionData
+      executing_user_id: transactionData.executing_user_id,
+      order_owner_id: transactionData.order_owner_id, 
+      order_type: transactionData.order_type
     });
 
     if (error) {
@@ -89,9 +108,6 @@ export const executeTrade = async (
         throw statusError;
       }
     }
-
-    // Create transaction records for both parties if needed
-    // This might be handled by the RPC function, but we can add additional logic here if needed
     
     console.log("Trade execution result:", data);
 
