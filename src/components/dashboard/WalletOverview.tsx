@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Wallet, Coin } from "@/types";
@@ -82,7 +83,7 @@ const WalletOverview: React.FC = () => {
                 const formattedCoins = formatCoins(coinsData || []);
                 setAvailableCoins(formattedCoins);
 
-                // Get user wallet data
+                // Convert App User to Supabase User and get user wallet data
                 const supabaseUser = convertToSupabaseUser(user);
                 const { data: userData, error: userError } = await supabase
                     .from('users')

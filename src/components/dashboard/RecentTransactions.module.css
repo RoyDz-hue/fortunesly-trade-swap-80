@@ -6,7 +6,7 @@
 
 .transactionItem {
   transition: all 0.3s ease;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
   border-radius: 12px;
   padding: 16px;
   margin: 12px 0;
@@ -16,7 +16,7 @@
 
 .transactionItem:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+  box-shadow: 0 8px 15px rgba(0,0,0,0.4);
 }
 
 .header {
@@ -27,7 +27,7 @@
 
 .type {
   font-weight: 600;
-  color: #6E59A5;
+  color: #9b87f5;
 }
 
 .status {
@@ -40,7 +40,7 @@
 }
 
 .date {
-  color: #555;
+  color: #aaa;
   font-size: 0.9em;
   margin-bottom: 10px;
 }
@@ -48,7 +48,7 @@
 .description {
   margin: 12px 0;
   line-height: 1.5;
-  color: #333;
+  color: #f0f0f0;
 }
 
 .value {
@@ -65,7 +65,7 @@
 }
 
 .currency {
-  color: #555;
+  color: #bbb;
   margin-left: 6px;
   font-size: 0.9em;
 }

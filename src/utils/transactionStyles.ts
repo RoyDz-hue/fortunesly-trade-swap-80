@@ -1,19 +1,19 @@
 
 // src/utils/transactionStyles.ts
 
-// Status Colors - Updated to match the new purple/blue gradient theme
+// Status Colors - Updated for dark theme with black and purple
 export const statusColors = {
   complete: '#9b87f5',    // Light purple
   approved: '#7E69AB',    // Medium purple
   purchase: '#6E59A5',    // Dark purple
-  sale: '#1A1F2C',        // Dark blue
+  sale: '#121212',        // Almost black
   deposit: '#8B5CF6',     // Bright purple
-  withdrawal: 'linear-gradient(45deg, #403E43, #7E69AB)'  // Gradient from dark to medium purple
+  withdrawal: 'linear-gradient(45deg, #121212, #403E43)'  // Gradient from black to dark gray
 };
 
 // Value Colors
 export const valueColors = {
-  positive: '#7E69AB',    // Medium purple for received values
+  positive: '#9b87f5',    // Light purple for received values
   negative: '#f44336'     // Red for sent values - kept distinct for clarity
 };
 

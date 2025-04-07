@@ -64,11 +64,11 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				},
 				fortunesly: {
-					primary: '#6E59A5',    // Updated to purple
-					secondary: '#9b87f5',  // Updated to lighter purple
-					dark: '#1A1F2C',       // Updated to dark blue/black
+					primary: '#6E59A5',    // Purple
+					secondary: '#9b87f5',  // Lighter purple
+					dark: '#0f0f0f',       // Pure black for background
 					light: '#F6F6F7',
-					accent: '#7E69AB',     // Updated to medium purple
+					accent: '#7E69AB',     // Medium purple
 				},
 				purple: {
 					50: '#F5F3FF',
