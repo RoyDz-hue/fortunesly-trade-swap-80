@@ -217,7 +217,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6 py-4">
-          <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+          <div className="bg-black p-4 rounded-lg space-y-2 text-white">
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Price per unit:</span>
               <span className="font-bold">{priceCurrency} {order.price.toLocaleString()}</span>
@@ -299,7 +299,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
                 max={order.amount}
                 required
               />
-              <div className="bg-gray-100 px-3 flex items-center rounded-md">
+              <div className="bg-black px-3 flex items-center rounded-md text-white">
                 {order.currency}
               </div>
             </div>
@@ -308,7 +308,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
             </p>
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-lg flex justify-between">
+          <div className="bg-black p-4 rounded-lg flex justify-between text-white">
             <span className="font-medium">Total:</span>
             <span className="font-bold text-lg">
               {priceCurrency} {totalAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
