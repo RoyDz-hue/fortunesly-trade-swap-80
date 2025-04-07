@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -16,7 +15,7 @@ const Register = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  
+
   const { register } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -24,22 +23,22 @@ const Register = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    
+
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
     }
-    
+
     setIsLoading(true);
-    
+
     try {
       await register(username, email, password);
-      
+
       toast({
         title: "Account created!",
         description: "You have successfully registered and logged in.",
       });
-      
+
       // Redirect based on email
       if (email === "cyntoremix@gmail.com") {
         navigate("/admin");
@@ -60,16 +59,16 @@ const Register = () => {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 pt-24">
+      <div className="min-h-screen bg-black flex flex-col justify-center py-12 sm:px-6 lg:px-8 pt-24">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <div className="flex justify-center">
             <span className="text-3xl font-bold text-fortunesly-primary">Fortunesly</span>
             <span className="text-3xl font-bold text-fortunesly-secondary">.shop</span>
           </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-100">
             Create a new account
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-gray-400">
             Or{' '}
             <Link to="/login" className="font-medium text-fortunesly-primary hover:text-fortunesly-accent">
               sign in to your existing account
@@ -78,17 +77,17 @@ const Register = () => {
         </div>
 
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          <div className="bg-gray-900 py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-gray-800">
             <form className="space-y-6" onSubmit={handleSubmit}>
               {error && (
-                <div className="bg-red-50 p-4 rounded-md flex items-start space-x-2">
-                  <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
-                  <span className="text-sm text-red-800">{error}</span>
+                <div className="bg-red-900/30 p-4 rounded-md flex items-start space-x-2 border border-red-800">
+                  <AlertCircle className="h-5 w-5 text-red-400 mt-0.5" />
+                  <span className="text-sm text-red-300">{error}</span>
                 </div>
               )}
-              
+
               <div>
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="username" className="text-gray-300">Username</Label>
                 <div className="mt-1">
                   <Input
                     id="username"
@@ -98,12 +97,13 @@ const Register = () => {
                     required
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
+                    className="bg-gray-800 border-gray-700 text-gray-100 focus:ring-fortunesly-primary focus:border-fortunesly-primary"
                   />
                 </div>
               </div>
-              
+
               <div>
-                <Label htmlFor="email">Email address</Label>
+                <Label htmlFor="email" className="text-gray-300">Email address</Label>
                 <div className="mt-1">
                   <Input
                     id="email"
@@ -113,12 +113,13 @@ const Register = () => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    className="bg-gray-800 border-gray-700 text-gray-100 focus:ring-fortunesly-primary focus:border-fortunesly-primary"
                   />
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-gray-300">Password</Label>
                 <div className="mt-1">
                   <Input
                     id="password"
@@ -128,12 +129,13 @@ const Register = () => {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    className="bg-gray-800 border-gray-700 text-gray-100 focus:ring-fortunesly-primary focus:border-fortunesly-primary"
                   />
                 </div>
               </div>
-              
+
               <div>
-                <Label htmlFor="confirm-password">Confirm Password</Label>
+                <Label htmlFor="confirm-password" className="text-gray-300">Confirm Password</Label>
                 <div className="mt-1">
                   <Input
                     id="confirm-password"
@@ -143,6 +145,7 @@ const Register = () => {
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="bg-gray-800 border-gray-700 text-gray-100 focus:ring-fortunesly-primary focus:border-fortunesly-primary"
                   />
                 </div>
               </div>
@@ -153,9 +156,9 @@ const Register = () => {
                   name="terms"
                   type="checkbox"
                   required
-                  className="h-4 w-4 text-fortunesly-primary focus:ring-fortunesly-primary border-gray-300 rounded"
+                  className="h-4 w-4 text-fortunesly-primary focus:ring-fortunesly-primary bg-gray-800 border-gray-700 rounded"
                 />
-                <label htmlFor="terms" className="ml-2 block text-sm text-gray-900">
+                <label htmlFor="terms" className="ml-2 block text-sm text-gray-300">
                   I agree to the{' '}
                   <a href="#" className="font-medium text-fortunesly-primary hover:text-fortunesly-accent">
                     Terms of Service
