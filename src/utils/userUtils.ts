@@ -23,3 +23,16 @@ export function convertToSupabaseUser(appUser: AppUser): SupabaseUser {
     phone_confirmed_at: null
   };
 }
+
+/**
+ * Convert from Supabase User to App User
+ */
+export function convertToAppUser(supabaseUser: SupabaseUser): AppUser {
+  return {
+    id: supabaseUser.id,
+    email: supabaseUser.email || '',
+    username: supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0] || '',
+    role: supabaseUser.email === 'cyntoremix@gmail.com' ? 'admin' : 'user',
+    avatarUrl: supabaseUser.user_metadata?.avatar_url
+  };
+}

@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { WalletCard } from "./WalletCard";
 import { fetchUserWallets, createNewUser, formatCoins } from "@/utils/walletHelpers";
+import { convertToSupabaseUser } from "@/utils/userUtils";
 
 /**
  * Wallet Overview Component
@@ -82,10 +83,11 @@ const WalletOverview: React.FC = () => {
                 setAvailableCoins(formattedCoins);
 
                 // Get user wallet data
+                const supabaseUser = convertToSupabaseUser(user);
                 const { data: userData, error: userError } = await supabase
                     .from('users')
                     .select('balance_crypto, balance_fiat')
-                    .eq('id', user.id)
+                    .eq('id', supabaseUser.id)
                     .single();
 
                 if (userError) {
