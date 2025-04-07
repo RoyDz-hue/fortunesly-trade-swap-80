@@ -57,38 +57,6 @@ const TradeForm = ({
     });
   };
   
-  // Apply global styles to ensure all dynamically created elements have dark backgrounds
-  React.useEffect(() => {
-    // Add global style for dynamic placeholders and total displays
-    const style = document.createElement('style');
-    style.innerHTML = `
-      .dynamic-total, 
-      .price-placeholder, 
-      .total-display {
-        background-color: black !important;
-        color: white !important;
-      }
-      
-      /* Target input placeholders */
-      ::placeholder {
-        color: #6b7280 !important;
-      }
-      
-      /* Target all inputs within the trade form */
-      .create-order-form input,
-      .create-order-form select {
-        background-color: black !important;
-        color: white !important;
-        border-color: #374151 !important;
-      }
-    `;
-    document.head.appendChild(style);
-    
-    return () => {
-      document.head.removeChild(style);
-    };
-  }, []);
-  
   return (
     <Card className="bg-black border-gray-800 text-white">
       <CardHeader>
@@ -100,7 +68,6 @@ const TradeForm = ({
           availableBalances={availableBalances}
           availableCoins={availableCoins}
           onOrderCreated={handleOrderCreated}
-          className="create-order-form" // Added class for targeting in CSS
         />
       </CardContent>
     </Card>
