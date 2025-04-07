@@ -13,7 +13,7 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  
+
   const { login, isAuthenticated, isAdmin, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -29,7 +29,7 @@ const Login = () => {
     e.preventDefault();
     setError("");
     setIsLoading(true);
-    
+
     try {
       await login(email, password);
       toast({
@@ -50,16 +50,16 @@ const Login = () => {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 pt-24">
+      <div className="min-h-screen bg-black flex flex-col justify-center py-12 sm:px-6 lg:px-8 pt-24">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <div className="flex justify-center">
             <span className="text-3xl font-bold text-fortunesly-primary">Fortunesly</span>
             <span className="text-3xl font-bold text-fortunesly-secondary">.shop</span>
           </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-100">
             Sign in to your account
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-gray-400">
             Or{' '}
             <Link to="/register" className="font-medium text-fortunesly-primary hover:text-fortunesly-accent">
               create a new account
@@ -68,17 +68,17 @@ const Login = () => {
         </div>
 
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          <div className="bg-gray-900 py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-gray-800">
             <form className="space-y-6" onSubmit={handleSubmit}>
               {error && (
-                <div className="bg-red-50 p-4 rounded-md flex items-start space-x-2">
-                  <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
-                  <span className="text-sm text-red-800">{error}</span>
+                <div className="bg-red-900/30 p-4 rounded-md flex items-start space-x-2 border border-red-800">
+                  <AlertCircle className="h-5 w-5 text-red-400 mt-0.5" />
+                  <span className="text-sm text-red-300">{error}</span>
                 </div>
               )}
-              
+
               <div>
-                <Label htmlFor="email">Email address</Label>
+                <Label htmlFor="email" className="text-gray-300">Email address</Label>
                 <div className="mt-1">
                   <Input
                     id="email"
@@ -88,12 +88,13 @@ const Login = () => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    className="bg-gray-800 border-gray-700 text-gray-100 focus:ring-fortunesly-primary focus:border-fortunesly-primary"
                   />
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-gray-300">Password</Label>
                 <div className="mt-1">
                   <Input
                     id="password"
@@ -103,6 +104,7 @@ const Login = () => {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    className="bg-gray-800 border-gray-700 text-gray-100 focus:ring-fortunesly-primary focus:border-fortunesly-primary"
                   />
                 </div>
               </div>
@@ -113,9 +115,9 @@ const Login = () => {
                     id="remember-me"
                     name="remember-me"
                     type="checkbox"
-                    className="h-4 w-4 text-fortunesly-primary focus:ring-fortunesly-primary border-gray-300 rounded"
+                    className="h-4 w-4 text-fortunesly-primary focus:ring-fortunesly-primary bg-gray-800 border-gray-700 rounded"
                   />
-                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-300">
                     Remember me
                   </label>
                 </div>
@@ -141,14 +143,12 @@ const Login = () => {
             <div className="mt-6">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300" />
+                  <div className="w-full border-t border-gray-700" />
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">Login to start</span>
+                  <span className="px-2 bg-gray-900 text-gray-400">Login to start</span>
                 </div>
               </div>
-
-              
             </div>
           </div>
         </div>
