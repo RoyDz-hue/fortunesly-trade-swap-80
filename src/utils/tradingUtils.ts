@@ -17,12 +17,12 @@ export async function executeMarketOrder(params: {
   try {
     const { data, error } = await supabase.rpc('execute_market_order', {
       trader_id_param: params.trader_id_param,
-      order_owner_id_param: params.order_owner_id, 
-      order_type_param: params.order_type,
+      order_owner_id: params.order_owner_id, 
+      order_type: params.order_type,
       trade_amount_param: params.trade_amount_param,
-      currency_param: params.currency,
-      price_param: params.price,
-      total_amount_param: params.total_amount
+      currency: params.currency,
+      price: params.price,
+      total_amount: params.total_amount
     });
 
     if (error) {
@@ -50,12 +50,12 @@ export async function executeTrade(
     // Call the execute_market_order RPC function
     const { data, error } = await supabase.rpc('execute_market_order', {
       trader_id_param: traderId,
-      order_owner_id_param: additionalData.order_owner_id,
-      order_type_param: additionalData.order_type,
+      order_owner_id: additionalData.order_owner_id,
+      order_type: additionalData.order_type,
       trade_amount_param: tradeAmount,
-      currency_param: additionalData.currency,
-      price_param: additionalData.price || 0,
-      total_amount_param: additionalData.total_amount || 0
+      currency: additionalData.currency,
+      price: additionalData.price || 0,
+      total_amount: additionalData.total_amount || 0
     });
 
     if (error) {

@@ -20,6 +20,6 @@ export function convertToSupabaseUser(appUser: AppUser): SupabaseUser {
     last_sign_in_at: "",
     updated_at: "",
     phone: "",
-    phone_confirmed_at: ""
+    phone_confirmed_at: null
   };
 }
