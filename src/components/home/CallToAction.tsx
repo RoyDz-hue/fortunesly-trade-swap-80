@@ -1,11 +1,10 @@
-
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
 const CallToAction = () => {
   return (
-    <section className="py-20 hero-gradient text-white">
+    <section className="py-20 bg-zinc-900 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row items-center justify-between">
           <div className="mb-8 md:mb-0 md:max-w-xl">
@@ -15,19 +14,19 @@ const CallToAction = () => {
             <p className="text-lg opacity-90 mb-6">
               Join thousands of traders on Fortunesly.shop. Create an account now and start trading emerging cryptocurrencies with KES and USDT.
             </p>
-            <Button asChild size="lg" className="bg-fortunesly-secondary hover:bg-fortunesly-secondary/90 text-fortunesly-dark group">
+            <Button asChild size="lg" className="bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700 group">
               <Link to="/register" className="flex items-center">
                 Get Started
                 <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>
           </div>
-          
-          <div className="bg-white/10 backdrop-blur-sm p-6 rounded-lg border border-white/10 shadow-xl max-w-sm w-full">
+
+          <div className="bg-black/40 backdrop-blur-sm p-6 rounded-lg border border-zinc-800 shadow-xl max-w-sm w-full">
             <div className="text-xl font-semibold mb-4">Why Choose Fortunesly.shop?</div>
             <ul className="space-y-3">
               <li className="flex items-start">
-                <div className="bg-fortunesly-secondary text-fortunesly-dark p-1 rounded-full mr-3 mt-1">
+                <div className="bg-zinc-800 text-white p-1 rounded-full mr-3 mt-1">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
@@ -35,7 +34,7 @@ const CallToAction = () => {
                 <span>Secure P2P trading with escrow protection</span>
               </li>
               <li className="flex items-start">
-                <div className="bg-fortunesly-secondary text-fortunesly-dark p-1 rounded-full mr-3 mt-1">
+                <div className="bg-zinc-800 text-white p-1 rounded-full mr-3 mt-1">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
@@ -43,7 +42,7 @@ const CallToAction = () => {
                 <span>Instant KES deposits and withdrawals</span>
               </li>
               <li className="flex items-start">
-                <div className="bg-fortunesly-secondary text-fortunesly-dark p-1 rounded-full mr-3 mt-1">
+                <div className="bg-zinc-800 text-white p-1 rounded-full mr-3 mt-1">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
@@ -51,7 +50,7 @@ const CallToAction = () => {
                 <span>Access to emerging cryptocurrencies</span>
               </li>
               <li className="flex items-start">
-                <div className="bg-fortunesly-secondary text-fortunesly-dark p-1 rounded-full mr-3 mt-1">
+                <div className="bg-zinc-800 text-white p-1 rounded-full mr-3 mt-1">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
