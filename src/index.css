@@ -1,58 +1,68 @@
-
 @tailwind base; @tailwind components; @tailwind utilities;
 
 @layer base { 
   :root { 
-    /* Base color palette for dark mode */
-    --background: 240 10% 3.9%; 
+    /* Charcoal Color Palette */
+    --charcoal-100: #2a2a2a;
+    --charcoal-200: #272727;
+    --charcoal-300: #232323;
+    --charcoal-400: #202020;
+    --charcoal-500: #1c1c1c;
+    --charcoal-600: #181818;
+    --charcoal-700: #151515;
+    --charcoal-800: #121212;
+    --charcoal-900: #0f0f0f;
+
+    /* Base color palette for charcoal theme */
+    --background: 0 0% 11%;
     --foreground: 0 0% 98%;
 
-    --card: 240 10% 3.9%;
+    --card: 0 0% 13%;
     --card-foreground: 0 0% 98%;
 
-    --popover: 240 10% 3.9%;
+    --popover: 0 0% 13%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 260 31% 50%;
+    --primary: 0 0% 16%;
     --primary-foreground: 0 0% 98%;
 
-    --secondary: 258 74% 75%;
+    --secondary: 0 0% 20%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
 
-    --accent: 240 40% 50%;
+    --accent: 0 0% 18%;
     --accent-foreground: 0 0% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 260 31% 50%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 0 0% 25%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-background: 0 0% 11%;
+    --sidebar-foreground: 0 0% 95.9%;
+    --sidebar-primary: 0 0% 16%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 0 0% 15.9%;
+    --sidebar-accent-foreground: 0 0% 95.9%;
+    --sidebar-border: 0 0% 15.9%;
+    --sidebar-ring: 0 0% 25%;
     
-    /* Dark mode gradient system - updated to black, blue, purple */
-    --gradient-primary: linear-gradient(135deg, #0f0f0f, #1A1F2C);
-    --gradient-secondary: linear-gradient(135deg, #121212, #6E59A5);
-    --gradient-accent: linear-gradient(135deg, #0f0f0f, #403E43);
-    --gradient-card: linear-gradient(135deg, rgba(25,25,25,0.7), rgba(20,20,20,0.9));
+    /* Charcoal gradient system */
+    --gradient-primary: linear-gradient(135deg, #1c1c1c, #2c2c2c);
+    --gradient-secondary: linear-gradient(135deg, #232323, #333333);
+    --gradient-accent: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+    --gradient-card: linear-gradient(135deg, rgba(28,28,28,0.7), rgba(35,35,35,0.9));
     --text-light: #f5f5f5;
     --overlay-light: rgba(255,255,255,0.1);
     --overlay-dark: rgba(0,0,0,0.2);
-    --button-primary: #6E59A5;
-    --button-hover: #9b87f5;
+    --button-primary: #2a2a2a;
+    --button-hover: #333333;
   }
 }
 
@@ -77,14 +87,14 @@
     margin: 0; 
     padding: 0; 
     position: relative;
-    background-color: #0f0f0f; /* Force black background */
-    color: #f5f5f5; /* Force light text */
+    background-color: #1c1c1c;
+    color: #f5f5f5;
   }
 }
 
 @layer components { 
   .hero-gradient { 
-    @apply bg-gradient-to-br from-fortunesly-primary via-fortunesly-primary/90 to-fortunesly-accent; 
+    @apply bg-gradient-to-br from-[#1c1c1c] via-[#232323] to-[#2a2a2a];
   } 
 
   .full-screen {
@@ -97,7 +107,6 @@
     padding: 0;
   }
   
-  /* Add responsive container class for dashboard elements */
   .dashboard-container {
     width: 100%;
     padding: 0.5rem;
@@ -105,7 +114,6 @@
     overflow-x: hidden;
   }
   
-  /* New gradient utility classes */
   .gradient-primary {
     background: var(--gradient-primary);
     color: var(--text-light);
@@ -122,15 +130,15 @@
   }
   
   .gradient-card {
-    background: var(--gradient-card);
-    box-shadow: var(--shadow-md);
+    background: linear-gradient(135deg, rgba(28,28,28,0.7), rgba(35,35,35,0.9));
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     border-radius: 12px;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
   
   .gradient-card:hover {
     transform: translateY(-3px);
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
   }
   
   .button-primary {
@@ -145,13 +153,13 @@
   }
   
   .card-shadow {
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     border-radius: 12px;
     transition: all 0.3s ease;
   }
   
   .card-shadow:hover {
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
   }
   
   /* Responsive adjustments for different screen sizes */
