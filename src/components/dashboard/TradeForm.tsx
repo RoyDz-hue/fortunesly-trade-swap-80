@@ -3,7 +3,6 @@ import { useToast } from "@/hooks/use-toast";
 import CreateOrderForm from "@/components/dashboard/CreateOrderForm";
 import { Coin } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useEffect } from "react";
 
 interface TradeFormProps {
   availablePairs: Array<{
@@ -28,22 +27,6 @@ const TradeForm = ({
   isLoading = false
 }: TradeFormProps) => {
   const { toast } = useToast();
-  
-  // Add styling only for the total placeholder
-  useEffect(() => {
-    const style = document.createElement('style');
-    style.innerHTML = `
-      .total-placeholder {
-        background-color: black !important;
-        color: white !important;
-      }
-    `;
-    document.head.appendChild(style);
-    
-    return () => {
-      document.head.removeChild(style);
-    };
-  }, []);
   
   if (isLoading) {
     return (
@@ -74,6 +57,34 @@ const TradeForm = ({
     });
   };
   
+  // Create a custom version of the CreateOrderForm with dark total background
+  const DarkCreateOrderForm = (props: any) => {
+    const originalRender = CreateOrderForm(props);
+    
+    // This customization targets the Card component that wraps the total
+    // and modifies its styling to use a black background
+    const customRender = React.cloneElement(originalRender, {}, 
+      React.Children.map(originalRender.props.children, child => {
+        if (child && child.type === 'form') {
+          return React.cloneElement(child, {}, 
+            React.Children.map(child.props.children, formChild => {
+              // Specifically target the Card component that shows the total
+              if (formChild && formChild.type === Card && formChild.props.className?.includes('bg-gray-50')) {
+                return React.cloneElement(formChild, {
+                  className: "bg-black border-gray-800 text-white"
+                }, formChild.props.children);
+              }
+              return formChild;
+            })
+          );
+        }
+        return child;
+      })
+    );
+    
+    return customRender;
+  };
+  
   return (
     <Card className="bg-black border-gray-800 text-white">
       <CardHeader>
@@ -85,6 +96,7 @@ const TradeForm = ({
           availableBalances={availableBalances}
           availableCoins={availableCoins}
           onOrderCreated={handleOrderCreated}
+          totalCardClassOverride="bg-black border-gray-800 text-white" // Pass custom class for the total card
         />
       </CardContent>
     </Card>
