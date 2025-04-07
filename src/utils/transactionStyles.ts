@@ -1,20 +1,20 @@
 
 // src/utils/transactionStyles.ts
 
-// Status Colors
+// Status Colors - Updated to match the new teal gradient theme
 export const statusColors = {
-  complete: '#FFD700',     // Golden
-  approved: '#90EE90',     // Light green
-  purchase: '#006400',     // Dark green
-  sale: '#FFB6C1',        // Light red
-  deposit: '#ADD8E6',      // Light blue
-  withdrawal: 'linear-gradient(45deg, #FF6B6B, #FFB199)'  // Gradient
+  complete: '#26a69a',    // Teal 400
+  approved: '#4db6ac',    // Teal 300
+  purchase: '#00897b',    // Teal 600
+  sale: '#004d40',        // Teal 900
+  deposit: '#009688',     // Teal 500
+  withdrawal: 'linear-gradient(45deg, #00695c, #26a69a)'  // Gradient from Teal 800 to Teal 400
 };
 
 // Value Colors
 export const valueColors = {
-  positive: '#28a745',     // Green for received values
-  negative: '#dc3545'      // Red for sent values
+  positive: '#00897b',    // Teal 600 for received values
+  negative: '#f44336'     // Red for sent values - kept distinct for clarity
 };
 
 // Helper function to determine the background color based on transaction type
@@ -27,7 +27,7 @@ export const getTransactionBackground = (type: string, status: string) => {
     case 'sale': return statusColors.sale;
     case 'deposit': return statusColors.deposit;
     case 'withdrawal': return statusColors.withdrawal;
-    default: return 'transparent';
+    default: return 'var(--gradient-accent)';
   }
 };
 

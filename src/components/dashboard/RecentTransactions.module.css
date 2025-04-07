@@ -5,40 +5,50 @@
 }
 
 .transactionItem {
-  transition: transform 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  border-radius: 8px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  border-radius: 12px;
   padding: 16px;
-  margin: 8px 0;
+  margin: 12px 0;
+  background: var(--gradient-card);
+  border: 1px solid rgba(255,255,255,0.1);
 }
 
 .transactionItem:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 15px rgba(0,0,0,0.1);
 }
 
 .header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .type {
-  font-weight: bold;
+  font-weight: 600;
+  color: #004d40;
 }
 
 .status {
   text-transform: capitalize;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background-color: var(--overlay-light);
+  font-size: 0.8em;
 }
 
 .date {
-  color: #666;
+  color: #555;
   font-size: 0.9em;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .description {
   margin: 12px 0;
-  line-height: 1.4;
+  line-height: 1.5;
+  color: #333;
 }
 
 .value {
@@ -49,9 +59,40 @@
   font-size: 1.1em;
   font-weight: bold;
   text-align: right;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .currency {
-  color: #666;
-  margin-left: 4px;
+  color: #555;
+  margin-left: 6px;
+  font-size: 0.9em;
+}
+
+/* Add subtle animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animatedItem {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Media queries for responsiveness */
+@media (max-width: 640px) {
+  .transactionItem {
+    padding: 12px;
+    margin: 8px 0;
+  }
+  
+  .header {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .amount {
+    margin-top: 8px;
+  }
 }

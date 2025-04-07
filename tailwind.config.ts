@@ -64,17 +64,34 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				},
 				fortunesly: {
-					primary: '#6E59A5',
-					secondary: '#22c55e',
-					dark: '#1A1F2C',
+					primary: '#00897b',    // Updated to match gradient theme
+					secondary: '#26a69a',  // Updated to match gradient theme
+					dark: '#004d40',       // Updated to match gradient theme
 					light: '#F6F6F7',
-					accent: '#9b87f5',
+					accent: '#4db6ac',     // Updated to match gradient theme
+				},
+				teal: {
+					50: '#e0f2f1',
+					100: '#b2dfdb',
+					200: '#80cbc4',
+					300: '#4db6ac',
+					400: '#26a69a',
+					500: '#009688',
+					600: '#00897b',
+					700: '#00796b',
+					800: '#00695c',
+					900: '#004d40',
 				}
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
+			},
+			boxShadow: {
+				'sm': 'var(--shadow-sm)',
+				'md': 'var(--shadow-md)',
+				'lg': 'var(--shadow-lg)',
 			},
 			keyframes: {
 				'accordion-down': {
@@ -128,6 +145,12 @@ export default {
 				'fade-in': 'fade-in 0.3s ease-out',
 				'fade-out': 'fade-out 0.3s ease-out',
 				'float': 'float 6s ease-in-out infinite'
+			},
+			backgroundImage: {
+				'gradient-primary': 'var(--gradient-primary)',
+				'gradient-secondary': 'var(--gradient-secondary)',
+				'gradient-accent': 'var(--gradient-accent)',
+				'gradient-card': 'var(--gradient-card)',
 			}
 		}
 	},
