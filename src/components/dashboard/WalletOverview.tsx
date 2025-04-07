@@ -20,7 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { WalletCard } from "./WalletCard";
-import { fetchUserWallets, createNewUser, formatCoins } from "./walletHelpers";
+import { fetchUserWallets, createNewUser, formatCoins } from "@/utils/walletHelpers";
 
 /**
  * Wallet Overview Component
