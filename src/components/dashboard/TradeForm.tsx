@@ -3,6 +3,7 @@ import { useToast } from "@/hooks/use-toast";
 import CreateOrderForm from "@/components/dashboard/CreateOrderForm";
 import { Coin } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useEffect } from "react";
 
 interface TradeFormProps {
   availablePairs: Array<{
@@ -27,6 +28,22 @@ const TradeForm = ({
   isLoading = false
 }: TradeFormProps) => {
   const { toast } = useToast();
+  
+  // Add styling only for the total placeholder
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      .total-placeholder {
+        background-color: black !important;
+        color: white !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
   
   if (isLoading) {
     return (
