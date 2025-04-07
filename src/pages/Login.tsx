@@ -123,8 +123,7 @@ const Login = () => {
                 </div>
 
                 <div className="text-sm">
-                  // TO:
-<Link to="./forgot-password" className="font-medium text-fortunesly-primary hover:text-fortunesly-accent">
+<Link to="/forgot-password" className="font-medium text-fortunesly-primary hover:text-fortunesly-accent">
   Forgot your password?
 </Link>
                 </div>
