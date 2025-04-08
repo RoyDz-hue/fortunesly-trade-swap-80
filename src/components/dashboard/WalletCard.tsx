@@ -1,159 +1,215 @@
-import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useState, useRef } from "react";
+import { motion, PanInfo } from "framer-motion";
 import { Wallet, Coin } from "@/types";
 import { Button } from "@/components/ui/button";
-import { ChevronRight } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import styles from "./WalletCard.module.css";
 
 interface WalletCardProps {
     wallet: Wallet;
     coin?: Coin;
+    index: number;
     onDeposit: (wallet: Wallet) => void;
     onWithdraw: (wallet: Wallet) => void;
-    isExpanded: boolean;
-    onToggleExpand: (walletId: string) => void;
+    swipedCards: string[];
+    onSwipe: (walletId: string) => void;
 }
-
-// Animation variants for card appearance
-const cardVariants = {
-    hidden: { opacity: 0, x: 50 },
-    visible: { opacity: 1, x: 0, transition: { duration: 0.3, ease: "easeInOut" } },
-    exit: { opacity: 0, x: -50, transition: { duration: 0.2 } }
-};
-
-// Animation variants for balance display
-const balanceVariants = {
-    initial: { scale: 1 },
-    hover: { scale: 1.05, transition: { duration: 0.2 } }
-};
 
 // Get gradient color based on currency type
 const getCardGradient = (type: string, currency: string) => {
-    if (type === 'fiat') {
-        return "bg-gradient-to-br from-indigo-800 to-indigo-900";
-    } else if (currency === 'BTC') {
-        return "bg-gradient-to-br from-orange-600 to-orange-800";
-    } else if (currency === 'ETH') {
-        return "bg-gradient-to-br from-blue-700 to-purple-800";
-    } else {
-        return "bg-gradient-to-br from-gray-800 to-gray-900";
-    }
+    const gradients: Record<string, string> = {
+        'KES': 'linear-gradient(135deg, #43326B 0%, #6E59A5 100%)',
+        'BTC': 'linear-gradient(135deg, #F7931A 0%, #9C591B 100%)',
+        'ETH': 'linear-gradient(135deg, #627EEA 0%, #364485 100%)',
+        'USDT': 'linear-gradient(135deg, #26A17B 0%, #1A7865 100%)',
+        'BNB': 'linear-gradient(135deg, #F3BA2F 0%, #AF8319 100%)',
+        'XRP': 'linear-gradient(135deg, #23292F 0%, #101418 100%)',
+        'ADA': 'linear-gradient(135deg, #0033AD 0%, #001F68 100%)',
+        'SOL': 'linear-gradient(135deg, #9945FF 0%, #6A30B0 100%)',
+        'DOT': 'linear-gradient(135deg, #E6007A 0%, #9C0054 100%)',
+        'DOGE': 'linear-gradient(135deg, #C3A634 0%, #8A7522 100%)',
+    };
+
+    return gradients[currency] || 'linear-gradient(135deg, #2C3E50 0%, #1A2530 100%)';
+};
+
+// Format card number from currency
+const formatCardNumber = (currency: string) => {
+    // Generate a pseudo-random number sequence based on currency
+    const hash = Array.from(currency).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const base = hash % 10000;
+    
+    return [
+        String(base).padStart(4, '0'),
+        String((base + 1234) % 10000).padStart(4, '0'),
+        String((base + 5678) % 10000).padStart(4, '0'),
+        String((base + 9012) % 10000).padStart(4, '0')
+    ];
 };
 
 export const WalletCard: React.FC<WalletCardProps> = ({
     wallet,
     coin,
+    index,
     onDeposit,
     onWithdraw,
-    isExpanded,
-    onToggleExpand
+    swipedCards,
+    onSwipe
 }) => {
+    const cardRef = useRef<HTMLDivElement>(null);
+    const [dragDirection, setDragDirection] = useState<'left' | 'right' | null>(null);
+    
+    // Format a masked card number based on the currency
+    const cardNumberGroups = formatCardNumber(wallet.currency);
+    
+    // Determine if this card is swiped away
+    const isSwiped = swipedCards.includes(wallet.id);
+    
+    // Card becomes visible if all cards above it are swiped
+    const isRevealed = index === 0 || swipedCards.includes(wallet.id);
+    
+    // Determine if this card is the top visible card
+    const isTopCard = !isSwiped && (index === 0 || swipedCards.length >= index);
+    
+    // Handle drag end for swipe detection
+    const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+        const threshold = 100; // Minimum distance to trigger a swipe
+        
+        if (Math.abs(info.offset.x) > threshold) {
+            // Determine swipe direction
+            const direction = info.offset.x > 0 ? 'right' : 'left';
+            setDragDirection(direction);
+            
+            // Notify parent about the swipe
+            onSwipe(wallet.id);
+        }
+    };
+    
+    // Handle deposit/withdraw button clicks
     const handleDeposit = (e: React.MouseEvent) => {
-        e.stopPropagation(); // Prevent card expansion toggle
+        e.stopPropagation();
         onDeposit(wallet);
     };
-
+    
     const handleWithdraw = (e: React.MouseEvent) => {
-        e.stopPropagation(); // Prevent card expansion toggle
+        e.stopPropagation();
         onWithdraw(wallet);
     };
-
+    
+    // Get appropriate classes for card positioning
+    const getCardClasses = () => {
+        let classes = styles.creditCard;
+        
+        if (isSwiped) {
+            if (dragDirection === 'left') {
+                classes = cn(classes, styles.swipedLeft);
+            } else {
+                classes = cn(classes, styles.swipedRight);
+            }
+        }
+        
+        return classes;
+    };
+    
     return (
         <motion.div
-            variants={cardVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className="w-full"
-            layout
+            ref={cardRef}
+            className={getCardClasses()}
+            style={{
+                background: getCardGradient(wallet.type, wallet.currency),
+                zIndex: 10 - index,
+            }}
+            drag={isTopCard ? "x" : false}
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.7}
+            onDragEnd={handleDragEnd}
+            animate={{
+                translateY: isSwiped ? 0 : `${index * 20}px`,
+                translateZ: isSwiped ? 0 : `${-index * 10}px`,
+                filter: `brightness(${1 - (index * 0.1)})`,
+            }}
+            transition={{
+                duration: 0.5,
+                ease: [0.19, 1, 0.22, 1]
+            }}
+            initial={false}
         >
-            <div
-                className={cn(
-                    "relative rounded-xl overflow-hidden shadow-lg transition-all duration-300",
-                    getCardGradient(wallet.type, wallet.currency),
-                    "border border-gray-700",
-                    "cursor-pointer",
-                    isExpanded ? "mb-6" : "mb-4"
-                )}
-                onClick={() => onToggleExpand(wallet.id)}
-            >
-                {/* Card header */}
-                <div className="px-4 py-4 relative overflow-hidden">
-                    {/* Abstract pattern overlay for visual interest */}
-                    <div className="absolute top-0 right-0 opacity-5 pointer-events-none">
-                        <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="60" cy="60" r="50" stroke="white" strokeWidth="2" />
-                            <circle cx="60" cy="60" r="40" stroke="white" strokeWidth="2" />
-                            <circle cx="60" cy="60" r="30" stroke="white" strokeWidth="2" />
-                        </svg>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                            <div className="w-10 h-10 mr-3 rounded-full overflow-hidden flex-shrink-0 bg-gray-100 flex items-center justify-center shadow-md">
-                                <img
-                                    src={wallet.currency === "KES"
-                                        ? "https://bfsodqqylpfotszjlfuk.supabase.co/storage/v1/object/public/apps//kenya.png"
-                                        : coin?.image}
-                                    alt={wallet.currency}
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => {
-                                        const target = e.target as HTMLImageElement;
-                                        target.src = `https://via.placeholder.com/40/6E59A5/ffffff?text=${wallet.currency}`;
-                                        target.onerror = null;
-                                    }}
-                                />
-                            </div>
-                            <div>
-                                <div className="font-semibold text-white">{coin?.name || wallet.currency}</div>
-                                <motion.div 
-                                    className="text-sm text-gray-200"
-                                    variants={balanceVariants}
-                                    initial="initial"
-                                    whileHover="hover"
-                                >
-                                    {wallet.balance.toLocaleString()} {wallet.currency}
-                                </motion.div>
-                            </div>
-                        </div>
-                        <ChevronRight
-                            className={cn(
-                                "h-5 w-5 text-gray-300 transition-transform duration-300",
-                                isExpanded ? "rotate-90" : "rotate-0"
-                            )}
+            <div className={styles.cardInner}>
+                <div className={styles.cardHeader}>
+                    <div className={styles.currencyLogo}>
+                        <img
+                            src={wallet.currency === "KES"
+                                ? "https://bfsodqqylpfotszjlfuk.supabase.co/storage/v1/object/public/apps//kenya.png"
+                                : coin?.image}
+                            alt={wallet.currency}
+                            onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = `https://via.placeholder.com/40/ffffff?text=${wallet.currency}`;
+                                target.onerror = null;
+                            }}
                         />
+                    </div>
+                    <div className={styles.cardChip}></div>
+                </div>
+
+                <div className={styles.cardMiddle}>
+                    <div className={styles.cardNumber}>
+                        {cardNumberGroups.map((group, idx) => (
+                            <span key={idx} className={styles.numberGroup}>
+                                {group}
+                            </span>
+                        ))}
+                    </div>
+                    <div className={styles.balanceLabel}>Available Balance</div>
+                    <div className={styles.balanceAmount}>
+                        {wallet.balance.toLocaleString()} {wallet.currency}
                     </div>
                 </div>
 
-                {/* Expandable actions section */}
-                <AnimatePresence>
-                    {isExpanded && (
-                        <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: "auto" }}
-                            exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.3, ease: "easeInOut" }}
-                            className="px-4 pb-4 space-y-4"
+                <div className={styles.cardFooter}>
+                    <div className={styles.cardActions}>
+                        <button
+                            className={cn(styles.actionButton, styles.depositButton)}
+                            onClick={handleDeposit}
                         >
-                            <div className="flex space-x-4">
-                                <Button
-                                    className="flex-1 bg-green-500/20 text-green-300 hover:bg-green-500/30 hover:text-green-200 font-medium shadow-sm"
-                                    onClick={handleDeposit}
-                                >
-                                    Deposit
-                                </Button>
-                                <Button
-                                    className="flex-1 bg-red-500/20 text-red-300 hover:bg-red-500/30 hover:text-red-200 font-medium shadow-sm"
-                                    onClick={handleWithdraw}
-                                    disabled={wallet.balance <= 0}
-                                >
-                                    Withdraw
-                                </Button>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                            <ArrowDownCircle className="h-4 w-4" />
+                            Deposit
+                        </button>
+                        <button
+                            className={cn(styles.actionButton, styles.withdrawButton)}
+                            onClick={handleWithdraw}
+                            disabled={wallet.balance <= 0}
+                        >
+                            <ArrowUpCircle className="h-4 w-4" />
+                            Withdraw
+                        </button>
+                    </div>
+                    
+                    <div className={styles.cardBrand}>
+                        {wallet.type === 'crypto' ? (
+                            <svg width="60" height="40" viewBox="0 0 60 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M20 20L30 10L40 20L30 30L20 20Z" fill="white" fillOpacity="0.8" />
+                                <path d="M10 20L30 0L50 20L30 40L10 20Z" stroke="white" strokeOpacity="0.5" strokeWidth="2" />
+                            </svg>
+                        ) : (
+                            <svg width="60" height="40" viewBox="0 0 60 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="22" cy="20" r="12" fill="white" fillOpacity="0.8" />
+                                <circle cx="38" cy="20" r="12" fill="white" fillOpacity="0.5" />
+                            </svg>
+                        )}
+                    </div>
+                </div>
             </div>
+            
+            <div className={styles.cardPattern}></div>
+            
+            {isTopCard && (
+                <div className={styles.swipeIndicator}>
+                    Swipe
+                    <span className={styles.swipeIcon}>→</span>
+                </div>
+            )}
         </motion.div>
     );
 };
