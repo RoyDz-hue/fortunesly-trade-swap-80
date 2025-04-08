@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Wallet, Coin } from "@/types";
@@ -23,19 +22,19 @@ import { cn } from "@/lib/utils";
 import { WalletCard } from "./WalletCard";
 import { fetchUserWallets, createNewUser, formatCoins } from "@/utils/walletHelpers";
 import { convertToSupabaseUser } from "@/utils/userUtils";
+import styles from "./WalletCard.module.css";
 
 /**
  * Wallet Overview Component
  *
- * Enhanced, redesigned wallet interface with modern UI elements and improved user experience
+ * Enhanced, redesigned wallet interface with credit card design and swipe gestures
  * 
  * Key Features:
- * - Credit Card Style: Modern, visually appealing card design with gradients and animations
+ * - Stacked Credit Card UI: Visually appealing cards stacked in 3D space
+ * - Swipe Gestures: Cards can be swiped left/right to reveal cards beneath
+ * - Realistic Design: Cards resemble actual credit/debit cards with chips and details
  * - Responsive: Adapts to both desktop and mobile devices
- * - Interactive Cards: Cards expand to reveal deposit/withdraw buttons
- * - Dropdown Menus: Convenient access to deposit/withdraw actions
- * - Optimized Data Handling: Efficient data fetching and state management
- * - Error Handling: Clear error messages and loading states
+ * - Interactive Elements: Deposit/withdraw buttons on each card
  */
 
 const WalletOverview: React.FC = () => {
@@ -44,30 +43,43 @@ const WalletOverview: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const { user } = useAuth();
     const { toast } = useToast();
-    
+
     // Dialog states
     const [isDepositOpen, setIsDepositOpen] = useState(false);
     const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
     const [isCryptoDepositOpen, setIsCryptoDepositOpen] = useState(false);
     const [isCryptoWithdrawOpen, setIsCryptoWithdrawOpen] = useState(false);
-    
+
     // Selected wallet/coin states
     const [selectedWallet, setSelectedWallet] = useState<Wallet | null>(null);
     const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
     const [availableCoins, setAvailableCoins] = useState<Coin[]>([]);
-    const [expandedWalletId, setExpandedWalletId] = useState<string | null>(null);
+    
+    // Track which cards have been swiped away
+    const [swipedCards, setSwipedCards] = useState<string[]>([]);
 
-    const handleToggleExpand = useCallback((walletId: string) => {
-        setExpandedWalletId(prevId => prevId === walletId ? null : walletId);
-    }, []);
+    // Handle card swipe
+    const handleCardSwipe = (walletId: string) => {
+        setSwipedCards(prev => [...prev, walletId]);
+        
+        // Optional: Add haptic feedback for mobile devices
+        if (navigator.vibrate) {
+            navigator.vibrate(50);
+        }
+    };
+
+    // Reset all swiped cards to bring them back
+    const resetCards = () => {
+        setSwipedCards([]);
+    };
 
     useEffect(() => {
         const loadWalletData = async () => {
             if (!user) return;
-            
+
             setIsLoading(true);
             setError(null);
-            
+
             try {
                 // Fetch coins data
                 const { data: coinsData, error: coinsError } = await supabase
@@ -164,7 +176,7 @@ const WalletOverview: React.FC = () => {
 
     const handleTransactionSuccess = () => {
         if (!user) return;
-        
+
         setIsLoading(true);
         supabase
             .from('users')
@@ -193,6 +205,7 @@ const WalletOverview: React.FC = () => {
             });
     };
 
+    // Skeleton loading state
     if (isLoading) {
         return (
             <div className="space-y-4">
@@ -201,21 +214,42 @@ const WalletOverview: React.FC = () => {
                     <Skeleton className="h-10 w-24" />
                     <Skeleton className="h-10 w-24" />
                 </div>
-                <div className="space-y-4">
+                
+                <div className={styles.walletStack}>
                     {[1, 2, 3].map((i) => (
-                        <div key={i} className="w-full">
-                            <div className="relative rounded-xl overflow-hidden shadow-lg bg-gray-800 border border-gray-700 mb-4">
-                                <div className="px-4 py-4">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center">
-                                            <Skeleton className="w-10 h-10 mr-3 rounded-full" />
-                                            <div>
-                                                <Skeleton className="h-4 w-24 mb-1" />
-                                                <Skeleton className="h-3 w-16" />
-                                            </div>
-                                        </div>
-                                        <Skeleton className="h-5 w-5" />
+                        <div 
+                            key={i} 
+                            className={styles.creditCard}
+                            style={{
+                                transform: `translateZ(${-10 * (i-1)}px) translateY(${20 * (i-1)}px)`,
+                                background: `linear-gradient(135deg, #2C3E50 0%, #1A2530 100%)`,
+                                filter: `brightness(${1 - (i-1) * 0.1})`,
+                                zIndex: 10 - (i-1)
+                            }}
+                        >
+                            <div className={styles.cardInner}>
+                                <div className={styles.cardHeader}>
+                                    <Skeleton className="w-12 h-12 rounded-lg" />
+                                    <Skeleton className="w-12 h-10 rounded-md" />
+                                </div>
+                                
+                                <div className={styles.cardMiddle}>
+                                    <div className="flex gap-2 mb-3">
+                                        <Skeleton className="w-12 h-5" />
+                                        <Skeleton className="w-12 h-5" />
+                                        <Skeleton className="w-12 h-5" />
+                                        <Skeleton className="w-12 h-5" />
                                     </div>
+                                    <Skeleton className="w-20 h-3 mb-2" />
+                                    <Skeleton className="w-32 h-6" />
+                                </div>
+                                
+                                <div className={styles.cardFooter}>
+                                    <div className="flex gap-2">
+                                        <Skeleton className="w-20 h-8 rounded-full" />
+                                        <Skeleton className="w-20 h-8 rounded-full" />
+                                    </div>
+                                    <Skeleton className="w-16 h-10" />
                                 </div>
                             </div>
                         </div>
@@ -225,6 +259,7 @@ const WalletOverview: React.FC = () => {
         );
     }
 
+    // Error state
     if (error) {
         return (
             <div className="space-y-4">
@@ -251,6 +286,7 @@ const WalletOverview: React.FC = () => {
                 <div className="flex space-x-2">
                     {/* Deposit Dropdown */}
                     <DropdownMenu>
+                                            <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button 
                                 className="flex items-center px-3 py-2 text-sm font-medium text-white bg-fortunesly-primary rounded-md hover:bg-fortunesly-primary/90 transition-colors"
@@ -339,22 +375,39 @@ const WalletOverview: React.FC = () => {
                     <AlertDescription>No wallets found. Please contact support if you believe this is an error.</AlertDescription>
                 </Alert>
             ) : (
-                <AnimatePresence>
-                    {wallets.map((wallet) => {
-                        const coin = availableCoins.find(c => c.symbol === wallet.currency);
-                        return (
-                            <WalletCard
-                                key={wallet.id}
-                                wallet={wallet}
-                                coin={coin}
-                                onDeposit={handleDepositClick}
-                                onWithdraw={handleWithdrawClick}
-                                isExpanded={expandedWalletId === wallet.id}
-                                onToggleExpand={handleToggleExpand}
-                            />
-                        );
-                    })}
-                </AnimatePresence>
+                <div className="mb-8">
+                    {/* Credit Card Stack */}
+                    <div className={styles.walletStack}>
+                        {wallets.map((wallet, index) => {
+                            const coin = availableCoins.find(c => c.symbol === wallet.currency);
+                            return (
+                                <WalletCard
+                                    key={wallet.id}
+                                    wallet={wallet}
+                                    coin={coin}
+                                    index={index}
+                                    onDeposit={handleDepositClick}
+                                    onWithdraw={handleWithdrawClick}
+                                    swipedCards={swipedCards}
+                                    onSwipe={handleCardSwipe}
+                                />
+                            );
+                        })}
+                    </div>
+                    
+                    {/* Reset button that appears when cards are swiped */}
+                    {swipedCards.length > 0 && (
+                        <div className="mt-6 text-center">
+                            <Button
+                                variant="outline"
+                                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                                onClick={resetCards}
+                            >
+                                Reset Cards
+                            </Button>
+                        </div>
+                    )}
+                </div>
             )}
 
             {/* Dialogs */}
