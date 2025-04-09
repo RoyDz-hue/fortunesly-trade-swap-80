@@ -41,7 +41,7 @@ async function getTrustedTime() {
     let response = await fetch('http://worldtimeapi.org/api/ip');
     let data = await response.json();
     let serverTime = new Date(data.utc_datetime).getTime();
-    
+
     // Store new time in localStorage
     localStorage.setItem(cacheKey, serverTime.toString());
     localStorage.setItem(lastFetchKey, Date.now().toString());
@@ -52,6 +52,29 @@ async function getTrustedTime() {
     console.error("Error fetching time:", error);
     return new Date(); // Fallback to system time if API fails
   }
+}
+
+// Function to check if current time is within deposit window (7 AM to 10 PM)
+function isWithinDepositHours(date: Date): boolean {
+  const hours = date.getHours();
+  return hours >= 7 && hours < 22; // 7 AM to 10 PM (22:00)
+}
+
+// Function to get next deposit window time
+function getNextDepositWindowTime(currentDate: Date): Date {
+  const nextWindow = new Date(currentDate);
+  const currentHours = currentDate.getHours();
+  
+  if (currentHours >= 22) {
+    // If it's past 10 PM, next window is at 7 AM tomorrow
+    nextWindow.setDate(nextWindow.getDate() + 1);
+    nextWindow.setHours(7, 0, 0, 0);
+  } else {
+    // If it's before 7 AM, next window is at 7 AM today
+    nextWindow.setHours(7, 0, 0, 0);
+  }
+  
+  return nextWindow;
 }
 
 const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDepositDialogProps) => {
@@ -66,6 +89,7 @@ const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDeposit
   const [isDepositTime, setIsDepositTime] = useState(false);
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [nextDepositTime, setNextDepositTime] = useState<string>("");
+  const [depositWindowHours, setDepositWindowHours] = useState<string>("");
 
   // Clean up preview URL when dialog closes or component unmounts
   useEffect(() => {
@@ -84,36 +108,35 @@ const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDeposit
       setUploadProgress(0);
       setUploadError(null);
       setPreviewUrl(null);
-      
+      setDepositWindowHours("7:00 AM - 10:00 PM");
+
       // Check if current time is within deposit window
       checkDepositTime();
     }
   }, [isOpen]);
 
-  // Check if current time is 9:00 AM
+  // Check if current time is within deposit window
   const checkDepositTime = async () => {
     const trustedTime = await getTrustedTime();
     setCurrentTime(trustedTime);
-    
-    const hours = trustedTime.getHours();
-    const minutes = trustedTime.getMinutes();
-    
-    // Check if it's between 9:00 AM and 9:59 AM
-    setIsDepositTime(hours === 9 && minutes >= 0 && minutes < 60);
-    
-    // Calculate next deposit time
-    const tomorrow = new Date(trustedTime);
-    if (hours >= 9) {
-      tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Check if time is within deposit window (7 AM to 10 PM)
+    const withinWindow = isWithinDepositHours(trustedTime);
+    setIsDepositTime(withinWindow);
+
+    if (!withinWindow) {
+      // Calculate next deposit time
+      const nextWindow = getNextDepositWindowTime(trustedTime);
+      
+      // Format for display
+      setNextDepositTime(
+        nextWindow.toLocaleTimeString([], { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: true 
+        }) + " " + nextWindow.toLocaleDateString()
+      );
     }
-    tomorrow.setHours(9, 0, 0, 0);
-    
-    // Format for display
-    setNextDepositTime(tomorrow.toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: true 
-    }) + " " + tomorrow.toLocaleDateString());
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -136,13 +159,11 @@ const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDeposit
 
     // First verify deposit time again
     const trustedTime = await getTrustedTime();
-    const hours = trustedTime.getHours();
-    const minutes = trustedTime.getMinutes();
     
-    if (!(hours === 9 && minutes >= 0 && minutes < 60)) {
+    if (!isWithinDepositHours(trustedTime)) {
       toast({
         title: "Deposit not allowed",
-        description: `Deposits are only allowed at 9:00 AM. Next window: ${nextDepositTime}`,
+        description: `Deposits are only allowed between ${depositWindowHours}. Next window: ${nextDepositTime}`,
         variant: "destructive",
       });
       return;
@@ -254,10 +275,10 @@ const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDeposit
           <DialogTitle>Deposit {coin.symbol}</DialogTitle>
           <DialogDescription>
             Send {coin.symbol} to the address below and upload proof to complete your deposit.
-            Deposits are only processed at 9:00 AM local time.
+            Deposits are only processed between 7:00 AM and 10:00 PM local time.
           </DialogDescription>
         </DialogHeader>
-        
+
         {!isDepositTime && (
           <Alert className="bg-amber-50 border-amber-200">
             <Clock className="h-4 w-4 text-amber-800" />
@@ -268,7 +289,7 @@ const CryptoDepositDialog = ({ isOpen, onClose, coin, onSuccess }: CryptoDeposit
             </AlertDescription>
           </Alert>
         )}
-        
+
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
