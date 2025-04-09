@@ -1,117 +1,141 @@
-Certainly! Here is a more detailed documentation-style Markdown file for the Fortunesly Trade Swap 80 project, including information about libraries and installation steps:
+# Fortunesly Trade Swap Platform
 
-```markdown
-# Fortunesly Trade Swap 80
-
-Welcome to the documentation for the Fortunesly Trade Swap 80 project. This document provides an overview of the project, setup instructions, and details about the libraries used.
-
-## Table of Contents
-
-- [Project Overview](#project-overview)
-- [Installation](#installation)
-- [Running the Project](#running-the-project)
-- [Libraries Used](#libraries-used)
-- [Project Structure](#project-structure)
-- [Contributing](#contributing)
-- [License](#license)
-- [Acknowledgements](#acknowledgements)
+A futures cryptocurrency trading and swap platform, featuring real-time order books, deposits, and market overview.
 
 ## Project Overview
 
-Fortunesly Trade Swap 80 is a project aimed at simplifying trade swaps. This project primarily uses TypeScript, with some CSS and other minor languages. The main goal is to provide an intuitive and efficient platform for managing trade swaps.
+Fortunesly Trade Swap is a featured prelaunched tokens trading platform that enables users to:
+- Buy and sell
+- deposit
+- View real-time market data
+- Create and execute limit orders
+- Monitor order books
 
-## Installation
+## Tech Stack
 
-To get started with the Fortunesly Trade Swap 80 project, follow these steps:
-
-1. **Clone the repository:**
-    ```bash
-    git clone https://github.com/RoyDz-hue/fortunesly-trade-swap-80.git
-    cd fortunesly-trade-swap-80
-    ```
-
-2. **Install the necessary dependencies:**
-    ```bash
-    npm install
-    ```
-
-## Running the Project
-
-To run the project locally:
-
-1. **Start the development server:**
-    ```bash
-    npm start
-    ```
-
-2. **Run tests:**
-    ```bash
-    npm test
-    ```
-
-## Libraries Used
-
-The following libraries and frameworks are used in this project:
-
-- **TypeScript**: A strict syntactical superset of JavaScript that adds optional static typing.
-- **React**: A JavaScript library for building user interfaces.
-- **Redux**: A predictable state container for JavaScript apps.
-- **Webpack**: A module bundler for JavaScript applications.
-- **Babel**: A JavaScript compiler that helps you use next-generation JavaScript.
-- **CSS**: Styling is done using CSS to ensure a responsive and visually appealing interface.
-- **Jest**: A delightful JavaScript Testing Framework with a focus on simplicity.
+- **Frontend Framework**: React with TypeScript
+- **Styling**: Tailwind CSS + shadcn/ui components
+- **Build Tool**: Vite
+- **Backend**: Supabase
+- **Authentication**: Supabase Auth
+- **Real-time Updates**: Supabase Realtime
 
 ## Project Structure
 
-The project structure is as follows:
+```
+src/
+├── components/
+│   ├── admin/
+│   │   └── ApproveCryptoDeposits.tsx   # Admin interface for deposit approvals
+│   ├── dashboard/
+│   │   ├── CreateOrderForm.tsx         # Form for creating buy/sell orders
+│   │   ├── MarketOverview.tsx          # Market statistics and price overview
+│   │   ├── OrderBook.tsx               # Real-time order book display
+│   │   └── TradeForm.tsx               # Main trading interface
+│   └── ui/                             # Reusable UI components
+├── pages/
+│   ├── MarketPage.tsx                  # Main market overview page
+│   ├── MarketOrdersPage.tsx            # Active orders listing
+│   └── TradePage.tsx                   # Trading interface page
+├── context/
+│   └── AuthContext.tsx                 # Authentication context
+├── hooks/
+│   └── use-toast.ts                    # Toast notification hook
+└── integrations/
+    └── supabase/                       # Supabase client configuration
+```
 
+## Key Features
+
+### Trading System
+- Real-time order book updates
+- Market and limit orders
+- Order matching engine
+- Balance management
+- Trade history tracking
+
+### Admin Features
+- Crypto deposit approval system
+- User management
+- Transaction monitoring
+- System settings
+
+### Market Data
+- Real-time price updates
+- Trading pair management
+- Market statistics
+- Price charts
+
+### User Features
+- Secure authentication
+- Wallet management
+- Order history
+- Balance tracking
+
+## Database Structure
+
+### Main Tables
+- `users`: User accounts and balances
+- `orders`: Trading orders
+- `transactions`: Deposit and withdrawal records
+- `coins`: Supported cryptocurrencies
+- `trading_pairs`: Available trading pairs
+
+## Getting Started
+
+1. Clone the repository:
+```bash
+git clone https://github.com/RoyDz-hue/fortunesly-trade-swap-80.git
 ```
-fortunesly-trade-swap-80/
-├── public/                # Public assets
-├── src/                   # Source files
-│   ├── components/        # React components
-│   ├── redux/             # Redux actions and reducers
-│   ├── styles/            # CSS styles
-│   ├── utils/             # Utility functions
-│   ├── App.tsx            # Main App component
-│   ├── index.tsx          # Entry point
-│   └── ...                # Other source files
-├── .gitignore             # Git ignore file
-├── package.json           # NPM package configuration
-├── README.md              # Project documentation
-└── ...                    # Other project files
+
+2. Install dependencies:
+```bash
+cd fortunesly-trade-swap-80
+npm install
 ```
+
+3. Set up environment variables:
+```bash
+cp .env.example .env
+```
+Fill in your Supabase credentials and other required variables.
+
+4. Start the development server:
+```bash
+npm run dev
+```
+
+## Development Guidelines
+
+### Code Style
+- Use TypeScript for all new components
+- Follow the existing component structure
+- Implement proper error handling
+- Add appropriate loading states
+
+### State Management
+- Use React Context for global state
+- Implement proper data fetching patterns
+- Handle real-time updates efficiently
+
+### Security Considerations
+- Validate all user inputs
+- Implement proper authorization checks
+- Handle sensitive data appropriately
+- Use secure API endpoints
 
 ## Contributing
 
-We welcome contributions! If you would like to contribute, please follow these steps:
-
-1. **Fork the repository**
-2. **Create a new branch**
-    ```bash
-    git checkout -b feature/your-feature-name
-    ```
-3. **Make your changes**
-4. **Commit your changes**
-    ```bash
-    git commit -m 'Add some feature'
-    ```
-5. **Push to the branch**
-    ```bash
-    git push origin feature/your-feature-name
-    ```
-6. **Open a pull request**
-
-Please ensure all pull requests are reviewed and approved before merging.
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is private and proprietary. All rights reserved.
 
-## Acknowledgements
+## Support
 
-- Thanks to all the contributors of this project.
-- Special thanks to the libraries and tools used in this project.
-```
-
-Feel free to further customize and expand each section according to the specifics of your project.
+For support, please open an issue in the repository or contact the development team.
