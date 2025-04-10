@@ -2,118 +2,46 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 
 /**
- * Execute a market order with the given parameters
- */
-export async function executeMarketOrder(params: {
-  trader_id_param: string;
-  order_owner_id: string;
-  order_type: string;
-  trade_amount_param: number;
-  currency: string;
-  quote_currency: string;  // Added quote_currency
-  price: number;
-  amount: number;
-}) {
-  try {
-    const { data, error } = await supabase.rpc('execute_market_order', {
-      trader_id_param: params.trader_id_param,
-      order_owner_id: params.order_owner_id,
-      order_type: params.order_type,
-      trade_amount_param: params.trade_amount_param,
-      currency: params.currency,
-      quote_currency: params.quote_currency,  // Pass quote_currency
-      price: params.price,
-      amount: params.amount
-    });
-
-    if (error) {
-      console.error('Error executing market order:', error);
-      return { success: false, error: error.message };
-    }
-
-    return { success: true, data };
-  } catch (error) {
-    console.error('Failed to execute market order:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error occurred' 
-    };
-  }
-}
-
-/**
  * Execute a trade for a given order
+ * @param orderId - UUID of the order
+ * @param executorId - UUID of the user executing the trade
+ * @param submittedAmount - Amount of the trade
+ * @returns Promise with the trade execution result
  */
 export async function executeTrade(
   orderId: string,
-  traderId: string,
-  tradeAmount: number,
-  additionalData: {
-    order_owner_id: string;
-    order_type: string;
-    currency: string;
-    quote_currency: string;  // Added quote_currency
-    price: number;
-    amount: number;
-  }
-) {
+  executorId: string,
+  submittedAmount: number
+): Promise<{
+  success: boolean;
+  message?: string;
+  error?: string;
+}> {
   try {
-    const { data, error } = await supabase.rpc('execute_market_order', {
-      trader_id_param: traderId,
-      order_owner_id: additionalData.order_owner_id,
-      order_type: additionalData.order_type,
-      trade_amount_param: tradeAmount,
-      currency: additionalData.currency,
-      quote_currency: additionalData.quote_currency,  // Pass quote_currency
-      price: additionalData.price,
-      amount: additionalData.amount
+    const { data, error } = await supabase.rpc('execute_trade', {
+      order_id_param: orderId,
+      executor_id_param: executorId,
+      submitted_amount: submittedAmount
     });
 
     if (error) {
       console.error('Error executing trade:', error);
-      return { success: false, error: error.message };
+      return { 
+        success: false, 
+        error: error.message 
+      };
     }
 
-    return { success: true, data };
+    // The backend returns { success: boolean, message: string }
+    return {
+      success: data.success,
+      message: data.message
+    };
   } catch (error) {
     console.error('Error in executeTrade:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error occurred' 
-    };
-  }
-}
-
-/**
- * Execute trade with direct order ID
- */
-export async function executeTradeWithOrderId(
-  orderIdParam: string,
-  traderIdParam: string,
-  tradeAmountParam: number,
-  currency: string,         // Added currency
-  quote_currency: string    // Added quote_currency
-) {
-  try {
-    const { data, error } = await supabase.rpc('execute_market_order', {
-      order_id_param: orderIdParam,
-      trader_id_param: traderIdParam,
-      trade_amount_param: tradeAmountParam,
-      currency: currency,                // Pass currency
-      quote_currency: quote_currency     // Pass quote_currency
-    });
-
-    if (error) {
-      console.error('Error executing trade with order ID:', error);
-      return { success: false, error: error.message };
-    }
-
-    return { success: true, data };
-  } catch (error) {
-    console.error('Error in executeTradeWithOrderId:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred'
     };
   }
 }
@@ -133,22 +61,15 @@ export function formatTransactionTime(timestamp: string): string {
   }
 }
 
-// Updated type definitions
-export type MarketOrderParams = {
-  trader_id_param: string;
-  order_owner_id: string;
-  order_type: string;
-  trade_amount_param: number;
-  currency: string;
-  quote_currency: string;  // Added quote_currency
-  price: number;
-  amount: number;
-};
+// Type definitions
+export interface TradeResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
 
-export type OrderIdTradeParams = {
-  order_id_param: string;
-  trader_id_param: string;
-  trade_amount_param: number;
-  currency: string;         // Added currency
-  quote_currency: string;   // Added quote_currency
-};
+export interface TradeParams {
+  order_id_param: string;    // UUID
+  executor_id_param: string; // UUID
+  submitted_amount: number;
+}
