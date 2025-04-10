@@ -22,7 +22,7 @@ export async function executeMarketOrder(params: {
       trade_amount_param: params.trade_amount_param,
       currency: params.currency,
       price: params.price,
-      total_amount: params.total_amount
+      amount: params.amount
     });
 
     if (error) {
