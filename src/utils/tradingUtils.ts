@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 
@@ -55,7 +54,7 @@ export async function executeTrade(
       trade_amount_param: tradeAmount,
       currency: additionalData.currency,
       price: additionalData.price || 0,
-      amount: additionalData.total_amount || 0
+      amount: additionalData.amount || 0
     });
 
     if (error) {
@@ -78,7 +77,7 @@ export async function executeTrade(
  */
 export function formatTransactionTime(timestamp: string): string {
   if (!timestamp) return 'Unknown';
-  
+
   try {
     const date = new Date(timestamp);
     return format(date, "MMM d, HH:mm");
