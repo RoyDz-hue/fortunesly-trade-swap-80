@@ -12,7 +12,7 @@ export async function executeMarketOrder(params: {
   trade_amount_param: number;
   currency: string;
   price: number;
-  total_amount: number;
+  amount: number;
 }) {
   try {
     const { data, error } = await supabase.rpc('execute_market_order', {
