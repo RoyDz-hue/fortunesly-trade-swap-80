@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-import { executeTrade } from '@/utils/tradingUtils';
+import { executeTrade, formatTradeErrorMessage } from '@/utils/tradingUtils';
 
 const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
   const { toast } = useToast();
@@ -144,23 +144,29 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
         return;
       }
 
-      const additionalData = {
-        order_owner_id: order.user_id,
-        order_type: order.type,
-        currency: order.currency,
-        price: order.price,
-        amount: order.amount // Pass the full order amount here
-      };
+      console.log("Executing trade with parameters:", {
+        orderId: order.id,
+        executorId: user.id,
+        amount: parsedAmount
+      });
 
       const result = await executeTrade(
         order.id,
         user.id,
-        parsedAmount, // This is the amount being traded
-        additionalData
+        parsedAmount
       );
 
+      console.log("Trade execution result:", result);
+
       if (!result.success) {
-        throw new Error(result.error);
+        // Format error message for display
+        const formattedError = formatTradeErrorMessage(result);
+        toast({
+          title: "Trade failed",
+          description: formattedError,
+          variant: "destructive",
+        });
+        return;
       }
 
       fetchUserBalance();
@@ -192,7 +198,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
       console.error("Trade error:", error);
       toast({
         title: "Trade failed",
-        description: error.message,
+        description: error.message || "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {
