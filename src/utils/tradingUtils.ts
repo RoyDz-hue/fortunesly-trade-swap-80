@@ -62,7 +62,7 @@ export function formatTradeErrorMessage(error: TradeError): string {
       break;
 
     case TradeErrorCode.ORDER_NOT_FOUND:
-      message += `Order Not Found: The order you're trying to trade no longer exists.`;
+      message += `Order Not Found: The order you're trying to trade no longer exists or has been modified.`;
       break;
 
     case TradeErrorCode.INVALID_ORDER_STATUS:
@@ -114,17 +114,66 @@ export async function executeTrade(
   additionalData?: any // Optional parameter to maintain compatibility
 ): Promise<TradeResult> {
   try {
+    // Validate inputs before sending to the backend
+    if (!orderId || orderId.trim() === '') {
+      console.error('Invalid order ID:', orderId);
+      return {
+        success: false,
+        error_code: TradeErrorCode.INVALID_PARAM,
+        message: 'Order ID is required',
+        field: 'order_id',
+        severity: 'ERROR'
+      };
+    }
+
+    if (!executorId || executorId.trim() === '') {
+      console.error('Invalid executor ID:', executorId);
+      return {
+        success: false,
+        error_code: TradeErrorCode.INVALID_PARAM,
+        message: 'Executor ID is required',
+        field: 'executor_id',
+        severity: 'ERROR'
+      };
+    }
+
+    if (isNaN(submittedAmount) || submittedAmount <= 0) {
+      console.error('Invalid amount:', submittedAmount);
+      return {
+        success: false,
+        error_code: TradeErrorCode.INVALID_AMOUNT,
+        message: 'Amount must be greater than zero',
+        field: 'submitted_amount',
+        severity: 'ERROR'
+      };
+    }
+
     // Log parameters for debugging
     console.log('Executing trade with:', { orderId, executorId, submittedAmount });
     
+    // Ensure orderId is properly formatted as UUID if needed
+    // If using string IDs that are not UUIDs, this conversion isn't necessary
+    const formattedOrderId = orderId; // If conversion needed, do it here
+    
     const { data, error } = await supabase.rpc('execute_trade', {
-      order_id_param: orderId,
+      order_id_param: formattedOrderId,
       executor_id_param: executorId,
       submitted_amount: submittedAmount
     });
 
     if (error) {
       console.error('Supabase RPC error:', error);
+      // Check if the error is specifically about not finding the order
+      if (error.message && error.message.includes('not found')) {
+        return {
+          success: false,
+          error_code: TradeErrorCode.ORDER_NOT_FOUND,
+          message: 'Order not found or has been removed',
+          severity: 'ERROR',
+          order_id: orderId
+        };
+      }
+      
       return {
         success: false,
         error_code: TradeErrorCode.INVALID_PARAM,
