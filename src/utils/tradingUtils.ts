@@ -1,98 +1,111 @@
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 
-// Define specific error types
-export enum TradeErrorType {
+// Define error types based on backend error_code
+export enum TradeErrorCode {
+  INVALID_PARAM = 'INVALID_PARAM',
+  INVALID_AMOUNT = 'INVALID_AMOUNT',
   ORDER_NOT_FOUND = 'ORDER_NOT_FOUND',
-  INVALID_STATUS = 'INVALID_STATUS',
-  INSUFFICIENT_AMOUNT = 'INSUFFICIENT_AMOUNT',
-  NETWORK_ERROR = 'NETWORK_ERROR',
-  UNKNOWN_ERROR = 'UNKNOWN_ERROR'
+  INVALID_ORDER_STATUS = 'INVALID_ORDER_STATUS',
+  AMOUNT_EXCEEDS_AVAILABLE = 'AMOUNT_EXCEEDS_AVAILABLE',
+  SELF_EXECUTION = 'SELF_EXECUTION',
+  DIVISION_BY_ZERO = 'DIVISION_BY_ZERO',
+  NUMERIC_OVERFLOW = 'NUMERIC_OVERFLOW',
+  DUPLICATE_ENTRY = 'DUPLICATE_ENTRY',
+  REFERENCE_ERROR = 'REFERENCE_ERROR'
 }
 
-// Enhanced trade result interface
-export interface TradeResult {
-  success: boolean;
-  message?: string;
-  error?: string;
-  errorType?: TradeErrorType;
-  details?: {
-    orderId?: string;
-    submittedAmount?: number;
-    timestamp?: string;
-    orderStatus?: string;
-  };
+interface TradeError {
+  success: false;
+  error_code: TradeErrorCode;
+  message: string;
+  field?: string;
+  severity: 'ERROR' | 'WARNING';
+  detail?: string;
+  hint?: string;
+  available_amount?: number;
+  submitted_amount?: number;
+  currency?: string;
+  current_status?: string;
+  order_id?: string;
 }
 
-/**
- * Parse error message from backend and determine error type
- */
-function parseTradeError(error: string): { type: TradeErrorType; message: string } {
-  const lowerError = error.toLowerCase();
-  
-  if (lowerError.includes('not found')) {
-    return {
-      type: TradeErrorType.ORDER_NOT_FOUND,
-      message: 'The order could not be found. It may have been cancelled or filled.'
-    };
-  }
-  if (lowerError.includes('status') || lowerError.includes('filled') || lowerError.includes('canceled')) {
-    return {
-      type: TradeErrorType.INVALID_STATUS,
-      message: 'This order is no longer available for trading. It may have been filled or cancelled.'
-    };
-  }
-  if (lowerError.includes('exceeds') || lowerError.includes('amount')) {
-    return {
-      type: TradeErrorType.INSUFFICIENT_AMOUNT,
-      message: 'The requested trade amount exceeds the available order amount.'
-    };
-  }
-  if (lowerError.includes('network') || lowerError.includes('timeout')) {
-    return {
-      type: TradeErrorType.NETWORK_ERROR,
-      message: 'Network error occurred. Please check your connection and try again.'
-    };
-  }
-  return {
-    type: TradeErrorType.UNKNOWN_ERROR,
-    message: 'An unexpected error occurred while processing the trade.'
-  };
+interface TradeSuccess {
+  success: true;
+  message: string;
+  order_id: string;
+  new_status: string;
+  executed_amount: number;
+  remaining_amount: number;
+  price: number;
+  currency: string;
+  quote_currency: string;
+  timestamp: string;
 }
+
+type TradeResult = TradeError | TradeSuccess;
 
 /**
- * Format error message for UI display
+ * Format error message for UI display based on backend error response
  */
-export function formatTradeError(result: TradeResult): string {
+function formatTradeErrorMessage(error: TradeError): string {
   const timestamp = format(new Date(), "MMM d, HH:mm:ss");
-  let errorMessage = "Trade Failed";
+  let message = `❌ Trade Failed\n\nTime: ${timestamp}\n`;
 
-  if (result.errorType) {
-    switch (result.errorType) {
-      case TradeErrorType.ORDER_NOT_FOUND:
-        errorMessage = `❌ Order Not Found\n\nDetails:\n- Order ID: ${result.details?.orderId}\n- Time: ${timestamp}\n\nThis order may have been cancelled or already filled. Please refresh the order list and try again.`;
-        break;
-      case TradeErrorType.INVALID_STATUS:
-        errorMessage = `❌ Invalid Order Status\n\nDetails:\n- Order ID: ${result.details?.orderId}\n- Current Status: ${result.details?.orderStatus}\n- Time: ${timestamp}\n\nThis order is no longer available for trading. It may have been filled or cancelled by another user.`;
-        break;
-      case TradeErrorType.INSUFFICIENT_AMOUNT:
-        errorMessage = `❌ Invalid Amount\n\nDetails:\n- Requested Amount: ${result.details?.submittedAmount}\n- Time: ${timestamp}\n\nThe amount you're trying to trade exceeds the available order amount. Please enter a smaller amount.`;
-        break;
-      case TradeErrorType.NETWORK_ERROR:
-        errorMessage = `❌ Network Error\n\nDetails:\n- Time: ${timestamp}\n\nPlease check your internet connection and try again. If the problem persists, the server may be experiencing issues.`;
-        break;
-      default:
-        errorMessage = `❌ Trade Error\n\nDetails:\n- Error: ${result.message || 'Unknown error'}\n- Time: ${timestamp}\n\nAn unexpected error occurred. Please try again or contact support if the problem persists.`;
-    }
-  } else if (result.message) {
-    errorMessage = `❌ Trade Failed\n\nDetails:\n- Error: ${result.message}\n- Time: ${timestamp}`;
+  switch (error.error_code) {
+    case TradeErrorCode.INVALID_PARAM:
+      message += `Invalid ${error.field}: ${error.message}`;
+      break;
+
+    case TradeErrorCode.INVALID_AMOUNT:
+      message += `Invalid Amount: The submitted amount must be greater than zero.`;
+      break;
+
+    case TradeErrorCode.ORDER_NOT_FOUND:
+      message += `Order Not Found: The order you're trying to trade no longer exists.`;
+      break;
+
+    case TradeErrorCode.INVALID_ORDER_STATUS:
+      message += `Invalid Order Status: This order is ${error.current_status} and cannot be traded.`;
+      break;
+
+    case TradeErrorCode.AMOUNT_EXCEEDS_AVAILABLE:
+      message += `Insufficient Amount Available\n\n` +
+                `Requested: ${error.submitted_amount} ${error.currency}\n` +
+                `Available: ${error.available_amount} ${error.currency}\n\n` +
+                `Please enter a smaller amount.`;
+      break;
+
+    case TradeErrorCode.SELF_EXECUTION:
+      message += `Self-Trading Not Allowed: You cannot execute your own order.`;
+      break;
+
+    case TradeErrorCode.DIVISION_BY_ZERO:
+    case TradeErrorCode.NUMERIC_OVERFLOW:
+      message += `Calculation Error: ${error.message}\nPlease try a different amount.`;
+      break;
+
+    case TradeErrorCode.DUPLICATE_ENTRY:
+      message += `Duplicate Transaction: This trade appears to be a duplicate.\n` +
+                `Please wait a moment and try again if necessary.`;
+      break;
+
+    case TradeErrorCode.REFERENCE_ERROR:
+      message += `Reference Error: Unable to complete trade due to missing or invalid references.\n` +
+                `Please refresh and try again.`;
+      break;
+
+    default:
+      message += `${error.message}\n`;
+      if (error.detail) message += `\nDetails: ${error.detail}`;
+      if (error.hint) message += `\nSuggestion: ${error.hint}`;
   }
 
-  return errorMessage;
+  return message;
 }
 
 /**
- * Execute a trade for a given order with enhanced error handling
+ * Execute a trade with comprehensive error handling
  */
 export async function executeTrade(
   orderId: string,
@@ -107,50 +120,49 @@ export async function executeTrade(
     });
 
     if (error) {
-      console.error('Error executing trade:', error);
-      const { type, message } = parseTradeError(error.message);
-      return { 
-        success: false,
-        error: error.message,
-        errorType: type,
-        message: message,
-        details: {
-          orderId,
-          submittedAmount,
-          timestamp: format(new Date(), "yyyy-MM-dd HH:mm:ss")
-        }
-      };
-    }
-
-    if (!data.success) {
-      const { type, message } = parseTradeError(data.message);
+      console.error('Supabase RPC error:', error);
       return {
         success: false,
-        message: data.message,
-        errorType: type,
-        details: {
-          orderId,
-          submittedAmount,
-          timestamp: format(new Date(), "yyyy-MM-dd HH:mm:ss")
-        }
+        error_code: 'INVALID_PARAM' as TradeErrorCode,
+        message: error.message,
+        severity: 'ERROR'
       };
     }
 
-    return {
-      success: true,
-      message: data.message
-    };
+    // The backend always returns a JSON object with a success property
+    if (!data.success) {
+      console.error('Trade execution failed:', data);
+      return data as TradeError;
+    }
+
+    return data as TradeSuccess;
+
   } catch (error) {
-    console.error('Error in executeTrade:', error);
-    return { 
+    console.error('Unexpected error in executeTrade:', error);
+    return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-      errorType: TradeErrorType.UNKNOWN_ERROR,
-      details: {
-        orderId,
-        submittedAmount,
-        timestamp: format(new Date(), "yyyy-MM-dd HH:mm:ss")
-      }
+      error_code: 'INVALID_PARAM' as TradeErrorCode,
+      message: error instanceof Error ? error.message : 'An unexpected error occurred',
+      severity: 'ERROR'
     };
   }
+}
+
+// Example usage in your component:
+async function handleTradeExecution(orderId: string, executorId: string, amount: number) {
+  const result = await executeTrade(orderId, executorId, amount);
+
+  if (!result.success) {
+    // Format and show the error message
+    const errorMessage = formatTradeErrorMessage(result);
+    alert(errorMessage); // Or use your preferred alert/notification system
+    return;
+  }
+
+  // Handle successful trade
+  alert(`✅ Trade Successful!\n\n` +
+        `Amount: ${result.executed_amount} ${result.currency}\n` +
+        `Price: ${result.price} ${result.quote_currency}\n` +
+        `Status: ${result.new_status}\n` +
+        `Time: ${format(new Date(result.timestamp), "MMM d, HH:mm:ss")}`);
 }
