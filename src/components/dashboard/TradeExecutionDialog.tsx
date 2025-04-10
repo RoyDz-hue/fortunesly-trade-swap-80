@@ -144,19 +144,19 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
         return;
       }
 
-      const transactionData = {
-        executing_user_id: user.id,
+      const additionalData = {
         order_owner_id: order.user_id,
         order_type: order.type,
-        amount: parsedAmount,
-        currency: order.currency
+        currency: order.currency,
+        price: order.price,
+        amount: order.amount // Pass the full order amount here
       };
 
       const result = await executeTrade(
         order.id,
         user.id,
-        parsedAmount,
-        transactionData
+        parsedAmount, // This is the amount being traded
+        additionalData
       );
 
       if (!result.success) {
