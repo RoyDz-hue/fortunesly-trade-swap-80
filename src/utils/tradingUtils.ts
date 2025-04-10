@@ -55,7 +55,7 @@ export async function executeTrade(
       trade_amount_param: tradeAmount,
       currency: additionalData.currency,
       price: additionalData.price || 0,
-      total_amount: additionalData.total_amount || 0
+      amount: additionalData.total_amount || 0
     });
 
     if (error) {
