@@ -15,7 +15,7 @@ export enum TradeErrorCode {
   REFERENCE_ERROR = 'REFERENCE_ERROR'
 }
 
-interface TradeError {
+export interface TradeError {
   success: false;
   error_code: TradeErrorCode;
   message: string;
@@ -30,7 +30,7 @@ interface TradeError {
   order_id?: string;
 }
 
-interface TradeSuccess {
+export interface TradeSuccess {
   success: true;
   message: string;
   order_id: string;
@@ -43,12 +43,12 @@ interface TradeSuccess {
   timestamp: string;
 }
 
-type TradeResult = TradeError | TradeSuccess;
+export type TradeResult = TradeError | TradeSuccess;
 
 /**
  * Format error message for UI display based on backend error response
  */
-function formatTradeErrorMessage(error: TradeError): string {
+export function formatTradeErrorMessage(error: TradeError): string {
   const timestamp = format(new Date(), "MMM d, HH:mm:ss");
   let message = `❌ Trade Failed\n\nTime: ${timestamp}\n`;
 
@@ -110,9 +110,13 @@ function formatTradeErrorMessage(error: TradeError): string {
 export async function executeTrade(
   orderId: string,
   executorId: string,
-  submittedAmount: number
+  submittedAmount: number,
+  additionalData?: any // Optional parameter to maintain compatibility
 ): Promise<TradeResult> {
   try {
+    // Log parameters for debugging
+    console.log('Executing trade with:', { orderId, executorId, submittedAmount });
+    
     const { data, error } = await supabase.rpc('execute_trade', {
       order_id_param: orderId,
       executor_id_param: executorId,
@@ -123,13 +127,26 @@ export async function executeTrade(
       console.error('Supabase RPC error:', error);
       return {
         success: false,
-        error_code: 'INVALID_PARAM' as TradeErrorCode,
+        error_code: TradeErrorCode.INVALID_PARAM,
         message: error.message,
         severity: 'ERROR'
       };
     }
 
+    // Log the raw data returned from the backend
+    console.log('Raw backend response:', data);
+
     // The backend always returns a JSON object with a success property
+    if (!data || data.success === undefined) {
+      console.error('Invalid response format from backend:', data);
+      return {
+        success: false,
+        error_code: TradeErrorCode.INVALID_PARAM,
+        message: 'Invalid response from server',
+        severity: 'ERROR'
+      };
+    }
+
     if (!data.success) {
       console.error('Trade execution failed:', data);
       return data as TradeError;
@@ -141,7 +158,7 @@ export async function executeTrade(
     console.error('Unexpected error in executeTrade:', error);
     return {
       success: false,
-      error_code: 'INVALID_PARAM' as TradeErrorCode,
+      error_code: TradeErrorCode.INVALID_PARAM,
       message: error instanceof Error ? error.message : 'An unexpected error occurred',
       severity: 'ERROR'
     };
@@ -149,7 +166,7 @@ export async function executeTrade(
 }
 
 // Example usage in your component:
-async function handleTradeExecution(orderId: string, executorId: string, amount: number) {
+export async function handleTradeExecution(orderId: string, executorId: string, amount: number) {
   const result = await executeTrade(orderId, executorId, amount);
 
   if (!result.success) {
