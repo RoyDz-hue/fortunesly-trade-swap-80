@@ -10,6 +10,7 @@ export async function executeMarketOrder(params: {
   order_type: string;
   trade_amount_param: number;
   currency: string;
+  quote_currency: string;  // Added quote_currency
   price: number;
   amount: number;
 }) {
@@ -20,16 +21,17 @@ export async function executeMarketOrder(params: {
       order_type: params.order_type,
       trade_amount_param: params.trade_amount_param,
       currency: params.currency,
+      quote_currency: params.quote_currency,  // Pass quote_currency
       price: params.price,
       amount: params.amount
     });
 
     if (error) {
       console.error('Error executing market order:', error);
-      return { success: false, error: error.message };  // Added return value
+      return { success: false, error: error.message };
     }
 
-    return { success: true, data };  // Ensure we return the data
+    return { success: true, data };
   } catch (error) {
     console.error('Failed to execute market order:', error);
     return { 
@@ -50,6 +52,7 @@ export async function executeTrade(
     order_owner_id: string;
     order_type: string;
     currency: string;
+    quote_currency: string;  // Added quote_currency
     price: number;
     amount: number;
   }
@@ -61,6 +64,7 @@ export async function executeTrade(
       order_type: additionalData.order_type,
       trade_amount_param: tradeAmount,
       currency: additionalData.currency,
+      quote_currency: additionalData.quote_currency,  // Pass quote_currency
       price: additionalData.price,
       amount: additionalData.amount
     });
@@ -86,13 +90,17 @@ export async function executeTrade(
 export async function executeTradeWithOrderId(
   orderIdParam: string,
   traderIdParam: string,
-  tradeAmountParam: number
+  tradeAmountParam: number,
+  currency: string,         // Added currency
+  quote_currency: string    // Added quote_currency
 ) {
   try {
     const { data, error } = await supabase.rpc('execute_market_order', {
       order_id_param: orderIdParam,
       trader_id_param: traderIdParam,
-      trade_amount_param: tradeAmountParam
+      trade_amount_param: tradeAmountParam,
+      currency: currency,                // Pass currency
+      quote_currency: quote_currency     // Pass quote_currency
     });
 
     if (error) {
@@ -125,13 +133,14 @@ export function formatTransactionTime(timestamp: string): string {
   }
 }
 
-// Type definitions
+// Updated type definitions
 export type MarketOrderParams = {
   trader_id_param: string;
   order_owner_id: string;
   order_type: string;
   trade_amount_param: number;
   currency: string;
+  quote_currency: string;  // Added quote_currency
   price: number;
   amount: number;
 };
@@ -140,4 +149,6 @@ export type OrderIdTradeParams = {
   order_id_param: string;
   trader_id_param: string;
   trade_amount_param: number;
+  currency: string;         // Added currency
+  quote_currency: string;   // Added quote_currency
 };
