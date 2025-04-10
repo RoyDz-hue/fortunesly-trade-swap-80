@@ -349,7 +349,7 @@ export type Database = {
               trade_amount_param: number
               currency: string
               price: number
-              total_amount: number
+              amount: number
             }
           | {
               order_id_param: string
