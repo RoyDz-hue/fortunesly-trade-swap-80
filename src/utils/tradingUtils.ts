@@ -15,14 +15,14 @@ export async function executeMarketOrder(params: {
 }) {
   try {
     const { data, error } = await supabase.rpc('execute_market_order', {
-      trader_id_param: params.trader_id_param,
-      order_owner_id: params.order_owner_id, 
-      order_type: params.order_type,
-      trade_amount_param: params.trade_amount_param,
-      currency: params.currency,
-      price: params.price,
-      amount: params.amount
-    });
+  amount: params.amount,
+  currency: params.currency,
+  order_owner_id: params.order_owner_id,
+  order_type: params.order_type,
+  price: params.price,
+  trade_amount_param: params.trade_amount_param,
+  trader_id_param: params.trader_id_param
+});
 
     if (error) {
       console.error('Error executing market order:', error);
