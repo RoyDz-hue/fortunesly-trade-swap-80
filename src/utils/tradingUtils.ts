@@ -14,15 +14,16 @@ export async function executeMarketOrder(params: {
   amount: number;
 }) {
   try {
+    // Matching the second Args type of execute_market_order in the database schema
     const { data, error } = await supabase.rpc('execute_market_order', {
-  amount: params.amount,
-  currency: params.currency,
-  order_owner_id: params.order_owner_id,
-  order_type: params.order_type,
-  price: params.price,
-  trade_amount_param: params.trade_amount_param,
-  trader_id_param: params.trader_id_param
-});
+      trader_id_param: params.trader_id_param,
+      order_owner_id: params.order_owner_id,
+      order_type: params.order_type,
+      trade_amount_param: params.trade_amount_param,
+      currency: params.currency,
+      price: params.price,
+      amount: params.amount
+    });
 
     if (error) {
       console.error('Error executing market order:', error);
@@ -43,7 +44,13 @@ export async function executeTrade(
   orderId: string,
   traderId: string,
   tradeAmount: number,
-  additionalData: any
+  additionalData: {
+    order_owner_id: string;
+    order_type: string;
+    currency: string;
+    price: number;
+    amount: number;
+  }
 ) {
   try {
     // Call the execute_market_order RPC function
@@ -53,8 +60,8 @@ export async function executeTrade(
       order_type: additionalData.order_type,
       trade_amount_param: tradeAmount,
       currency: additionalData.currency,
-      price: additionalData.price || 0,
-      amount: additionalData.amount || 0
+      price: additionalData.price,
+      amount: additionalData.amount
     });
 
     if (error) {
@@ -77,7 +84,7 @@ export async function executeTrade(
  */
 export function formatTransactionTime(timestamp: string): string {
   if (!timestamp) return 'Unknown';
-
+  
   try {
     const date = new Date(timestamp);
     return format(date, "MMM d, HH:mm");
@@ -86,3 +93,51 @@ export function formatTransactionTime(timestamp: string): string {
     return 'Invalid date';
   }
 }
+
+/**
+ * Execute trade with direct order ID
+ */
+export async function executeTradeWithOrderId(
+  orderIdParam: string,
+  traderIdParam: string,
+  tradeAmountParam: number
+) {
+  try {
+    // Using the first Args type of execute_market_order in the database schema
+    const { data, error } = await supabase.rpc('execute_market_order', {
+      order_id_param: orderIdParam,
+      trader_id_param: traderIdParam,
+      trade_amount_param: tradeAmountParam
+    });
+
+    if (error) {
+      console.error('Error executing trade with order ID:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error in executeTradeWithOrderId:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    };
+  }
+}
+
+// Type definitions for additional data to match database schema
+export type MarketOrderParams = {
+  trader_id_param: string;
+  order_owner_id: string;
+  order_type: string;
+  trade_amount_param: number;
+  currency: string;
+  price: number;
+  amount: number;
+};
+
+export type OrderIdTradeParams = {
+  order_id_param: string;
+  trader_id_param: string;
+  trade_amount_param: number;
+};
