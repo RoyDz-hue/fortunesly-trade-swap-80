@@ -18,6 +18,14 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
   const [coinDetails, setCoinDetails] = useState(null);
   const [userBalance, setUserBalance] = useState(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
+  const [orderVerified, setOrderVerified] = useState(true); // Track if order exists
+
+  // Verify order exists when dialog opens
+  useEffect(() => {
+    if (isOpen && order) {
+      verifyOrderExists(order.id);
+    }
+  }, [isOpen, order]);
 
   useEffect(() => {
     if (order) {
@@ -27,7 +35,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
   }, [order]);
 
   useEffect(() => {
-    if (user) {
+    if (user && order) {
       fetchUserBalance();
     }
   }, [user, order]);
@@ -38,6 +46,34 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
       setTotalAmount(isNaN(parsedAmount) ? 0 : parsedAmount * order.price);
     }
   }, [amount, order]);
+
+  // Verify the order still exists in the database
+  const verifyOrderExists = async (orderId) => {
+    if (!orderId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('id', orderId)
+        .single();
+      
+      if (error || !data) {
+        console.error('Order verification failed:', error);
+        setOrderVerified(false);
+        toast({
+          title: "Order not available",
+          description: "This order no longer exists or has been filled.",
+          variant: "destructive",
+        });
+        onClose();
+      } else {
+        setOrderVerified(true);
+      }
+    } catch (error) {
+      console.error("Error verifying order:", error);
+    }
+  };
 
   const fetchUserBalance = async () => {
     if (!user || !order) return;
@@ -74,6 +110,8 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
   };
 
   const fetchCoinDetails = async (symbol) => {
+    if (!symbol) return;
+    
     try {
       const { data, error } = await supabase
         .from('coins')
@@ -89,14 +127,12 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
   };
 
   const getPriceCurrency = (order) => {
-    if (order.quote_currency) {
-      return order.quote_currency;
-    }
-    return 'KES';
+    if (!order) return 'KES';
+    return order.quote_currency || 'KES';
   };
 
   const hasEnoughBalance = () => {
-    if (userBalance === null) return false;
+    if (userBalance === null || !order) return false;
 
     if (order.type === 'buy') {
       return userBalance >= parseFloat(amount || '0');
@@ -114,6 +150,16 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
         description: "Please log in to execute trades",
         variant: "destructive",
       });
+      return;
+    }
+
+    if (!order || !orderVerified) {
+      toast({
+        title: "Order not available",
+        description: "This order no longer exists or has been filled.",
+        variant: "destructive",
+      });
+      onClose();
       return;
     }
 
@@ -150,6 +196,10 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
         amount: parsedAmount
       });
 
+      // Verify order exists one more time before executing trade
+      await verifyOrderExists(order.id);
+      if (!orderVerified) return;
+
       const result = await executeTrade(
         order.id,
         user.id,
@@ -159,7 +209,18 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
       console.log("Trade execution result:", result);
 
       if (!result.success) {
-        // Format error message for display
+        // Handle specific error cases
+        if (result.error_code === 'ORDER_NOT_FOUND') {
+          toast({
+            title: "Order not found",
+            description: "This order no longer exists or has been filled by someone else.",
+            variant: "destructive",
+          });
+          onClose();
+          return;
+        }
+        
+        // Format other errors for display
         const formattedError = formatTradeErrorMessage(result);
         toast({
           title: "Trade failed",
@@ -327,7 +388,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
             </Button>
             <Button
               type="submit"
-              disabled={isLoading || !hasEnoughBalance() || balanceLoading}
+              disabled={isLoading || !hasEnoughBalance() || balanceLoading || !orderVerified}
               className={order.type === 'buy' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}
             >
               {isLoading ? 'Processing...' : `${order.type === 'buy' ? 'Sell' : 'Buy'} Now`}
