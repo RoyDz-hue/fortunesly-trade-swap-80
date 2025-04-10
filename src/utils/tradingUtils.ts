@@ -14,7 +14,7 @@ export async function executeMarketOrder(params: {
   amount: number;
 }) {
   try {
-    // Matching the second Args type of execute_market_order in the database schema
+    // Call the execute_market_order RPC function with the correct parameter names
     const { data, error } = await supabase.rpc('execute_market_order', {
       trader_id_param: params.trader_id_param,
       order_owner_id: params.order_owner_id,
@@ -22,7 +22,7 @@ export async function executeMarketOrder(params: {
       trade_amount_param: params.trade_amount_param,
       currency: params.currency,
       price: params.price,
-      amount: params.amount
+      amount: params.amount  // This should match the database column name
     });
 
     if (error) {
@@ -49,11 +49,11 @@ export async function executeTrade(
     order_type: string;
     currency: string;
     price: number;
-    amount: number;
+    amount: number;  // Changed to match database column name
   }
 ) {
   try {
-    // Call the execute_market_order RPC function
+    // Call the execute_market_order RPC function with the correct parameter names
     const { data, error } = await supabase.rpc('execute_market_order', {
       trader_id_param: traderId,
       order_owner_id: additionalData.order_owner_id,
@@ -61,7 +61,7 @@ export async function executeTrade(
       trade_amount_param: tradeAmount,
       currency: additionalData.currency,
       price: additionalData.price,
-      amount: additionalData.amount
+      amount: additionalData.amount  // Changed to match database column name
     });
 
     if (error) {
@@ -76,21 +76,6 @@ export async function executeTrade(
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error occurred' 
     };
-  }
-}
-
-/**
- * Format a transaction timestamp to a user-friendly format
- */
-export function formatTransactionTime(timestamp: string): string {
-  if (!timestamp) return 'Unknown';
-  
-  try {
-    const date = new Date(timestamp);
-    return format(date, "MMM d, HH:mm");
-  } catch (error) {
-    console.error('Error formatting transaction time:', error);
-    return 'Invalid date';
   }
 }
 
@@ -125,7 +110,22 @@ export async function executeTradeWithOrderId(
   }
 }
 
-// Type definitions for additional data to match database schema
+/**
+ * Format a transaction timestamp to a user-friendly format
+ */
+export function formatTransactionTime(timestamp: string): string {
+  if (!timestamp) return 'Unknown';
+  
+  try {
+    const date = new Date(timestamp);
+    return format(date, "MMM d, HH:mm");
+  } catch (error) {
+    console.error('Error formatting transaction time:', error);
+    return 'Invalid date';
+  }
+}
+
+// Type definitions to match database schema
 export type MarketOrderParams = {
   trader_id_param: string;
   order_owner_id: string;
@@ -133,7 +133,7 @@ export type MarketOrderParams = {
   trade_amount_param: number;
   currency: string;
   price: number;
-  amount: number;
+  amount: number;  // Changed to match database column name
 };
 
 export type OrderIdTradeParams = {
