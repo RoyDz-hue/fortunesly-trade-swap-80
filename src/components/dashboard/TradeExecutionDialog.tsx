@@ -5,12 +5,11 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { handleTradeExecution } from "@/utils/tradingUtils";
 import { formatCurrencyAmount } from "@/lib/utils";
-import { TradeType } from "@/types";
 
 interface Order {
     id: string;
     user_id: string;
-    type: TradeType;
+    type: 'buy' | 'sell';
     currency: string;
     quote_currency: string;
     amount: number;
@@ -25,7 +24,6 @@ interface TradeExecutionDialogProps {
     order: Order;
     executorId: string;
     onSuccess?: () => void;
-    onError?: () => void;
 }
 
 export function TradeExecutionDialog({
@@ -33,15 +31,14 @@ export function TradeExecutionDialog({
     onClose,
     order,
     executorId,
-    onSuccess,
-    onError
+    onSuccess
 }: TradeExecutionDialogProps) {
     const { toast } = useToast();
     const [amount, setAmount] = useState<string>("");
     const [isLoading, setIsLoading] = useState(false);
     const [total, setTotal] = useState<number>(0);
 
-    // Reset state when dialog opens/closes
+    // Reset dialog state when opened/closed
     useEffect(() => {
         if (!isOpen) {
             setAmount("");
@@ -50,38 +47,58 @@ export function TradeExecutionDialog({
         }
     }, [isOpen]);
 
-    // Handle amount validation and formatting
-    const handleAmountChange = useCallback((value: string) => {
-        const numValue = parseFloat(value);
-        if (isNaN(numValue)) {
+    // Handle amount input validation and formatting
+    const handleAmountChange = useCallback((inputValue: string) => {
+        // Remove any non-numeric characters except decimal point
+        const cleanValue = inputValue.replace(/[^\d.]/g, '');
+        
+        // Parse the cleaned value
+        const numValue = parseFloat(cleanValue);
+        
+        if (isNaN(numValue) || numValue <= 0) {
             setAmount("");
             setTotal(0);
             return;
         }
 
-        // Enforce maximum amount
-        if (numValue > order.amount) {
+        // Get correct decimal places based on currency
+        const decimals = order.currency === 'KES' ? 2 : 8;
+        
+        // Format the number with correct decimals
+        const formattedValue = parseFloat(numValue.toFixed(decimals));
+        
+        // Ensure amount doesn't exceed available
+        if (formattedValue > order.amount) {
             setAmount(order.amount.toString());
             setTotal(order.amount * order.price);
             return;
         }
 
-        // Enforce decimal places based on currency
-        const decimals = order.currency === 'KES' ? 2 : 8;
-        const formattedValue = parseFloat(numValue.toFixed(decimals));
         setAmount(formattedValue.toString());
         setTotal(formattedValue * order.price);
     }, [order.amount, order.price, order.currency]);
 
-    // Execute trade
+    // Execute the trade
     const handleExecute = async () => {
         if (isLoading || !amount) return;
 
         const numAmount = parseFloat(amount);
+        
+        // Validate amount again before execution
         if (isNaN(numAmount) || numAmount <= 0 || numAmount > order.amount) {
             toast({
                 title: "Invalid Amount",
-                description: `Please enter an amount between 0 and ${order.amount} ${order.currency}`,
+                description: `Please enter an amount between 0 and ${formatCurrencyAmount(order.amount, order.currency)} ${order.currency}`,
+                variant: "destructive",
+            });
+            return;
+        }
+
+        // Prevent self-trading
+        if (executorId === order.user_id) {
+            toast({
+                title: "Invalid Trade",
+                description: "You cannot execute your own order",
                 variant: "destructive",
             });
             return;
@@ -89,16 +106,6 @@ export function TradeExecutionDialog({
 
         setIsLoading(true);
         try {
-            // Prevent self-trading
-            if (executorId === order.user_id) {
-                toast({
-                    title: "Invalid Trade",
-                    description: "You cannot execute your own order",
-                    variant: "destructive",
-                });
-                return;
-            }
-
             const success = await handleTradeExecution(
                 order.id,
                 executorId,
@@ -110,9 +117,6 @@ export function TradeExecutionDialog({
                     });
                     onSuccess?.();
                     onClose();
-                },
-                () => {
-                    onError?.();
                 }
             );
 
@@ -125,17 +129,22 @@ export function TradeExecutionDialog({
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={(open) => !isLoading && !open && onClose()}>
+        <Dialog 
+            open={isOpen} 
+            onOpenChange={(open) => !isLoading && !open && onClose()}
+        >
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>Execute Trade</DialogTitle>
+                    <DialogTitle>
+                        {order.type === 'sell' ? 'Buy' : 'Sell'} {order.currency}
+                    </DialogTitle>
                 </DialogHeader>
 
                 <div className="grid gap-4 py-4">
                     {/* Order Details */}
                     <div className="grid gap-2 text-sm">
                         <div className="flex justify-between">
-                            <span className="text-muted-foreground">Available Amount:</span>
+                            <span className="text-muted-foreground">Available:</span>
                             <span className="font-medium">
                                 {formatCurrencyAmount(order.amount, order.currency)} {order.currency}
                             </span>
@@ -177,7 +186,7 @@ export function TradeExecutionDialog({
                             </span>
                         </div>
 
-                        {/* Total Calculation */}
+                        {/* Show Total */}
                         {amount && total > 0 && (
                             <div className="text-sm text-muted-foreground">
                                 Total: {formatCurrencyAmount(total, order.quote_currency)} {order.quote_currency}
@@ -205,10 +214,10 @@ export function TradeExecutionDialog({
                         }
                     >
                         {isLoading ? (
-                            <>
-                                <span className="loading loading-spinner loading-xs mr-2"></span>
+                            <div className="flex items-center gap-2">
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                                 Processing...
-                            </>
+                            </div>
                         ) : (
                             `Execute Trade`
                         )}
