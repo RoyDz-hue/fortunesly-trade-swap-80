@@ -1,298 +1,336 @@
-import { useState, useCallback, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/ui/use-toast";
-import { handleTradeExecution } from "@/utils/tradingUtils";
-import { formatCurrencyAmount } from "@/lib/utils";
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
+import { executeTrade } from '@/utils/tradingUtils';
 
-interface Order {
-    id: string;
-    user_id: string;
-    type: 'buy' | 'sell';
-    currency: string;
-    quote_currency: string;
-    amount: number;
-    original_amount: number;
-    price: number;
-    status: 'open' | 'partially_filled' | 'filled' | 'canceled';
-}
+const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [amount, setAmount] = useState('');
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [coinDetails, setCoinDetails] = useState(null);
+  const [userBalance, setUserBalance] = useState(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
 
-interface TradeExecutionDialogProps {
-    isOpen: boolean;
-    onClose: () => void;
-    order: Order;
-    executorId: string;
-    onSuccess?: () => void;
-}
+  useEffect(() => {
+    if (order) {
+      setAmount(order.amount.toString());
+      fetchCoinDetails(order.currency);
+    }
+  }, [order]);
 
-export function TradeExecutionDialog({
-    isOpen,
-    onClose,
-    order,
-    executorId,
-    onSuccess
-}: TradeExecutionDialogProps) {
-    const { toast } = useToast();
-    const [amount, setAmount] = useState<string>("");
-    const [isLoading, setIsLoading] = useState(false);
-    const [total, setTotal] = useState<number>(0);
+  useEffect(() => {
+    if (user) {
+      fetchUserBalance();
+    }
+  }, [user, order]);
 
-    // Verify order data on mount
-    useEffect(() => {
-        if (isOpen && order) {
-            console.log('Trade dialog opened with order:', order);
-            // Make sure order data is valid
-            if (!order.id || !order.amount || !order.currency) {
-                console.error('Invalid order data:', order);
-                toast({
-                    title: "Error",
-                    description: "Invalid order data. Please try again.",
-                    variant: "destructive",
-                });
-                onClose();
-            }
+  useEffect(() => {
+    if (order && amount) {
+      const parsedAmount = parseFloat(amount);
+      setTotalAmount(isNaN(parsedAmount) ? 0 : parsedAmount * order.price);
+    }
+  }, [amount, order]);
+
+  const fetchUserBalance = async () => {
+    if (!user || !order) return;
+
+    try {
+      setBalanceLoading(true);
+      const currencyToCheck = order.type === 'buy' 
+        ? order.currency 
+        : order.quote_currency || 'KES';
+
+      const { data, error } = await supabase
+        .from('users')
+        .select('balance_crypto, balance_fiat')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user balances:', error);
+        setUserBalance(0);
+      } else if (data) {
+        if (currencyToCheck === 'KES') {
+          setUserBalance(data.balance_fiat || 0);
+        } else {
+          const cryptoBalances = data.balance_crypto || {};
+          setUserBalance((cryptoBalances[currencyToCheck] || 0));
         }
-    }, [isOpen, order, toast, onClose]);
+      }
+    } catch (error) {
+      console.error("Exception in balance fetch:", error);
+      setUserBalance(0);
+    } finally {
+      setBalanceLoading(false);
+    }
+  };
 
-    // Reset state when dialog opens/closes
-    useEffect(() => {
-        if (!isOpen) {
-            setAmount("");
-            setTotal(0);
-            setIsLoading(false);
-        }
-    }, [isOpen]);
+  const fetchCoinDetails = async (symbol) => {
+    try {
+      const { data, error } = await supabase
+        .from('coins')
+        .select('name, symbol, icon_url')
+        .eq('symbol', symbol)
+        .single();
 
-    // Format currency amounts with proper decimals
-    const formatAmount = useCallback((value: number, currency: string) => {
-        const decimals = currency === 'KES' ? 2 : 8;
-        return value.toLocaleString('en-US', {
-            minimumFractionDigits: decimals,
-            maximumFractionDigits: decimals
-        });
-    }, []);
+      setCoinDetails(error ? { name: symbol, symbol, icon_url: null } : data);
+    } catch (error) {
+      console.error("Error fetching coin details:", error);
+      setCoinDetails({ name: symbol, symbol, icon_url: null });
+    }
+  };
 
-    // Handle amount input
-    const handleAmountChange = useCallback((inputValue: string) => {
-        // Remove non-numeric characters except decimal point
-        const cleanValue = inputValue.replace(/[^\d.]/g, '');
-        const numValue = parseFloat(cleanValue);
+  const getPriceCurrency = (order) => {
+    if (order.quote_currency) {
+      return order.quote_currency;
+    }
+    return 'KES';
+  };
 
-        if (isNaN(numValue) || numValue <= 0) {
-            setAmount("");
-            setTotal(0);
-            return;
-        }
+  const hasEnoughBalance = () => {
+    if (userBalance === null) return false;
 
-        // Apply currency-specific decimal limit
-        const decimals = order.currency === 'KES' ? 2 : 8;
-        const formattedValue = parseFloat(numValue.toFixed(decimals));
+    if (order.type === 'buy') {
+      return userBalance >= parseFloat(amount || '0');
+    } else {
+      return userBalance >= totalAmount;
+    }
+  };
 
-        // Check maximum amount
-        if (formattedValue > order.amount) {
-            setAmount(order.amount.toString());
-            setTotal(order.amount * order.price);
-            return;
-        }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-        setAmount(formattedValue.toString());
-        setTotal(formattedValue * order.price);
-    }, [order.amount, order.price, order.currency]);
-
-    // Execute trade
-    const handleExecute = async () => {
-        if (isLoading || !amount || !order || !order.id || !executorId) {
-            console.error('Missing required data for trade execution:', {
-                isLoading,
-                amount,
-                orderId: order?.id,
-                executorId
-            });
-            return;
-        }
-
-        console.log('Trade execution initiated with:', {
-            orderId: order.id,
-            executorId,
-            amount: parseFloat(amount),
-            orderType: order.type,
-            orderStatus: order.status
-        });
-
-        const numAmount = parseFloat(amount);
-
-        // Validate amount
-        if (isNaN(numAmount) || numAmount <= 0 || numAmount > order.amount) {
-            toast({
-                title: "Invalid Amount",
-                description: `Please enter an amount between 0 and ${formatAmount(order.amount, order.currency)} ${order.currency}`,
-                variant: "destructive",
-            });
-            return;
-        }
-
-        // Prevent self-trading
-        if (executorId === order.user_id) {
-            toast({
-                title: "Invalid Trade",
-                description: "You cannot execute your own order",
-                variant: "destructive",
-            });
-            return;
-        }
-
-        setIsLoading(true);
-        try {
-            toast({
-                title: "Processing",
-                description: "Executing trade...",
-            });
-            
-            const success = await handleTradeExecution(
-                order.id,
-                executorId,
-                numAmount,
-                () => {
-                    toast({
-                        title: "Trade Successful",
-                        description: `Successfully ${order.type === 'sell' ? 'bought' : 'sold'} ${formatAmount(numAmount, order.currency)} ${order.currency}`,
-                    });
-                    if (onSuccess) {
-                        console.log('Calling onSuccess callback');
-                        onSuccess();
-                    }
-                    onClose();
-                }
-            );
-
-            if (!success) {
-                console.error("Trade execution failed in dialog");
-                toast({
-                    title: "Trade Failed",
-                    description: "Unable to complete the trade. Please try again.",
-                    variant: "destructive",
-                });
-            }
-        } catch (error) {
-            console.error("Error during trade execution:", error);
-            toast({
-                title: "Error",
-                description: "An unexpected error occurred during trade execution.",
-                variant: "destructive",
-            });
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // Safety check - don't render if no order
-    if (!order) {
-        return null;
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to execute trades",
+        variant: "destructive",
+      });
+      return;
     }
 
-    return (
-        <Dialog 
-            open={isOpen} 
-            onOpenChange={(open) => !isLoading && !open && onClose()}
-        >
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle>
-                        {order.type === 'sell' ? 'Buy' : 'Sell'} {order.currency}
-                    </DialogTitle>
-                </DialogHeader>
+    try {
+      setIsLoading(true);
+      const parsedAmount = parseFloat(amount);
 
-                <div className="grid gap-4 py-4">
-                    {/* Order Details */}
-                    <div className="grid gap-2 text-sm">
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Available:</span>
-                            <span className="font-medium">
-                                {formatAmount(order.amount, order.currency)} {order.currency}
-                            </span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Price per {order.currency}:</span>
-                            <span className="font-medium">
-                                {formatAmount(order.price, order.quote_currency)} {order.quote_currency}
-                            </span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Order Type:</span>
-                            <span className="font-medium capitalize">
-                                {order.type === 'buy' ? 'Sell your ' + order.currency : 'Buy ' + order.currency}
-                            </span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Order ID:</span>
-                            <span className="font-medium text-xs opacity-70">
-                                {order.id}
-                            </span>
-                        </div>
-                    </div>
+      if (isNaN(parsedAmount)) {
+        toast({ title: "Invalid amount", variant: "destructive" });
+        return;
+      }
 
-                    {/* Amount Input */}
-                    <div className="grid gap-2">
-                        <label htmlFor="amount" className="text-sm font-medium">
-                            Amount to {order.type === 'buy' ? 'Sell' : 'Buy'}
-                        </label>
-                        <div className="relative">
-                            <Input
-                                id="amount"
-                                type="number"
-                                value={amount}
-                                onChange={(e) => handleAmountChange(e.target.value)}
-                                placeholder={`Enter amount (max: ${formatAmount(order.amount, order.currency)})`}
-                                step={order.currency === 'KES' ? '0.01' : '0.00000001'}
-                                min="0"
-                                max={order.amount}
-                                disabled={isLoading}
-                                className="pr-16"
-                            />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                                {order.currency}
-                            </span>
-                        </div>
+      if (parsedAmount > order.amount) {
+        toast({ title: "Amount exceeds available quantity", variant: "destructive" });
+        return;
+      }
 
-                        {/* Total Calculation */}
-                        {amount && total > 0 && (
-                            <div className="text-sm text-muted-foreground">
-                                Total: {formatAmount(total, order.quote_currency)} {order.quote_currency}
-                            </div>
-                        )}
-                    </div>
-                </div>
+      if (!hasEnoughBalance()) {
+        const currencyNeeded = order.type === 'buy' 
+          ? order.currency 
+          : order.quote_currency || 'KES';
 
-                {/* Action Buttons */}
-                <div className="flex justify-end gap-3">
-                    <Button
-                        variant="outline"
-                        onClick={onClose}
-                        disabled={isLoading}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={handleExecute}
-                        disabled={
-                            isLoading ||
-                            !amount ||
-                            parseFloat(amount) <= 0 ||
-                            parseFloat(amount) > order.amount
-                        }
-                    >
-                        {isLoading ? (
-                            <div className="flex items-center gap-2">
-                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                Processing...
-                            </div>
-                        ) : (
-                            `Execute Trade`
-                        )}
-                    </Button>
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
-}
+        toast({ 
+          title: "Insufficient balance", 
+          description: `You don't have enough ${currencyNeeded} to complete this transaction`,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const additionalData = {
+        order_owner_id: order.user_id,
+        order_type: order.type,
+        currency: order.currency,
+        price: order.price,
+        amount: order.amount // Pass the full order amount here
+      };
+
+      const result = await executeTrade(
+        order.id,
+        user.id,
+        parsedAmount, // This is the amount being traded
+        additionalData
+      );
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      fetchUserBalance();
+
+      const isPartial = parsedAmount < order.amount;
+      const tradedCurrency = order.currency;
+      const quotedCurrency = order.quote_currency || 'KES';
+      const quoteAmount = totalAmount.toFixed(2);
+
+      let successMessage = '';
+      if (order.type === 'buy') {
+        successMessage = `You sold ${parsedAmount} ${tradedCurrency} for ${quoteAmount} ${quotedCurrency}`;
+      } else {
+        successMessage = `You bought ${parsedAmount} ${tradedCurrency} for ${quoteAmount} ${quotedCurrency}`;
+      }
+
+      if (isPartial) {
+        successMessage += " (partial order)";
+      }
+
+      toast({
+        title: "Trade successful",
+        description: successMessage,
+      });
+
+      onSuccess?.();
+      onClose();
+    } catch (error) {
+      console.error("Trade error:", error);
+      toast({
+        title: "Trade failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!order) return null;
+
+  const priceCurrency = getPriceCurrency(order);
+  const balanceCurrency = order.type === 'buy' ? order.currency : (order.quote_currency || 'KES');
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>
+            Execute {order.type === 'buy' ? 'Sell' : 'Buy'} Order
+          </DialogTitle>
+          <DialogDescription>
+            Trade with {order.users?.username || 'Unknown'}
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-6 py-4">
+          <div className="bg-black p-4 rounded-lg space-y-2 text-white">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Price per unit:</span>
+              <span className="font-bold">{priceCurrency} {order.price.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Available:</span>
+              <div className="flex items-center gap-1">
+                <span className="font-bold">{order.amount.toLocaleString()}</span>
+                {coinDetails?.icon_url && (
+                  <img 
+                    src={coinDetails.icon_url}
+                    alt={coinDetails.name}
+                    className="h-4 w-4"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = `https://via.placeholder.com/20/6E59A5/ffffff?text=${coinDetails.symbol}`;
+                      target.onerror = null;
+                    }}
+                  />
+                )}
+                <span>{order.currency}</span>
+              </div>
+            </div>
+            {order.original_amount && order.original_amount > order.amount && (
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Status:</span>
+                <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                  Partially Filled
+                </Badge>
+              </div>
+            )}
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Your {balanceCurrency} balance:</span>
+              <div className="flex items-center gap-1">
+                {balanceLoading ? (
+                  <span className="text-gray-400">Loading...</span>
+                ) : (
+                  <span className={`font-bold ${hasEnoughBalance() ? 'text-green-600' : 'text-red-600'}`}>
+                    {typeof userBalance === 'number' ? userBalance.toLocaleString(undefined, { maximumFractionDigits: 8 }) : '0'}
+                  </span>
+                )}
+                <span>{balanceCurrency}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <Label htmlFor="amount">
+                Amount to {order.type === 'buy' ? 'sell' : 'buy'}
+              </Label>
+              <div className="flex gap-1">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setAmount(order.amount.toString())}
+                >
+                  Max
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAmount((order.amount / 2).toString())}
+                >
+                  Half
+                </Button>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Input
+                id="amount"
+                type="number"
+                step="any"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                min="0.000001"
+                max={order.amount}
+                required
+              />
+              <div className="bg-black px-3 flex items-center rounded-md text-white">
+                {order.currency}
+              </div>
+            </div>
+            <p className="text-xs text-gray-500">
+              Partial orders will keep remaining amount in the market
+            </p>
+          </div>
+
+          <div className="bg-black p-4 rounded-lg flex justify-between text-white">
+            <span className="font-medium">Total:</span>
+            <span className="font-bold text-lg">
+              {priceCurrency} {totalAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+            </span>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" type="button" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isLoading || !hasEnoughBalance() || balanceLoading}
+              className={order.type === 'buy' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}
+            >
+              {isLoading ? 'Processing...' : `${order.type === 'buy' ? 'Sell' : 'Buy'} Now`}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default TradeExecutionDialog;
