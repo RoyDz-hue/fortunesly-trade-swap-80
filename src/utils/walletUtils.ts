@@ -1,152 +1,63 @@
-
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
 /**
- * Updates a user's crypto balance
- * @param userId The user ID
- * @param currency The currency to update
- * @param amount The amount to add or subtract (positive for add, negative for subtract)
- * @returns The success state and updated balance
+ * Execute a trade for a given order
+ * 
+ * @param orderId - The ID of the order being executed
+ * @param traderId - The ID of the user executing the trade
+ * @param tradeAmount - The amount to trade
+ * @param additionalData - Additional data (not used for the RPC call)
+ * @returns Object with success status and data or error message
  */
-export const updateUserCryptoBalance = async (
-  userId: string, 
-  currency: string, 
-  amount: number
-) => {
+export async function executeTrade(
+  orderId: string,
+  traderId: string,
+  tradeAmount: number,
+  additionalData: any
+) {
   try {
-    // First get the current balance
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('balance_crypto')
-      .eq('id', userId)
-      .single();
+    // Call the execute_trade RPC function with the exact parameters needed
+    const { data, error } = await supabase.rpc('execute_trade', {
+      order_id_param: orderId,
+      executor_id_param: traderId,
+      submitted_amount: tradeAmount
+    });
 
-    if (userError) throw userError;
+    if (error) {
+      console.error('Error executing trade:', error);
+      return { success: false, error: error.message };
+    }
 
-    // Parse and update the balance
-    const balances = userData.balance_crypto || {};
-    const currentBalance = parseFloat(String(balances[currency])) || 0;
-    const newBalance = currentBalance + amount;
-    
-    // Create updated balance object
-    const updatedBalance = {
-      ...(typeof balances === 'object' ? balances : {}),
-      [currency]: newBalance
-    };
+    // Check if the returned data indicates success or failure
+    if (data && data.success === false) {
+      return { 
+        success: false, 
+        error: data.message || 'Trade execution failed'
+      };
+    }
 
-    // Update the user's balance
-    const { error: updateError } = await supabase
-      .from('users')
-      .update({ 
-        balance_crypto: updatedBalance 
-      })
-      .eq('id', userId);
-
-    if (updateError) throw updateError;
-
-    return { 
-      success: true, 
-      balance: newBalance,
-      error: null
-    };
-  } catch (error: any) {
-    console.error(`Error updating ${currency} balance for user ${userId}:`, error);
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error in executeTrade:', error);
     return { 
       success: false, 
-      balance: null,
-      error: error.message || "Failed to update balance"
+      error: error instanceof Error ? error.message : 'Unknown error occurred' 
     };
   }
-};
+}
 
 /**
- * Updates a user's fiat (KES) balance
- * @param userId The user ID
- * @param amount The amount to add or subtract (positive for add, negative for subtract)
- * @returns The success state and updated balance
+ * Format a transaction timestamp to a user-friendly format
  */
-export const updateUserFiatBalance = async (userId: string, amount: number) => {
+export function formatTransactionTime(timestamp: string): string {
+  if (!timestamp) return 'Unknown';
+
   try {
-    // First get the current balance
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('balance_fiat')
-      .eq('id', userId)
-      .single();
-
-    if (userError) throw userError;
-
-    // Calculate the new balance
-    const currentBalance = userData.balance_fiat || 0;
-    const newBalance = currentBalance + amount;
-    
-    // Update the user's balance
-    const { error: updateError } = await supabase
-      .from('users')
-      .update({ 
-        balance_fiat: newBalance 
-      })
-      .eq('id', userId);
-
-    if (updateError) throw updateError;
-
-    return { 
-      success: true, 
-      balance: newBalance,
-      error: null
-    };
-  } catch (error: any) {
-    console.error(`Error updating fiat balance for user ${userId}:`, error);
-    return { 
-      success: false, 
-      balance: null,
-      error: error.message || "Failed to update balance"
-    };
-  }
-};
-
-/**
- * Gets a user's crypto balance for a specific currency
- * @param userId The user ID
- * @param currency The currency to check
- * @returns The balance or null if error
- */
-export const getUserCryptoBalance = async (userId: string, currency: string) => {
-  try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('balance_crypto')
-      .eq('id', userId)
-      .single();
-
-    if (error) throw error;
-
-    const balances = data.balance_crypto || {};
-    return parseFloat(String(balances[currency])) || 0;
+    const date = new Date(timestamp);
+    return format(date, "MMM d, HH:mm");
   } catch (error) {
-    console.error(`Error getting ${currency} balance for user ${userId}:`, error);
-    return null;
+    console.error('Error formatting transaction time:', error);
+    return 'Invalid date';
   }
-};
-
-/**
- * Gets a user's fiat (KES) balance
- * @param userId The user ID
- * @returns The balance or null if error
- */
-export const getUserFiatBalance = async (userId: string) => {
-  try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('balance_fiat')
-      .eq('id', userId)
-      .single();
-
-    if (error) throw error;
-
-    return data.balance_fiat || 0;
-  } catch (error) {
-    console.error(`Error getting fiat balance for user ${userId}:`, error);
-    return null;
-  }
-};
+}
