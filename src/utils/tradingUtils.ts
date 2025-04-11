@@ -1,4 +1,3 @@
-// tradingUtils.ts
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 
@@ -63,7 +62,7 @@ export function formatTradeErrorMessage(error: TradeError): string {
       break;
 
     case TradeErrorCode.ORDER_NOT_FOUND:
-      message += `Order Not Found: The order you're trying to trade no longer exists or has been filled.`;
+      message += `Order Not Found: The order you're trying to trade no longer exists or has been removed.`;
       break;
 
     case TradeErrorCode.INVALID_ORDER_STATUS:
@@ -111,24 +110,47 @@ export function formatTradeErrorMessage(error: TradeError): string {
 export async function executeTrade(
   orderId: string,
   executorId: string,
-  submittedAmount: number,
-  additionalData?: any // Optional parameter to maintain compatibility
+  submittedAmount: number
 ): Promise<TradeResult> {
   try {
-    // Validate input parameters client-side
-    if (!orderId || !executorId || !submittedAmount || submittedAmount <= 0) {
+    // Validate parameters
+    if (!orderId || orderId.trim() === '') {
       return {
         success: false,
         error_code: TradeErrorCode.INVALID_PARAM,
-        message: 'Invalid trade parameters',
+        message: 'Order ID is required',
+        field: 'order_id',
         severity: 'ERROR'
       };
     }
 
-    // First, check if order exists and is valid before attempting execution
+    if (!executorId || executorId.trim() === '') {
+      return {
+        success: false,
+        error_code: TradeErrorCode.INVALID_PARAM,
+        message: 'Executor ID is required',
+        field: 'executor_id',
+        severity: 'ERROR'
+      };
+    }
+
+    if (!submittedAmount || submittedAmount <= 0) {
+      return {
+        success: false,
+        error_code: TradeErrorCode.INVALID_AMOUNT,
+        message: 'Amount must be greater than zero',
+        field: 'submitted_amount',
+        severity: 'ERROR'
+      };
+    }
+
+    // Log parameters for debugging
+    console.log('Executing trade with:', { orderId, executorId, submittedAmount });
+    
+    // First verify the order exists before proceeding
     const { data: orderCheck, error: orderCheckError } = await supabase
       .from('orders')
-      .select('id, status, amount')
+      .select('id')
       .eq('id', orderId)
       .single();
 
@@ -137,35 +159,13 @@ export async function executeTrade(
       return {
         success: false,
         error_code: TradeErrorCode.ORDER_NOT_FOUND,
-        message: 'Order not found or no longer available',
+        message: 'Order not found or no longer exists',
+        order_id: orderId,
         severity: 'ERROR'
       };
     }
 
-    if (orderCheck.status === 'filled' || orderCheck.status === 'canceled') {
-      return {
-        success: false,
-        error_code: TradeErrorCode.INVALID_ORDER_STATUS,
-        message: `Cannot execute a ${orderCheck.status} order`,
-        current_status: orderCheck.status,
-        severity: 'WARNING'
-      };
-    }
-
-    if (submittedAmount > orderCheck.amount) {
-      return {
-        success: false,
-        error_code: TradeErrorCode.AMOUNT_EXCEEDS_AVAILABLE,
-        message: 'Submitted amount exceeds available order amount',
-        available_amount: orderCheck.amount,
-        submitted_amount: submittedAmount,
-        severity: 'WARNING'
-      };
-    }
-
-    // Log parameters for debugging
-    console.log('Executing trade with:', { orderId, executorId, submittedAmount });
-    
+    // Execute the trade using RPC
     const { data, error } = await supabase.rpc('execute_trade', {
       order_id_param: orderId,
       executor_id_param: executorId,
@@ -174,6 +174,17 @@ export async function executeTrade(
 
     if (error) {
       console.error('Supabase RPC error:', error);
+      // Handle specific known errors
+      if (error.message.includes('not found') || error.message.includes('does not exist')) {
+        return {
+          success: false,
+          error_code: TradeErrorCode.ORDER_NOT_FOUND,
+          message: 'Order not found or has been deleted',
+          order_id: orderId,
+          severity: 'ERROR'
+        };
+      }
+      
       return {
         success: false,
         error_code: TradeErrorCode.INVALID_PARAM,
