@@ -156,13 +156,24 @@ export async function executeTrade(
             };
         }
 
-        if (!data.success) {
-            console.log('Trade execution failed:', data);
-            return data as TradeError;
+        // Handle the array response structure from the backend
+        let result;
+        if (Array.isArray(data) && data.length > 0 && data[0].execute_trade) {
+            // Extract the actual result from the array wrapper
+            result = data[0].execute_trade;
+            console.log('Extracted trade execution result:', result);
+        } else {
+            // Fallback if structure is different or direct
+            result = data;
         }
 
-        console.log('Trade execution succeeded:', data);
-        return data as TradeSuccess;
+        if (!result.success) {
+            console.log('Trade execution failed:', result);
+            return result as TradeError;
+        }
+
+        console.log('Trade execution succeeded:', result);
+        return result as TradeSuccess;
 
     } catch (error) {
         console.error('Unexpected error in executeTrade:', error);
