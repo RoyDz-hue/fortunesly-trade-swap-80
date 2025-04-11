@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 
-// Define all possible trade error codes
+// Error codes based on possible trade execution failures
 export enum TradeErrorCode {
     INVALID_INPUT = 'INVALID_INPUT',
     ORDER_NOT_FOUND = 'ORDER_NOT_FOUND',
@@ -12,11 +12,11 @@ export enum TradeErrorCode {
     SYSTEM_ERROR = 'SYSTEM_ERROR'
 }
 
-// Define order statuses and trade types
+// Type definitions matching your database schema
 export type OrderStatus = 'pending' | 'partially_filled' | 'filled' | 'canceled';
 export type TradeType = 'buy' | 'sell';
 
-// Error response interface
+// Interface for trade error responses
 interface TradeError {
     success: false;
     error_code: TradeErrorCode;
@@ -30,7 +30,7 @@ interface TradeError {
     };
 }
 
-// Success response interface
+// Interface for successful trade responses
 interface TradeSuccess {
     success: true;
     message: string;
@@ -46,7 +46,7 @@ interface TradeSuccess {
 
 type TradeResult = TradeError | TradeSuccess;
 
-// Format currency amounts based on currency type
+// Helper function to format currency amounts
 function formatCurrencyAmount(amount: number, currency: string): string {
     const decimals = currency === 'KES' ? 2 : 8;
     return amount.toLocaleString('en-US', {
@@ -87,11 +87,8 @@ function formatTradeError(error: TradeError): string {
             break;
 
         case TradeErrorCode.ORDER_UNAVAILABLE:
-            message += `Order Unavailable\nThis order cannot be executed at this time.`;
-            break;
-
         case TradeErrorCode.ORDER_NOT_FOUND:
-            message += `Order Not Found\nThis order no longer exists or has been filled.`;
+            message += `Order Unavailable\nThis order cannot be executed at this time.`;
             break;
 
         default:
@@ -133,17 +130,13 @@ export async function executeTrade(
             };
         }
 
-        // Log trade attempt
-        console.log(`Executing trade: Order ${orderId}, Amount: ${submittedAmount}`);
-
-        // Call execute_trade RPC
+        // Execute trade through RPC
         const { data, error } = await supabase.rpc('execute_trade', {
             order_id_param: orderId,
             executor_id_param: executorId,
             submitted_amount: submittedAmount
         });
 
-        // Handle RPC error
         if (error) {
             console.error('Trade execution error:', error);
             return {
@@ -154,13 +147,11 @@ export async function executeTrade(
             };
         }
 
-        // Handle unsuccessful trade
         if (!data.success) {
             console.warn('Trade failed:', data);
             return data as TradeError;
         }
 
-        // Log successful trade
         console.log('Trade executed successfully:', data);
         return data as TradeSuccess;
 
@@ -180,23 +171,18 @@ export async function handleTradeExecution(
     orderId: string,
     executorId: string,
     amount: number,
-    onSuccess?: () => void,
-    onError?: (error: TradeError) => void
+    onSuccess?: () => void
 ): Promise<boolean> {
     try {
-        // Execute the trade
         const result = await executeTrade(orderId, executorId, amount);
 
-        // Handle failure
         if (!result.success) {
             const errorMessage = formatTradeError(result);
             console.error('Trade failed:', result);
             alert(errorMessage);
-            onError?.(result);
             return false;
         }
 
-        // Handle success
         const successMessage = formatTradeSuccess(result);
         console.log('Trade successful:', result);
         alert(successMessage);
@@ -204,7 +190,6 @@ export async function handleTradeExecution(
         return true;
 
     } catch (error) {
-        // Handle unexpected errors
         console.error('Error in handleTradeExecution:', error);
         alert('An unexpected error occurred while processing the trade.');
         return false;
