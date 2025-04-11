@@ -38,6 +38,23 @@ export function TradeExecutionDialog({
     const [isLoading, setIsLoading] = useState(false);
     const [total, setTotal] = useState<number>(0);
 
+    // Verify order data on mount
+    useEffect(() => {
+        if (isOpen && order) {
+            console.log('Trade dialog opened with order:', order);
+            // Make sure order data is valid
+            if (!order.id || !order.amount || !order.currency) {
+                console.error('Invalid order data:', order);
+                toast({
+                    title: "Error",
+                    description: "Invalid order data. Please try again.",
+                    variant: "destructive",
+                });
+                onClose();
+            }
+        }
+    }, [isOpen, order, toast, onClose]);
+
     // Reset state when dialog opens/closes
     useEffect(() => {
         if (!isOpen) {
@@ -85,17 +102,26 @@ export function TradeExecutionDialog({
 
     // Execute trade
     const handleExecute = async () => {
-        if (isLoading || !amount) return;
+        if (isLoading || !amount || !order || !order.id || !executorId) {
+            console.error('Missing required data for trade execution:', {
+                isLoading,
+                amount,
+                orderId: order?.id,
+                executorId
+            });
+            return;
+        }
 
-        console.log('Trade execution started with:', {
+        console.log('Trade execution initiated with:', {
             orderId: order.id,
             executorId,
             amount: parseFloat(amount),
+            orderType: order.type,
             orderStatus: order.status
         });
 
         const numAmount = parseFloat(amount);
-        
+
         // Validate amount
         if (isNaN(numAmount) || numAmount <= 0 || numAmount > order.amount) {
             toast({
@@ -118,6 +144,11 @@ export function TradeExecutionDialog({
 
         setIsLoading(true);
         try {
+            toast({
+                title: "Processing",
+                description: "Executing trade...",
+            });
+            
             const success = await handleTradeExecution(
                 order.id,
                 executorId,
@@ -127,18 +158,38 @@ export function TradeExecutionDialog({
                         title: "Trade Successful",
                         description: `Successfully ${order.type === 'sell' ? 'bought' : 'sold'} ${formatAmount(numAmount, order.currency)} ${order.currency}`,
                     });
-                    onSuccess?.();
+                    if (onSuccess) {
+                        console.log('Calling onSuccess callback');
+                        onSuccess();
+                    }
                     onClose();
                 }
             );
 
             if (!success) {
-                console.error("Trade execution failed");
+                console.error("Trade execution failed in dialog");
+                toast({
+                    title: "Trade Failed",
+                    description: "Unable to complete the trade. Please try again.",
+                    variant: "destructive",
+                });
             }
+        } catch (error) {
+            console.error("Error during trade execution:", error);
+            toast({
+                title: "Error",
+                description: "An unexpected error occurred during trade execution.",
+                variant: "destructive",
+            });
         } finally {
             setIsLoading(false);
         }
     };
+
+    // Safety check - don't render if no order
+    if (!order) {
+        return null;
+    }
 
     return (
         <Dialog 
@@ -171,6 +222,12 @@ export function TradeExecutionDialog({
                             <span className="text-muted-foreground">Order Type:</span>
                             <span className="font-medium capitalize">
                                 {order.type === 'buy' ? 'Sell your ' + order.currency : 'Buy ' + order.currency}
+                            </span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">Order ID:</span>
+                            <span className="font-medium text-xs opacity-70">
+                                {order.id}
                             </span>
                         </div>
                     </div>
