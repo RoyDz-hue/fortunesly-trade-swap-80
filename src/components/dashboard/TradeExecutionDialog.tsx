@@ -89,10 +89,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
   };
 
   const getPriceCurrency = (order) => {
-    if (order.quote_currency) {
-      return order.quote_currency;
-    }
-    return 'KES';
+    return order.quote_currency || 'KES';
   };
 
   const hasEnoughBalance = () => {
@@ -144,19 +141,10 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
         return;
       }
 
-      const additionalData = {
-        order_owner_id: order.user_id,
-        order_type: order.type,
-        currency: order.currency,
-        price: order.price,
-        amount: order.amount // Pass the full order amount here
-      };
-
       const result = await executeTrade(
         order.id,
         user.id,
-        parsedAmount, // This is the amount being traded
-        additionalData
+        parsedAmount
       );
 
       if (!result.success) {
@@ -192,7 +180,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
       console.error("Trade error:", error);
       toast({
         title: "Trade failed",
-        description: error.message,
+        description: error.message || "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {
@@ -232,7 +220,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
                     alt={coinDetails.name}
                     className="h-4 w-4"
                     onError={(e) => {
-                      const target = e.target as HTMLImageElement;
+                      const target = e.target;
                       target.src = `https://via.placeholder.com/20/6E59A5/ffffff?text=${coinDetails.symbol}`;
                       target.onerror = null;
                     }}
