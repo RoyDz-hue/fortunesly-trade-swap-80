@@ -120,14 +120,9 @@ export async function executeTrade(
     submittedAmount: number
 ): Promise<TradeResult> {
     try {
-        console.log('Executing trade with parameters:', {
-            orderId,
-            executorId,
-            amount: submittedAmount
-        });
-
         // Input validation
         if (!orderId || !executorId || !submittedAmount || submittedAmount <= 0) {
+            console.error('Invalid trade parameters:', { orderId, executorId, submittedAmount });
             return {
                 success: false,
                 error_code: TradeErrorCode.INVALID_INPUT,
@@ -137,6 +132,12 @@ export async function executeTrade(
         }
 
         // Execute trade through RPC
+        console.log('Executing trade with parameters:', {
+            orderId,
+            executorId,
+            amount: submittedAmount
+        });
+
         const { data, error } = await supabase.rpc('execute_trade', {
             order_id_param: orderId,
             executor_id_param: executorId,
