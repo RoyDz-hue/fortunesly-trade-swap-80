@@ -20,6 +20,10 @@ export async function executeTrade(
       submitted_amount: tradeAmount
     });
 
+    // Verify session for debugging
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    console.log('Current session:', sessionError ? 'No session' : sessionData.session?.user.id);
+
     const { data, error } = await supabase.rpc('execute_trade', {
       order_id_param: orderId,
       executor_id_param: traderId,
@@ -27,15 +31,20 @@ export async function executeTrade(
     });
 
     if (error) {
-      console.error('Error executing trade:', error);
-      return { success: false, error: error.message };
+      console.error('Supabase RPC error:', error);
+      return { success: false, error: error.message, code: error.code };
     }
 
     console.log('Trade execution result:', data);
 
-    // Check if the backend returned an error response
+    // Handle backend error responses
     if (data && typeof data === 'object' && data.success === false) {
-      return { success: false, error: data.message || 'Trade execution failed' };
+      console.warn('Backend error response:', data);
+      return { 
+        success: false, 
+        error: data.message || 'Trade execution failed', 
+        code: data.error_code 
+      };
     }
 
     return { success: true, data };
@@ -43,7 +52,8 @@ export async function executeTrade(
     console.error('Error in executeTrade:', error);
     return { 
       success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error occurred' 
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
+      code: 'UNKNOWN'
     };
   }
 }
