@@ -17,7 +17,44 @@ export async function executeTrade(
   additionalData: any
 ) {
   try {
-    // Call the execute_trade RPC function with the exact parameters needed
+    console.log('Executing trade with params:', {
+      order_id_param: orderId,
+      executor_id_param: traderId,
+      submitted_amount: tradeAmount
+    });
+
+    // First, let's verify the order exists and check its status
+    const { data: orderData, error: orderError } = await supabase
+      .from('orders')
+      .select('id, status, amount, user_id')
+      .eq('id', orderId)
+      .single();
+
+    if (orderError) {
+      console.error('Error fetching order:', orderError);
+      return { 
+        success: false, 
+        error: `Order verification failed: ${orderError.message}`
+      };
+    }
+
+    console.log('Order found:', orderData);
+    
+    if (!orderData) {
+      return {
+        success: false,
+        error: 'Order not found in database'
+      };
+    }
+
+    if (!['open', 'partially_filled'].includes(orderData.status)) {
+      return {
+        success: false,
+        error: `Order is not available for trading. Current status: ${orderData.status}`
+      };
+    }
+
+    // Now call the execute_trade RPC function
     const { data, error } = await supabase.rpc('execute_trade', {
       order_id_param: orderId,
       executor_id_param: traderId,
@@ -26,10 +63,16 @@ export async function executeTrade(
 
     if (error) {
       console.error('Error executing trade:', error);
-      return { success: false, error: error.message };
+      return { 
+        success: false, 
+        error: `RPC error: ${error.message}` 
+      };
     }
 
-    // Check if the returned data indicates success or failure
+    // Log the returned data from the backend
+    console.log('Trade execution result:', data);
+
+    // The backend returns an object with a success flag
     if (data && data.success === false) {
       return { 
         success: false, 
