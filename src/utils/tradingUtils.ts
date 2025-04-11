@@ -120,9 +120,14 @@ export async function executeTrade(
     submittedAmount: number
 ): Promise<TradeResult> {
     try {
+        console.log('Executing trade with parameters:', {
+            orderId,
+            executorId,
+            amount: submittedAmount
+        });
+
         // Input validation
         if (!orderId || !executorId || !submittedAmount || submittedAmount <= 0) {
-            console.error('Invalid trade parameters:', { orderId, executorId, submittedAmount });
             return {
                 success: false,
                 error_code: TradeErrorCode.INVALID_INPUT,
@@ -132,12 +137,13 @@ export async function executeTrade(
         }
 
         // Execute trade through RPC
-        console.log('Executing trade:', { orderId, executorId, submittedAmount });
         const { data, error } = await supabase.rpc('execute_trade', {
             order_id_param: orderId,
             executor_id_param: executorId,
             submitted_amount: submittedAmount
         });
+
+        console.log('Raw backend response:', data || error);
 
         if (error) {
             console.error('Trade execution error:', error);
@@ -150,11 +156,11 @@ export async function executeTrade(
         }
 
         if (!data.success) {
-            console.warn('Trade failed:', data);
+            console.log('Trade execution failed:', data);
             return data as TradeError;
         }
 
-        console.log('Trade executed successfully:', data);
+        console.log('Trade execution succeeded:', data);
         return data as TradeSuccess;
 
     } catch (error) {
@@ -180,13 +186,13 @@ export async function handleTradeExecution(
 
         if (!result.success) {
             const errorMessage = formatTradeError(result);
-            console.error('Trade failed:', result);
+            console.error('Trade execution failed:', result);
             alert(errorMessage);
             return false;
         }
 
         const successMessage = formatTradeSuccess(result);
-        console.log('Trade successful:', result);
+        console.log('Trade execution succeeded:', result);
         alert(successMessage);
         onSuccess?.();
         return true;
