@@ -55,6 +55,37 @@ function formatCurrencyAmount(amount: number, currency: string): string {
     });
 }
 
+// Added: Debug function to verify order before execution
+async function verifyOrderBeforeExecution(orderId: string): Promise<boolean> {
+    try {
+        const { data: order, error } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('id', orderId)
+            .single();
+
+        if (error) {
+            console.error('Order verification error:', error);
+            return false;
+        }
+
+        console.log('Order verification:', {
+            id: order.id,
+            status: order.status,
+            amount: order.amount,
+            type: order.type,
+            currency: order.currency,
+            quote_currency: order.quote_currency,
+            isValidForExecution: order.status === 'pending' || order.status === 'partially_filled'
+        });
+
+        return true;
+    } catch (error) {
+        console.error('Order verification failed:', error);
+        return false;
+    }
+}
+
 // Format error messages for display
 function formatTradeError(error: TradeError): string {
     const timestamp = format(new Date(), "MMM d, HH:mm:ss");
@@ -113,19 +144,40 @@ function formatTradeSuccess(result: TradeSuccess): string {
     ].join('\n');
 }
 
-// Execute trade through RPC
+// Execute trade through RPC with enhanced error handling
 export async function executeTrade(
     orderId: string,
     executorId: string,
     submittedAmount: number
 ): Promise<TradeResult> {
     try {
-        // Input validation
+        // Enhanced input validation with logging
+        console.log('Trade execution request:', {
+            orderId,
+            executorId,
+            submittedAmount,
+            timestamp: new Date().toISOString()
+        });
+
         if (!orderId || !executorId || !submittedAmount || submittedAmount <= 0) {
-            return {
+            const error = {
                 success: false,
                 error_code: TradeErrorCode.INVALID_INPUT,
                 message: 'Invalid input parameters',
+                severity: 'ERROR',
+                details: { submitted_amount: submittedAmount }
+            };
+            console.error('Input validation failed:', error);
+            return error;
+        }
+
+        // Verify order exists and is valid for execution
+        const isOrderValid = await verifyOrderBeforeExecution(orderId);
+        if (!isOrderValid) {
+            return {
+                success: false,
+                error_code: TradeErrorCode.ORDER_NOT_FOUND,
+                message: 'Order verification failed',
                 severity: 'ERROR'
             };
         }
@@ -136,6 +188,8 @@ export async function executeTrade(
             executor_id_param: executorId,
             submitted_amount: submittedAmount
         });
+
+        console.log('RPC response:', { data, error });
 
         if (error) {
             console.error('Trade execution error:', error);
@@ -166,7 +220,7 @@ export async function executeTrade(
     }
 }
 
-// Handle trade execution with callbacks
+// Handle trade execution with enhanced error handling and logging
 export async function handleTradeExecution(
     orderId: string,
     executorId: string,
@@ -174,17 +228,30 @@ export async function handleTradeExecution(
     onSuccess?: () => void
 ): Promise<boolean> {
     try {
+        console.log('Starting trade execution:', {
+            orderId,
+            executorId,
+            amount,
+            timestamp: new Date().toISOString()
+        });
+
         const result = await executeTrade(orderId, executorId, amount);
 
         if (!result.success) {
             const errorMessage = formatTradeError(result);
-            console.error('Trade failed:', result);
+            console.error('Trade failed:', {
+                error: result,
+                formattedMessage: errorMessage
+            });
             alert(errorMessage);
             return false;
         }
 
         const successMessage = formatTradeSuccess(result);
-        console.log('Trade successful:', result);
+        console.log('Trade successful:', {
+            result,
+            formattedMessage: successMessage
+        });
         alert(successMessage);
         onSuccess?.();
         return true;
@@ -196,7 +263,6 @@ export async function handleTradeExecution(
     }
 }
 
-// Export types and interfaces
 export type {
     TradeError,
     TradeSuccess,
