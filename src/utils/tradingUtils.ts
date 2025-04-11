@@ -131,23 +131,22 @@ export async function executeTrade(
             };
         }
 
-        // Execute trade through RPC
-        console.log('Executing trade with parameters:', {
-            orderId,
-            executorId,
-            amount: submittedAmount
-        });
-
-        const { data, error } = await supabase.rpc('execute_trade', {
+        // Ensure parameters match exactly what the backend expects
+        const params = {
             order_id_param: orderId,
             executor_id_param: executorId,
             submitted_amount: submittedAmount
-        });
+        };
 
-        console.log('Raw backend response:', data || error);
+        console.log('Executing trade with parameters:', params);
+
+        // Execute trade through RPC with correct parameter names
+        const { data: response, error } = await supabase.rpc('execute_trade', params);
+
+        console.log('Raw backend response:', response || error);
 
         if (error) {
-            console.error('Trade execution error:', error);
+            console.error('Database error:', error);
             return {
                 success: false,
                 error_code: TradeErrorCode.SYSTEM_ERROR,
@@ -158,16 +157,37 @@ export async function executeTrade(
 
         // Handle the array response structure from the backend
         let result;
-        if (Array.isArray(data) && data.length > 0 && data[0].execute_trade) {
-            // Extract the actual result from the array wrapper
-            result = data[0].execute_trade;
-            console.log('Extracted trade execution result:', result);
+        
+        // Check if the response is an array with the expected structure
+        if (Array.isArray(response) && response.length > 0) {
+            if (response[0].execute_trade) {
+                // Extract from the execute_trade property if it exists
+                result = response[0].execute_trade;
+                console.log('Extracted trade execution result from array[0].execute_trade:', result);
+            } else {
+                // Direct access to first array element if no execute_trade property
+                result = response[0];
+                console.log('Extracted trade execution result from array[0]:', result);
+            }
         } else {
-            // Fallback if structure is different or direct
-            result = data;
+            // Use the response directly if not an array
+            result = response;
+            console.log('Using direct response object:', result);
         }
 
-        if (!result.success) {
+        // Essential: Handle possible undefined result
+        if (!result) {
+            console.error('No valid result extracted from response');
+            return {
+                success: false,
+                error_code: TradeErrorCode.SYSTEM_ERROR,
+                message: 'Invalid response structure from server',
+                severity: 'ERROR'
+            };
+        }
+
+        // Check for success/error in the result
+        if (result.success === false || result.error_code) {
             console.log('Trade execution failed:', result);
             return result as TradeError;
         }
@@ -194,11 +214,15 @@ export async function handleTradeExecution(
     onSuccess?: () => void
 ): Promise<boolean> {
     try {
+        // Add debug logs to trace execution
+        console.log('Starting trade execution with:', { orderId, executorId, amount });
+        
         const result = await executeTrade(orderId, executorId, amount);
+        console.log('Trade result received:', result);
 
         if (!result.success) {
             const errorMessage = formatTradeError(result);
-            console.error('Trade execution failed:', result);
+            console.error('Trade execution failed with error:', result);
             alert(errorMessage);
             return false;
         }
