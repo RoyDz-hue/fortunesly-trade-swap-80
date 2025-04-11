@@ -1,161 +1,220 @@
-import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { useState, useCallback, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
+import { handleTradeExecution } from "@/utils/tradingUtils";
+import { formatCurrencyAmount } from "@/lib/utils";
+import { TradeType } from "@/types";
 
-export enum TradeErrorCode {
-    INVALID_INPUT = 'INVALID_INPUT',
-    ORDER_NOT_FOUND = 'ORDER_NOT_FOUND',
-    INSUFFICIENT_BALANCE = 'INSUFFICIENT_BALANCE',
-    SYSTEM_ERROR = 'SYSTEM_ERROR'
-}
-
-export type OrderStatus = 'pending' | 'partially_filled' | 'filled' | 'canceled';
-export type TradeType = 'buy' | 'sell';
-
-interface TradeError {
-    success: false;
-    error_code: TradeErrorCode;
-    message: string;
-    severity: 'ERROR' | 'WARNING';
-    available?: number;
-    required?: number;
-    currency?: string;
-}
-
-interface TradeSuccess {
-    success: true;
-    message: string;
-    order_id: string;
-    new_status: OrderStatus;
-    executed_amount: number;
-    remaining_amount: number;
-    price: number;
+interface Order {
+    id: string;
+    user_id: string;
+    type: TradeType;
     currency: string;
     quote_currency: string;
-    timestamp: string;
+    amount: number;
+    original_amount: number;
+    price: number;
+    status: 'pending' | 'partially_filled' | 'filled' | 'canceled';
 }
 
-type TradeResult = TradeError | TradeSuccess;
-
-function formatAmount(amount: number, currency: string): string {
-    return currency === 'KES' ? 
-        amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) :
-        amount.toLocaleString('en-US', { minimumFractionDigits: 8, maximumFractionDigits: 8 });
+interface TradeExecutionDialogProps {
+    isOpen: boolean;
+    onClose: () => void;
+    order: Order;
+    executorId: string;
+    onSuccess?: () => void;
+    onError?: () => void;
 }
 
-function formatTradeError(error: TradeError): string {
-    const timestamp = format(new Date(), "MMM d, HH:mm:ss");
-    let message = `❌ Trade Failed\n\nTime: ${timestamp}\n\n`;
+export function TradeExecutionDialog({
+    isOpen,
+    onClose,
+    order,
+    executorId,
+    onSuccess,
+    onError
+}: TradeExecutionDialogProps) {
+    const { toast } = useToast();
+    const [amount, setAmount] = useState<string>("");
+    const [isLoading, setIsLoading] = useState(false);
+    const [total, setTotal] = useState<number>(0);
 
-    switch (error.error_code) {
-        case TradeErrorCode.INSUFFICIENT_BALANCE:
-            message += `Insufficient Balance\n\n`;
-            if (error.available !== undefined && error.required !== undefined) {
-                message += `Available: ${formatAmount(error.available, error.currency || 'KES')} ${error.currency}\n`;
-                message += `Required: ${formatAmount(error.required, error.currency || 'KES')} ${error.currency}`;
-            } else {
-                message += error.message;
+    // Reset state when dialog opens/closes
+    useEffect(() => {
+        if (!isOpen) {
+            setAmount("");
+            setTotal(0);
+            setIsLoading(false);
+        }
+    }, [isOpen]);
+
+    // Handle amount validation and formatting
+    const handleAmountChange = useCallback((value: string) => {
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) {
+            setAmount("");
+            setTotal(0);
+            return;
+        }
+
+        // Enforce maximum amount
+        if (numValue > order.amount) {
+            setAmount(order.amount.toString());
+            setTotal(order.amount * order.price);
+            return;
+        }
+
+        // Enforce decimal places based on currency
+        const decimals = order.currency === 'KES' ? 2 : 8;
+        const formattedValue = parseFloat(numValue.toFixed(decimals));
+        setAmount(formattedValue.toString());
+        setTotal(formattedValue * order.price);
+    }, [order.amount, order.price, order.currency]);
+
+    // Execute trade
+    const handleExecute = async () => {
+        if (isLoading || !amount) return;
+
+        const numAmount = parseFloat(amount);
+        if (isNaN(numAmount) || numAmount <= 0 || numAmount > order.amount) {
+            toast({
+                title: "Invalid Amount",
+                description: `Please enter an amount between 0 and ${order.amount} ${order.currency}`,
+                variant: "destructive",
+            });
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            // Prevent self-trading
+            if (executorId === order.user_id) {
+                toast({
+                    title: "Invalid Trade",
+                    description: "You cannot execute your own order",
+                    variant: "destructive",
+                });
+                return;
             }
-            break;
 
-        case TradeErrorCode.INVALID_INPUT:
-            message += `Invalid Input\n${error.message}`;
-            break;
+            const success = await handleTradeExecution(
+                order.id,
+                executorId,
+                numAmount,
+                () => {
+                    toast({
+                        title: "Trade Successful",
+                        description: `Successfully ${order.type === 'sell' ? 'bought' : 'sold'} ${formatCurrencyAmount(numAmount, order.currency)} ${order.currency}`,
+                    });
+                    onSuccess?.();
+                    onClose();
+                },
+                () => {
+                    onError?.();
+                }
+            );
 
-        case TradeErrorCode.ORDER_NOT_FOUND:
-            message += `Order Not Found\nThe order may have been filled or cancelled.`;
-            break;
-
-        default:
-            message += error.message;
-    }
-
-    return message;
-}
-
-function formatTradeSuccess(result: TradeSuccess): string {
-    return `✅ Trade Successful!\n\n` +
-           `Amount: ${formatAmount(result.executed_amount, result.currency)} ${result.currency}\n` +
-           `Price: ${formatAmount(result.price, result.quote_currency)} ${result.quote_currency}\n` +
-           `Total: ${formatAmount(result.executed_amount * result.price, result.quote_currency)} ${result.quote_currency}\n` +
-           `Status: ${result.new_status}\n` +
-           `Time: ${format(new Date(result.timestamp), "MMM d, HH:mm:ss")}`;
-}
-
-export async function executeTrade(
-    orderId: string,
-    executorId: string,
-    submittedAmount: number
-): Promise<TradeResult> {
-    try {
-        // Input validation
-        if (!orderId || !executorId || !submittedAmount || submittedAmount <= 0) {
-            return {
-                success: false,
-                error_code: TradeErrorCode.INVALID_INPUT,
-                message: 'Invalid input parameters',
-                severity: 'ERROR'
-            };
+            if (!success) {
+                console.error("Trade execution failed");
+            }
+        } finally {
+            setIsLoading(false);
         }
+    };
 
-        // Execute trade
-        const { data, error } = await supabase.rpc('execute_trade', {
-            order_id_param: orderId,
-            executor_id_param: executorId,
-            submitted_amount: submittedAmount
-        });
+    return (
+        <Dialog open={isOpen} onOpenChange={(open) => !isLoading && !open && onClose()}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Execute Trade</DialogTitle>
+                </DialogHeader>
 
-        if (error) {
-            console.error('Trade execution error:', error);
-            return {
-                success: false,
-                error_code: TradeErrorCode.SYSTEM_ERROR,
-                message: error.message,
-                severity: 'ERROR'
-            };
-        }
+                <div className="grid gap-4 py-4">
+                    {/* Order Details */}
+                    <div className="grid gap-2 text-sm">
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">Available Amount:</span>
+                            <span className="font-medium">
+                                {formatCurrencyAmount(order.amount, order.currency)} {order.currency}
+                            </span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">Price per {order.currency}:</span>
+                            <span className="font-medium">
+                                {formatCurrencyAmount(order.price, order.quote_currency)} {order.quote_currency}
+                            </span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">Type:</span>
+                            <span className="font-medium capitalize">
+                                {order.type === 'buy' ? 'Sell your ' + order.currency : 'Buy ' + order.currency}
+                            </span>
+                        </div>
+                    </div>
 
-        if (!data.success) {
-            return data as TradeError;
-        }
+                    {/* Amount Input */}
+                    <div className="grid gap-2">
+                        <label htmlFor="amount" className="text-sm font-medium">
+                            Amount to {order.type === 'buy' ? 'Sell' : 'Buy'}
+                        </label>
+                        <div className="relative">
+                            <Input
+                                id="amount"
+                                type="number"
+                                value={amount}
+                                onChange={(e) => handleAmountChange(e.target.value)}
+                                placeholder={`Enter amount (max: ${formatCurrencyAmount(order.amount, order.currency)})`}
+                                step={order.currency === 'KES' ? '0.01' : '0.00000001'}
+                                min="0"
+                                max={order.amount}
+                                disabled={isLoading}
+                                className="pr-16"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                                {order.currency}
+                            </span>
+                        </div>
 
-        return data as TradeSuccess;
+                        {/* Total Calculation */}
+                        {amount && total > 0 && (
+                            <div className="text-sm text-muted-foreground">
+                                Total: {formatCurrencyAmount(total, order.quote_currency)} {order.quote_currency}
+                            </div>
+                        )}
+                    </div>
+                </div>
 
-    } catch (error) {
-        console.error('Unexpected error in executeTrade:', error);
-        return {
-            success: false,
-            error_code: TradeErrorCode.SYSTEM_ERROR,
-            message: error instanceof Error ? error.message : 'An unexpected error occurred',
-            severity: 'ERROR'
-        };
-    }
-}
-
-export async function handleTradeExecution(
-    orderId: string,
-    executorId: string,
-    amount: number,
-    onSuccess?: () => void,
-    onError?: (error: TradeError) => void
-): Promise<boolean> {
-    try {
-        const result = await executeTrade(orderId, executorId, amount);
-
-        if (!result.success) {
-            const errorMessage = formatTradeError(result);
-            alert(errorMessage);
-            onError?.(result);
-            return false;
-        }
-
-        const successMessage = formatTradeSuccess(result);
-        alert(successMessage);
-        onSuccess?.();
-        return true;
-
-    } catch (error) {
-        console.error('Error in handleTradeExecution:', error);
-        alert('An unexpected error occurred while processing the trade.');
-        return false;
-    }
+                {/* Action Buttons */}
+                <div className="flex justify-end gap-3">
+                    <Button
+                        variant="outline"
+                        onClick={onClose}
+                        disabled={isLoading}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleExecute}
+                        disabled={
+                            isLoading ||
+                            !amount ||
+                            parseFloat(amount) <= 0 ||
+                            parseFloat(amount) > order.amount
+                        }
+                    >
+                        {isLoading ? (
+                            <>
+                                <span className="loading loading-spinner loading-xs mr-2"></span>
+                                Processing...
+                            </>
+                        ) : (
+                            `Execute Trade`
+                        )}
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
 }
