@@ -2,42 +2,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 
 /**
- * Execute a market order with the given parameters
- */
-export async function executeMarketOrder(params: {
-  trader_id_param: string;
-  order_owner_id: string;
-  order_type: string;
-  trade_amount_param: number;
-  currency: string;
-  price: number;
-  amount: number;
-}) {
-  try {
-    const { data, error } = await supabase.rpc('execute_market_order', {
-      trader_id_param: params.trader_id_param,
-      order_owner_id: params.order_owner_id, 
-      order_type: params.order_type,
-      trade_amount_param: params.trade_amount_param,
-      currency: params.currency,
-      price: params.price,
-      amount: params.amount
-    });
-
-    if (error) {
-      console.error('Error executing market order:', error);
-      throw error;
-    }
-
-    return data;
-  } catch (error) {
-    console.error('Failed to execute market order:', error);
-    throw error;
-  }
-}
-
-/**
  * Execute a trade for a given order
+ * 
+ * @param orderId - The ID of the order being executed
+ * @param traderId - The ID of the user executing the trade
+ * @param tradeAmount - The amount to trade
+ * @param additionalData - Additional data (not used for the RPC call)
+ * @returns Object with success status and data or error message
  */
 export async function executeTrade(
   orderId: string,
@@ -46,20 +17,24 @@ export async function executeTrade(
   additionalData: any
 ) {
   try {
-    // Call the execute_market_order RPC function
-    const { data, error } = await supabase.rpc('execute_market_order', {
-      trader_id_param: traderId,
-      order_owner_id: additionalData.order_owner_id,
-      order_type: additionalData.order_type,
-      trade_amount_param: tradeAmount,
-      currency: additionalData.currency,
-      price: additionalData.price || 0,
-      amount: additionalData.amount || 0
+    // Call the execute_trade RPC function with the exact parameters needed
+    const { data, error } = await supabase.rpc('execute_trade', {
+      order_id_param: orderId,
+      executor_id_param: traderId,
+      submitted_amount: tradeAmount
     });
 
     if (error) {
       console.error('Error executing trade:', error);
       return { success: false, error: error.message };
+    }
+
+    // Check if the returned data indicates success or failure
+    if (data && data.success === false) {
+      return { 
+        success: false, 
+        error: data.message || 'Trade execution failed'
+      };
     }
 
     return { success: true, data };
