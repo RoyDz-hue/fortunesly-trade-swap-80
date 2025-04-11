@@ -38,7 +38,7 @@ export function TradeExecutionDialog({
     const [isLoading, setIsLoading] = useState(false);
     const [total, setTotal] = useState<number>(0);
 
-    // Reset dialog state when opened/closed
+    // Reset state when dialog opens/closes
     useEffect(() => {
         if (!isOpen) {
             setAmount("");
@@ -47,27 +47,32 @@ export function TradeExecutionDialog({
         }
     }, [isOpen]);
 
-    // Handle amount input validation and formatting
+    // Format currency amounts with proper decimals
+    const formatAmount = useCallback((value: number, currency: string) => {
+        const decimals = currency === 'KES' ? 2 : 8;
+        return value.toLocaleString('en-US', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    }, []);
+
+    // Handle amount input
     const handleAmountChange = useCallback((inputValue: string) => {
-        // Remove any non-numeric characters except decimal point
+        // Remove non-numeric characters except decimal point
         const cleanValue = inputValue.replace(/[^\d.]/g, '');
-        
-        // Parse the cleaned value
         const numValue = parseFloat(cleanValue);
-        
+
         if (isNaN(numValue) || numValue <= 0) {
             setAmount("");
             setTotal(0);
             return;
         }
 
-        // Get correct decimal places based on currency
+        // Apply currency-specific decimal limit
         const decimals = order.currency === 'KES' ? 2 : 8;
-        
-        // Format the number with correct decimals
         const formattedValue = parseFloat(numValue.toFixed(decimals));
-        
-        // Ensure amount doesn't exceed available
+
+        // Check maximum amount
         if (formattedValue > order.amount) {
             setAmount(order.amount.toString());
             setTotal(order.amount * order.price);
@@ -78,17 +83,17 @@ export function TradeExecutionDialog({
         setTotal(formattedValue * order.price);
     }, [order.amount, order.price, order.currency]);
 
-    // Execute the trade
+    // Execute trade
     const handleExecute = async () => {
         if (isLoading || !amount) return;
 
         const numAmount = parseFloat(amount);
         
-        // Validate amount again before execution
+        // Validate amount
         if (isNaN(numAmount) || numAmount <= 0 || numAmount > order.amount) {
             toast({
                 title: "Invalid Amount",
-                description: `Please enter an amount between 0 and ${formatCurrencyAmount(order.amount, order.currency)} ${order.currency}`,
+                description: `Please enter an amount between 0 and ${formatAmount(order.amount, order.currency)} ${order.currency}`,
                 variant: "destructive",
             });
             return;
@@ -113,7 +118,7 @@ export function TradeExecutionDialog({
                 () => {
                     toast({
                         title: "Trade Successful",
-                        description: `Successfully ${order.type === 'sell' ? 'bought' : 'sold'} ${formatCurrencyAmount(numAmount, order.currency)} ${order.currency}`,
+                        description: `Successfully ${order.type === 'sell' ? 'bought' : 'sold'} ${formatAmount(numAmount, order.currency)} ${order.currency}`,
                     });
                     onSuccess?.();
                     onClose();
@@ -146,17 +151,17 @@ export function TradeExecutionDialog({
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Available:</span>
                             <span className="font-medium">
-                                {formatCurrencyAmount(order.amount, order.currency)} {order.currency}
+                                {formatAmount(order.amount, order.currency)} {order.currency}
                             </span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Price per {order.currency}:</span>
                             <span className="font-medium">
-                                {formatCurrencyAmount(order.price, order.quote_currency)} {order.quote_currency}
+                                {formatAmount(order.price, order.quote_currency)} {order.quote_currency}
                             </span>
                         </div>
                         <div className="flex justify-between">
-                            <span className="text-muted-foreground">Type:</span>
+                            <span className="text-muted-foreground">Order Type:</span>
                             <span className="font-medium capitalize">
                                 {order.type === 'buy' ? 'Sell your ' + order.currency : 'Buy ' + order.currency}
                             </span>
@@ -174,7 +179,7 @@ export function TradeExecutionDialog({
                                 type="number"
                                 value={amount}
                                 onChange={(e) => handleAmountChange(e.target.value)}
-                                placeholder={`Enter amount (max: ${formatCurrencyAmount(order.amount, order.currency)})`}
+                                placeholder={`Enter amount (max: ${formatAmount(order.amount, order.currency)})`}
                                 step={order.currency === 'KES' ? '0.01' : '0.00000001'}
                                 min="0"
                                 max={order.amount}
@@ -186,10 +191,10 @@ export function TradeExecutionDialog({
                             </span>
                         </div>
 
-                        {/* Show Total */}
+                        {/* Total Calculation */}
                         {amount && total > 0 && (
                             <div className="text-sm text-muted-foreground">
-                                Total: {formatCurrencyAmount(total, order.quote_currency)} {order.quote_currency}
+                                Total: {formatAmount(total, order.quote_currency)} {order.quote_currency}
                             </div>
                         )}
                     </div>
