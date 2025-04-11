@@ -15,7 +15,7 @@ interface Order {
     amount: number;
     original_amount: number;
     price: number;
-    status: 'pending' | 'partially_filled' | 'filled' | 'canceled';
+    status: 'open' | 'partially_filled' | 'filled' | 'canceled';
 }
 
 interface TradeExecutionDialogProps {
@@ -86,6 +86,13 @@ export function TradeExecutionDialog({
     // Execute trade
     const handleExecute = async () => {
         if (isLoading || !amount) return;
+
+        console.log('Trade execution started with:', {
+            orderId: order.id,
+            executorId,
+            amount: parseFloat(amount),
+            orderStatus: order.status
+        });
 
         const numAmount = parseFloat(amount);
         
