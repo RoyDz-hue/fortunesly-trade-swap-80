@@ -335,51 +335,12 @@ export type Database = {
             }
         Returns: string
       }
-      execute_market_order: {
-        Args:
-          | {
-              order_id_param: string
-              trader_id_param: string
-              trade_amount_param: number
-            }
-          | {
-              trader_id_param: string
-              order_owner_id: string
-              order_type: string
-              trade_amount_param: number
-              currency: string
-              price: number
-              amount: number
-            }
-          | {
-              order_id_param: string
-              trader_id_param: string
-              trade_amount_param: number
-              order_owner_id_param: string
-              order_type_param: string
-            }
-        Returns: Json
-      }
       execute_trade: {
-        Args:
-          | {
-              p_order_id: string
-              p_user_id: string
-              p_amount: number
-              p_price: number
-              p_is_partial: boolean
-              p_currency: string
-              p_type: string
-            }
-          | {
-              p_order_id: number
-              p_user_id: string
-              p_amount: number
-              p_price: number
-              p_is_partial: boolean
-              p_currency: string
-              p_type: string
-            }
+        Args: {
+          order_id_param: string
+          executor_id_param: string
+          submitted_amount: number
+        }
         Returns: Json
       }
       insert_or_update_transaction: {
