@@ -119,12 +119,16 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
       const parsedAmount = parseFloat(amount);
 
       if (isNaN(parsedAmount)) {
-        toast({ title: "Invalid amount", variant: "destructive" });
+        toast({ title: "Invalid amount", description: "Please enter a valid number", variant: "destructive" });
         return;
       }
 
       if (parsedAmount > order.amount) {
-        toast({ title: "Amount exceeds available quantity", variant: "destructive" });
+        toast({ 
+          title: "Amount exceeds available", 
+          description: `Available: ${order.amount} ${order.currency}`, 
+          variant: "destructive" 
+        });
         return;
       }
 
@@ -135,11 +139,13 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
 
         toast({ 
           title: "Insufficient balance", 
-          description: `You don't have enough ${currencyNeeded} to complete this transaction`,
+          description: `You need ${currencyNeeded} to complete this transaction`,
           variant: "destructive"
         });
         return;
       }
+
+      console.log('Submitting trade:', { orderId: order.id, userId: user.id, amount: parsedAmount });
 
       const result = await executeTrade(
         order.id,
@@ -148,14 +154,31 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
       );
 
       if (!result.success) {
-        throw new Error(result.error);
+        let errorMessage = result.error;
+        switch (result.code) {
+          case 'ORDER_NOT_FOUND':
+            errorMessage = 'The selected order is no longer available';
+            break;
+          case 'SELF_TRADE':
+            errorMessage = 'You cannot trade your own order';
+            break;
+          case 'INSUFFICIENT_BALANCE':
+            errorMessage = 'Your balance is insufficient for this trade';
+            break;
+          case 'INVALID_AMOUNT':
+            errorMessage = 'The trade amount is invalid or exceeds the order';
+            break;
+          default:
+            errorMessage = errorMessage || 'Failed to execute trade';
+        }
+        throw new Error(errorMessage);
       }
 
       fetchUserBalance();
 
       const isPartial = parsedAmount < order.amount;
       const tradedCurrency = order.currency;
-      const quotedCurrency = order.quote_currency || 'KES';
+      const quotedCurrency = order.quote_currency ||血 'KES';
       const quoteAmount = totalAmount.toFixed(2);
 
       let successMessage = '';
