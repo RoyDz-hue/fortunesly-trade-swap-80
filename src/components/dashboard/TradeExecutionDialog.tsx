@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,86 +7,61 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-import { executeTrade, formatTradeErrorMessage } from '@/utils/tradingUtils';
+import { executeTrade, formatTradeErrorMessage, TradeErrorCode } from '@/utils/tradingUtils';
 
-const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
+// Define TypeScript interface for order
+interface Order {
+  id: string;
+  type: 'buy' | 'sell';
+  amount: number;
+  original_amount?: number;
+  price: number;
+  currency: string;
+  quote_currency?: string;
+  status: string;
+  created_at: string;
+  users?: {
+    id: string;
+    username: string;
+  };
+}
+
+interface TradeExecutionDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  order: Order | null;
+  onSuccess?: () => void;
+}
+
+const TradeExecutionDialog: React.FC<TradeExecutionDialogProps> = ({ 
+  isOpen, 
+  onClose, 
+  order, 
+  onSuccess 
+}) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [amount, setAmount] = useState('');
   const [totalAmount, setTotalAmount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [coinDetails, setCoinDetails] = useState(null);
-  const [userBalance, setUserBalance] = useState(null);
+  const [coinDetails, setCoinDetails] = useState<{name: string, symbol: string, icon_url: string | null} | null>(null);
+  const [userBalance, setUserBalance] = useState<number | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
-  const [orderStatus, setOrderStatus] = useState(null);
-  const [orderStatusLoading, setOrderStatusLoading] = useState(false);
-
-  // Fetch the latest order status to ensure it hasn't been filled or canceled
-  const fetchLatestOrderStatus = useCallback(async () => {
-    if (!order) return;
-    
-    try {
-      setOrderStatusLoading(true);
-      const { data, error } = await supabase
-        .from('orders')
-        .select('status, amount')
-        .eq('id', order.id)
-        .single();
-      
-      if (error) {
-        console.error('Error fetching order status:', error);
-        toast({
-          title: "Order Unavailable",
-          description: "Could not verify order status. Please try again.",
-          variant: "destructive",
-        });
-        onClose();
-        return;
-      }
-      
-      setOrderStatus(data);
-      
-      // If the order is no longer available, close the dialog
-      if (data.status === 'filled' || data.status === 'canceled') {
-        toast({
-          title: "Order Unavailable",
-          description: `This order has been ${data.status}. It is no longer available.`,
-          variant: "destructive",
-        });
-        onClose();
-        return;
-      }
-      
-      // Update amount if it has changed
-      if (data.amount !== order.amount) {
-        setAmount(data.amount.toString());
-      }
-      
-    } catch (error) {
-      console.error("Error in fetchLatestOrderStatus:", error);
-    } finally {
-      setOrderStatusLoading(false);
-    }
-  }, [order, toast, onClose]);
-
-  useEffect(() => {
-    if (isOpen && order) {
-      fetchLatestOrderStatus();
-    }
-  }, [isOpen, order, fetchLatestOrderStatus]);
+  const [orderExists, setOrderExists] = useState(true);
 
   useEffect(() => {
     if (order) {
       setAmount(order.amount.toString());
       fetchCoinDetails(order.currency);
+      verifyOrderExists(order.id);
     }
   }, [order]);
 
   useEffect(() => {
-    if (user && isOpen) {
+    if (user && order) {
       fetchUserBalance();
     }
-  }, [user, order, isOpen]);
+  }, [user, order]);
 
   useEffect(() => {
     if (order && amount) {
@@ -95,14 +70,59 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
     }
   }, [amount, order]);
 
+  const verifyOrderExists = async (orderId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('id, status')
+        .eq('id', orderId)
+        .single();
+      
+      if (error || !data) {
+        console.error('Order verification error:', error);
+        setOrderExists(false);
+        
+        toast({
+          title: "Order Not Found",
+          description: "This order no longer exists or has been filled",
+          variant: "destructive",
+        });
+        
+        onClose();
+        return;
+      }
+      
+      // Check if order status prevents trading
+      if (data.status === 'filled' || data.status === 'canceled') {
+        setOrderExists(false);
+        
+        toast({
+          title: "Order Not Available",
+          description: `This order is ${data.status} and cannot be traded`,
+          variant: "destructive",
+        });
+        
+        onClose();
+        return;
+      }
+      
+      setOrderExists(true);
+    } catch (error) {
+      console.error("Error verifying order existence:", error);
+      setOrderExists(false);
+    }
+  };
+
   const fetchUserBalance = async () => {
     if (!user || !order) return;
 
     try {
       setBalanceLoading(true);
-      const currencyToCheck = order.type === 'buy' 
-        ? order.quote_currency || 'KES'
-        : order.currency;
+      
+      // Determine which balance to check based on order type
+      const balanceToCheck = order.type === 'buy' 
+        ? { type: 'crypto', currency: order.currency }
+        : { type: 'fiat', currency: order.quote_currency || 'KES' };
 
       const { data, error } = await supabase
         .from('users')
@@ -114,11 +134,11 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
         console.error('Error fetching user balances:', error);
         setUserBalance(0);
       } else if (data) {
-        if (currencyToCheck === 'KES') {
+        if (balanceToCheck.type === 'fiat') {
           setUserBalance(data.balance_fiat || 0);
         } else {
           const cryptoBalances = data.balance_crypto || {};
-          setUserBalance((cryptoBalances[currencyToCheck] || 0));
+          setUserBalance((cryptoBalances[balanceToCheck.currency] || 0));
         }
       }
     } catch (error) {
@@ -129,7 +149,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
     }
   };
 
-  const fetchCoinDetails = async (symbol) => {
+  const fetchCoinDetails = async (symbol: string) => {
     try {
       const { data, error } = await supabase
         .from('coins')
@@ -144,27 +164,25 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
     }
   };
 
-  const getPriceCurrency = (order) => {
-    if (order.quote_currency) {
-      return order.quote_currency;
-    }
-    return 'KES';
+  const getPriceCurrency = (order: Order): string => {
+    return order.quote_currency || 'KES';
   };
 
-  const hasEnoughBalance = () => {
-    if (userBalance === null) return false;
+  const hasEnoughBalance = (): boolean => {
+    if (userBalance === null || !order) return false;
+
+    const amountValue = parseFloat(amount || '0');
     
-    const parsedAmount = parseFloat(amount || '0');
-    if (isNaN(parsedAmount)) return false;
-
-    if (order.type === 'sell') { // If order type is sell, we are buying
-      return userBalance >= totalAmount;
-    } else { // If order type is buy, we are selling
-      return userBalance >= parsedAmount;
+    if (order.type === 'buy') {
+      // For buy orders, we need crypto
+      return userBalance >= amountValue;
+    } else {
+      // For sell orders, we need fiat for the total amount
+      return userBalance >= (amountValue * order.price);
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!user) {
@@ -175,37 +193,19 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
       });
       return;
     }
+    
+    if (!orderExists || !order) {
+      toast({
+        title: "Order unavailable",
+        description: "This order no longer exists or has been filled",
+        variant: "destructive",
+      });
+      onClose();
+      return;
+    }
 
-    // Check order status once more before executing
     try {
       setIsLoading(true);
-      
-      const { data: latestOrder, error: latestOrderError } = await supabase
-        .from('orders')
-        .select('status, amount')
-        .eq('id', order.id)
-        .single();
-        
-      if (latestOrderError || !latestOrder) {
-        toast({
-          title: "Order not found",
-          description: "This order may have been removed or is no longer available.",
-          variant: "destructive",
-        });
-        onClose();
-        return;
-      }
-      
-      if (latestOrder.status === 'filled' || latestOrder.status === 'canceled') {
-        toast({
-          title: "Order unavailable",
-          description: `This order has been ${latestOrder.status} and is no longer available.`,
-          variant: "destructive",
-        });
-        onClose();
-        return;
-      }
-
       const parsedAmount = parseFloat(amount);
 
       if (isNaN(parsedAmount)) {
@@ -213,13 +213,13 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
         return;
       }
 
-      if (parsedAmount > latestOrder.amount) {
-        toast({ 
-          title: "Amount exceeds available quantity", 
-          description: `The available amount is now ${latestOrder.amount} ${order.currency}`,
-          variant: "destructive" 
-        });
-        setAmount(latestOrder.amount.toString());
+      if (parsedAmount <= 0) {
+        toast({ title: "Amount must be greater than zero", variant: "destructive" });
+        return;
+      }
+
+      if (parsedAmount > order.amount) {
+        toast({ title: "Amount exceeds available quantity", variant: "destructive" });
         return;
       }
 
@@ -242,6 +242,25 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
         amount: parsedAmount
       });
 
+      // First verify order still exists
+      const { data: orderCheck, error: orderCheckError } = await supabase
+        .from('orders')
+        .select('id, status')
+        .eq('id', order.id)
+        .single();
+        
+      if (orderCheckError || !orderCheck || orderCheck.status === 'filled' || orderCheck.status === 'canceled') {
+        toast({
+          title: "Order not available",
+          description: orderCheck 
+            ? `This order is ${orderCheck.status} and cannot be traded` 
+            : "This order no longer exists",
+          variant: "destructive",
+        });
+        onClose();
+        return;
+      }
+
       const result = await executeTrade(
         order.id,
         user.id,
@@ -251,11 +270,22 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
       console.log("Trade execution result:", result);
 
       if (!result.success) {
+        // Handle specific error codes
+        if (result.error_code === TradeErrorCode.ORDER_NOT_FOUND) {
+          toast({
+            title: "Order not found",
+            description: "This order no longer exists or has been filled",
+            variant: "destructive",
+          });
+          onClose();
+          return;
+        }
+        
         // Format error message for display
-        const formattedError = formatTradeErrorMessage(result);
+        const errorMessage = formatTradeErrorMessage(result);
         toast({
           title: "Trade failed",
-          description: formattedError,
+          description: errorMessage,
           variant: "destructive",
         });
         return;
@@ -264,7 +294,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
       // Refresh user balance after successful trade
       fetchUserBalance();
 
-      const isPartial = parsedAmount < latestOrder.amount;
+      const isPartial = parsedAmount < order.amount;
       const tradedCurrency = order.currency;
       const quotedCurrency = order.quote_currency || 'KES';
       const quoteAmount = totalAmount.toFixed(2);
@@ -291,7 +321,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
       console.error("Trade error:", error);
       toast({
         title: "Trade failed",
-        description: error.message || "An unexpected error occurred",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {
@@ -324,13 +354,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Available:</span>
               <div className="flex items-center gap-1">
-                {orderStatusLoading ? (
-                  <span className="text-gray-400">Loading...</span>
-                ) : (
-                  <span className="font-bold">
-                    {orderStatus ? orderStatus.amount.toLocaleString() : order.amount.toLocaleString()}
-                  </span>
-                )}
+                <span className="font-bold">{order.amount.toLocaleString()}</span>
                 {coinDetails?.icon_url && (
                   <img 
                     src={coinDetails.icon_url}
@@ -379,10 +403,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
                   type="button" 
                   variant="outline" 
                   size="sm" 
-                  onClick={() => {
-                    const maxAmount = orderStatus ? orderStatus.amount : order.amount;
-                    setAmount(maxAmount.toString());
-                  }}
+                  onClick={() => setAmount(order.amount.toString())}
                 >
                   Max
                 </Button>
@@ -390,11 +411,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    const halfAmount = orderStatus ? 
-                      (orderStatus.amount / 2) : (order.amount / 2);
-                    setAmount(halfAmount.toString());
-                  }}
+                  onClick={() => setAmount((order.amount / 2).toString())}
                 >
                   Half
                 </Button>
@@ -408,9 +425,8 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 min="0.000001"
-                max={orderStatus ? orderStatus.amount : order.amount}
+                max={order.amount}
                 required
-                disabled={orderStatusLoading}
               />
               <div className="bg-black px-3 flex items-center rounded-md text-white">
                 {order.currency}
@@ -434,7 +450,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
             </Button>
             <Button
               type="submit"
-              disabled={isLoading || !hasEnoughBalance() || balanceLoading || orderStatusLoading}
+              disabled={isLoading || !hasEnoughBalance() || balanceLoading || !orderExists}
               className={order.type === 'buy' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}
             >
               {isLoading ? 'Processing...' : `${order.type === 'buy' ? 'Sell' : 'Buy'} Now`}
