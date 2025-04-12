@@ -1,4 +1,3 @@
-// src/services/payHeroService.ts
 import { supabase } from '@/lib/supabaseClient';
 
 interface PaymentRequest {
@@ -8,8 +7,9 @@ interface PaymentRequest {
   customerName?: string;
 }
 
-// The URL for the hyper-task Supabase function
-const HYPER_TASK_URL = 'https://bfsodqqylpfotszjlfuk.supabase.co/functions/v1/hyper-task';
+// Edge function URL for callbacks
+const EDGE_FUNCTION_URL = 'https://bfsodqqylpfotszjlfuk.supabase.co/functions/v1/hyper-task';
+const CALLBACK_URL = `${EDGE_FUNCTION_URL}?action=callback`;
 
 export const initiatePayment = async ({
   amount,
@@ -25,15 +25,16 @@ export const initiatePayment = async ({
         p_amount: amount,
         p_phone_number: phoneNumber,
         p_type: type,
-        p_customer_name: customerName
+        p_customer_name: customerName,
+        p_callback_url: CALLBACK_URL // Pass the callback URL to the database
       });
 
-    if (rpcError) throw rpcError;
+    if (rpcError) throw new Error(`RPC Error: ${rpcError.message}`);
     if (!paymentRequest.success) throw new Error(paymentRequest.error);
 
-    // Step 2: Process payment via Edge Function (using the direct URL)
+    // Step 2: Process payment via Edge Function
     const token = await supabase.auth.getSession();
-    const response = await fetch(`${HYPER_TASK_URL}?action=process`, {
+    const response = await fetch(`${EDGE_FUNCTION_URL}?action=process`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -62,9 +63,8 @@ export const initiatePayment = async ({
 
 export const checkTransactionStatus = async (reference: string) => {
   try {
-    // Call hyper-task Edge Function directly with the status check
     const token = await supabase.auth.getSession();
-    const response = await fetch(`${HYPER_TASK_URL}?action=status`, {
+    const response = await fetch(`${EDGE_FUNCTION_URL}?action=status`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -88,7 +88,6 @@ export const checkTransactionStatus = async (reference: string) => {
   }
 };
 
-// Poll for transaction status updates
 export const pollTransactionStatus = async (
   reference: string,
   onStatusUpdate: (status: any) => void,
@@ -96,30 +95,30 @@ export const pollTransactionStatus = async (
   interval = 5000
 ) => {
   let attempts = 0;
-  
+
   const checkStatus = async () => {
     if (attempts >= maxAttempts) {
+      onStatusUpdate({ status: 'timeout', error: 'Status check timed out' });
       return;
     }
-    
+
     attempts++;
-    
+
     try {
       const transaction = await checkTransactionStatus(reference);
-      
+
       onStatusUpdate(transaction);
-      
+
       if (transaction.status === 'completed' || transaction.status === 'failed') {
         return;
       }
-      
-      // Continue polling
+
       setTimeout(checkStatus, interval);
     } catch (error) {
       console.error('Polling error:', error);
       setTimeout(checkStatus, interval);
     }
   };
-  
+
   checkStatus();
 };
