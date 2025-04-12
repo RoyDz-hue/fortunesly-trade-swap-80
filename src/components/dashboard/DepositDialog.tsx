@@ -1,11 +1,11 @@
-
-import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { initiateDeposit } from "@/services/payHeroService";
+import { useToast } from "@/components/ui/use-toast";
+import { initiatePayment, pollTransactionStatus } from '@/services/payHeroService';
+import { Loader2 } from "lucide-react";
 
 interface DepositDialogProps {
   isOpen: boolean;
@@ -14,123 +14,189 @@ interface DepositDialogProps {
   onSuccess?: () => void;
 }
 
-const DepositDialog = ({ isOpen, onClose, currency, onSuccess }: DepositDialogProps) => {
+const DepositDialog = ({ 
+  isOpen, 
+  onClose, 
+  currency, 
+  onSuccess 
+}: DepositDialogProps) => {
   const { toast } = useToast();
-  const [amount, setAmount] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [amount, setAmount] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [transactionReference, setTransactionReference] = useState<string | null>(null);
+  const [transactionStatus, setTransactionStatus] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!amount || !phoneNumber) {
+    if (!amount || parseFloat(amount) <= 0) {
       toast({
-        title: "Error",
-        description: "Please enter all required fields",
-        variant: "destructive",
+        title: "Invalid amount",
+        description: "Please enter a valid amount greater than 0",
+        variant: "destructive"
       });
       return;
     }
-
-    // Simple phone number validation for Kenya
-    let formattedPhone = phoneNumber.trim();
-    if (formattedPhone.startsWith('0')) {
-      formattedPhone = `254${formattedPhone.substring(1)}`;
-    } else if (!formattedPhone.startsWith('254')) {
-      formattedPhone = `254${formattedPhone}`;
+    
+    if (!phoneNumber) {
+      toast({
+        title: "Missing phone number",
+        description: "Please enter your M-Pesa phone number",
+        variant: "destructive"
+      });
+      return;
     }
     
     setIsLoading(true);
-    
+    setTransactionStatus('initiating');
+
     try {
-      const result = await initiateDeposit(
-        parseFloat(amount),
-        formattedPhone,
-        "Fortunesly User" // In a real app, you'd use the actual user's name
-      );
-      
-      if (result.status) {
-        toast({
-          title: "Payment initiated",
-          description: "Please check your phone to complete the payment",
-        });
-        
-        if (onSuccess) {
-          onSuccess();
-        }
-        onClose();
-      } else {
-        toast({
-          title: "Payment failed",
-          description: "Unable to initiate payment. Please try again.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Deposit error:", error);
-      toast({
-        title: "Payment failed",
-        description: "An error occurred while processing your payment",
-        variant: "destructive",
+      const result = await initiatePayment({
+        amount: parseFloat(amount),
+        phoneNumber: phoneNumber,
+        type: 'deposit'
       });
+      
+      setTransactionReference(result.reference);
+      setTransactionStatus('processing');
+      
+      toast({
+        title: "Payment initiated",
+        description: "Please check your phone to complete the payment"
+      });
+      
+      // Start polling for status
+      pollTransactionStatus(result.reference, (transaction) => {
+        setTransactionStatus(transaction.status);
+        
+        if (transaction.status === 'completed') {
+          toast({
+            title: "Deposit successful",
+            description: `${currency} ${amount} has been added to your account`
+          });
+          
+          if (onSuccess) {
+            onSuccess();
+            onClose();
+          }
+        } else if (transaction.status === 'failed') {
+          toast({
+            title: "Deposit failed",
+            description: "The transaction was not completed",
+            variant: "destructive"
+          });
+        }
+      });
+      
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      setTransactionStatus('failed');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Only show for KES currency
-  if (currency !== "KES") {
-    return null;
-  }
+  const renderTransactionStatus = () => {
+    if (!transactionStatus || !transactionReference) return null;
+    
+    let statusMessage = '';
+    let color = '';
+    
+    switch (transactionStatus) {
+      case 'initiating':
+        statusMessage = 'Initiating payment...';
+        color = 'text-yellow-500';
+        break;
+      case 'processing':
+        statusMessage = 'Processing payment. Check your phone for the M-Pesa prompt.';
+        color = 'text-blue-500';
+        break;
+      case 'completed':
+        statusMessage = 'Payment completed successfully!';
+        color = 'text-green-500';
+        break;
+      case 'failed':
+        statusMessage = 'Payment failed. Please try again.';
+        color = 'text-red-500';
+        break;
+      default:
+        statusMessage = `Status: ${transactionStatus}`;
+        color = 'text-gray-500';
+    }
+    
+    return (
+      <div className={`mt-4 p-3 border rounded ${color}`}>
+        <p className="font-medium">{statusMessage}</p>
+        <p className="text-sm mt-1">Reference: {transactionReference}</p>
+      </div>
+    );
+  };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Deposit KES</DialogTitle>
-          <DialogDescription>
-            Enter the amount and phone number to deposit via M-Pesa.
-          </DialogDescription>
+          <DialogTitle>Deposit {currency}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="amount" className="text-right">
-                Amount
-              </Label>
-              <Input
-                id="amount"
-                type="number"
-                min="10"
-                step="1"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="Enter amount"
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="phone" className="text-right">
-                Phone
-              </Label>
-              <Input
-                id="phone"
-                type="text"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="e.g. 0712345678"
-                className="col-span-3"
-              />
-            </div>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="amount">Amount ({currency})</Label>
+            <Input
+              id="amount"
+              type="number"
+              placeholder="Enter amount"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              required
+              min="1"
+              step="any"
+              disabled={isLoading || transactionStatus === 'processing'}
+            />
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+          
+          <div className="space-y-2">
+            <Label htmlFor="phone">M-Pesa Phone Number</Label>
+            <Input
+              id="phone"
+              type="tel"
+              placeholder="e.g., 07XXXXXXXX"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              required
+              disabled={isLoading || transactionStatus === 'processing'}
+            />
+            <p className="text-sm text-gray-500">Must be registered with M-Pesa</p>
+          </div>
+          
+          {renderTransactionStatus()}
+          
+          <div className="flex justify-end space-x-2">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onClose}
+              disabled={isLoading || transactionStatus === 'processing'}
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Processing..." : "Deposit"}
+            <Button 
+              type="submit" 
+              disabled={isLoading || transactionStatus === 'processing'}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing
+                </>
+              ) : 'Deposit'}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
