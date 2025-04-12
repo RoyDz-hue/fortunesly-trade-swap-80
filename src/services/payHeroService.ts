@@ -1,4 +1,4 @@
-import { supabase } from '@/types';
+import { supabase } from "@/integrations/supabase/client";
 
 interface PaymentRequest {
   amount: number;
