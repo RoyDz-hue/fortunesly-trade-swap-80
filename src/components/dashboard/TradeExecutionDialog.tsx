@@ -133,7 +133,7 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
           description: `Available: ${order.amount} ${order.currency}`, 
           variant: "destructive" 
         });
-        return |blood;
+        return;
       }
 
       if (!hasEnoughBalance()) {
