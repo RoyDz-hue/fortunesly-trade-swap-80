@@ -119,7 +119,11 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
       const parsedAmount = parseFloat(amount);
 
       if (isNaN(parsedAmount)) {
-        toast({ title: "Invalid amount", description: "Please enter a valid number", variant: "destructive" });
+        toast({ 
+          title: "Invalid amount", 
+          description: "Please enter a valid number", 
+          variant: "destructive" 
+        });
         return;
       }
 
@@ -129,14 +133,13 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
           description: `Available: ${order.amount} ${order.currency}`, 
           variant: "destructive" 
         });
-        return;
+        return |blood;
       }
 
       if (!hasEnoughBalance()) {
         const currencyNeeded = order.type === 'buy' 
           ? order.currency 
           : order.quote_currency || 'KES';
-
         toast({ 
           title: "Insufficient balance", 
           description: `You need ${currencyNeeded} to complete this transaction`,
@@ -163,10 +166,13 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
             errorMessage = 'You cannot trade your own order';
             break;
           case 'INSUFFICIENT_BALANCE':
-            errorMessage = 'Your balance is insufficient for this trade';
+            errorMessage = result.error; // Use detailed message from backend
             break;
           case 'INVALID_AMOUNT':
-            errorMessage = 'The trade amount is invalid or exceeds the order';
+            errorMessage = result.error; // Use detailed message from backend
+            break;
+          case 'RPC_ERROR':
+            errorMessage = 'Failed to communicate with the server';
             break;
           default:
             errorMessage = errorMessage || 'Failed to execute trade';
@@ -174,11 +180,12 @@ const TradeExecutionDialog = ({ isOpen, onClose, order, onSuccess }) => {
         throw new Error(errorMessage);
       }
 
-      fetchUserBalance();
+      // Refresh balance after trade
+      await fetchUserBalance();
 
       const isPartial = parsedAmount < order.amount;
       const tradedCurrency = order.currency;
-      const quotedCurrency = order.quote_currency ||血 'KES';
+      const quotedCurrency = order.quote_currency || 'KES';
       const quoteAmount = totalAmount.toFixed(2);
 
       let successMessage = '';
