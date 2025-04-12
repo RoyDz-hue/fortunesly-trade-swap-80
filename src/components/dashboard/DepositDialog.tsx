@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { initiatePayment, pollTransactionStatus } from '@/services/payHeroService';
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface DepositDialogProps {
   isOpen: boolean;
@@ -26,25 +27,39 @@ const DepositDialog = ({
   const [isLoading, setIsLoading] = useState(false);
   const [transactionReference, setTransactionReference] = useState<string | null>(null);
   const [transactionStatus, setTransactionStatus] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Format phone number to include country code if missing
+  const formatPhoneNumber = (phone: string): string => {
+    if (!phone) return '';
+    
+    // Remove any spaces or non-digit characters
+    const cleaned = phone.replace(/\D/g, '');
+    
+    // If it starts with 0, replace with 254
+    if (cleaned.startsWith('0')) {
+      return `254${cleaned.substring(1)}`;
+    }
+    
+    // If it doesn't have country code, add it
+    if (!cleaned.startsWith('254')) {
+      return `254${cleaned}`;
+    }
+    
+    return cleaned;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
     
     if (!amount || parseFloat(amount) <= 0) {
-      toast({
-        title: "Invalid amount",
-        description: "Please enter a valid amount greater than 0",
-        variant: "destructive"
-      });
+      setErrorMessage("Please enter a valid amount greater than 0");
       return;
     }
     
     if (!phoneNumber) {
-      toast({
-        title: "Missing phone number",
-        description: "Please enter your M-Pesa phone number",
-        variant: "destructive"
-      });
+      setErrorMessage("Please enter your M-Pesa phone number");
       return;
     }
     
@@ -52,9 +67,11 @@ const DepositDialog = ({
     setTransactionStatus('initiating');
 
     try {
+      const formattedPhone = formatPhoneNumber(phoneNumber);
+      
       const result = await initiatePayment({
         amount: parseFloat(amount),
-        phoneNumber: phoneNumber,
+        phoneNumber: formattedPhone,
         type: 'deposit'
       });
       
@@ -66,7 +83,6 @@ const DepositDialog = ({
         description: "Please check your phone to complete the payment"
       });
       
-      // Start polling for status
       pollTransactionStatus(result.reference, (transaction) => {
         setTransactionStatus(transaction.status);
         
@@ -77,24 +93,21 @@ const DepositDialog = ({
           });
           
           if (onSuccess) {
-            onSuccess();
-            onClose();
+            setTimeout(() => {
+              onSuccess();
+              onClose();
+            }, 2000); // Give user time to see success message
           }
         } else if (transaction.status === 'failed') {
-          toast({
-            title: "Deposit failed",
-            description: "The transaction was not completed",
-            variant: "destructive"
-          });
+          setErrorMessage("The transaction was not completed. Please try again.");
+        } else if (transaction.status === 'timeout') {
+          setErrorMessage("The transaction status check timed out. Please check your account balance or try again.");
         }
-      });
+      }, 20, 3000); // 20 attempts, 3 second interval (total 1 minute)
       
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
+    } catch (error: any) {
+      console.error("Deposit error:", error);
+      setErrorMessage(error.message || "An unexpected error occurred");
       setTransactionStatus('failed');
     } finally {
       setIsLoading(false);
@@ -105,37 +118,57 @@ const DepositDialog = ({
     if (!transactionStatus || !transactionReference) return null;
     
     let statusMessage = '';
-    let color = '';
+    let icon = null;
+    let statusClass = '';
     
     switch (transactionStatus) {
       case 'initiating':
         statusMessage = 'Initiating payment...';
-        color = 'text-yellow-500';
+        icon = <Loader2 className="h-4 w-4 animate-spin" />;
+        statusClass = 'bg-yellow-50 text-yellow-800 border-yellow-200';
         break;
+      case 'pending':
       case 'processing':
         statusMessage = 'Processing payment. Check your phone for the M-Pesa prompt.';
-        color = 'text-blue-500';
+        icon = <Loader2 className="h-4 w-4 animate-spin" />;
+        statusClass = 'bg-blue-50 text-blue-800 border-blue-200';
         break;
       case 'completed':
         statusMessage = 'Payment completed successfully!';
-        color = 'text-green-500';
+        icon = <CheckCircle2 className="h-4 w-4" />;
+        statusClass = 'bg-green-50 text-green-800 border-green-200';
         break;
       case 'failed':
         statusMessage = 'Payment failed. Please try again.';
-        color = 'text-red-500';
+        icon = <AlertCircle className="h-4 w-4" />;
+        statusClass = 'bg-red-50 text-red-800 border-red-200';
         break;
       default:
         statusMessage = `Status: ${transactionStatus}`;
-        color = 'text-gray-500';
+        statusClass = 'bg-gray-50 text-gray-800 border-gray-200';
     }
     
     return (
-      <div className={`mt-4 p-3 border rounded ${color}`}>
-        <p className="font-medium">{statusMessage}</p>
-        <p className="text-sm mt-1">Reference: {transactionReference}</p>
+      <div className={`mt-4 p-3 border rounded flex items-start ${statusClass}`}>
+        <div className="mr-2 mt-0.5">{icon}</div>
+        <div>
+          <p className="font-medium">{statusMessage}</p>
+          <p className="text-sm mt-1">Reference: {transactionReference}</p>
+        </div>
       </div>
     );
   };
+
+  // Clear status when dialog closes
+  useEffect(() => {
+    if (!isOpen) {
+      setTransactionReference(null);
+      setTransactionStatus(null);
+      setErrorMessage(null);
+      setAmount('');
+      setPhoneNumber('');
+    }
+  }, [isOpen]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -143,6 +176,13 @@ const DepositDialog = ({
         <DialogHeader>
           <DialogTitle>Deposit {currency}</DialogTitle>
         </DialogHeader>
+        
+        {errorMessage && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </Alert>
+        )}
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -187,7 +227,7 @@ const DepositDialog = ({
             </Button>
             <Button 
               type="submit" 
-              disabled={isLoading || transactionStatus === 'processing'}
+              disabled={isLoading || transactionStatus === 'processing' || transactionStatus === 'completed'}
             >
               {isLoading ? (
                 <>
