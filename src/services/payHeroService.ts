@@ -33,6 +33,31 @@ const getAuthToken = async (): Promise<string> => {
 };
 
 /**
+ * Safely parses JSON response
+ */
+const safeJsonParse = async (response: Response) => {
+  try {
+    const text = await response.text(); // Get raw response text
+    console.log('Raw API Response:', text); // Log raw response for debugging
+
+    if (!text) {
+      throw new Error('Empty response received');
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch (parseError) {
+      console.error('JSON Parse Error:', parseError);
+      console.error('Failed to parse response:', text);
+      throw new Error(`Invalid JSON response: ${text}`);
+    }
+  } catch (error) {
+    console.error('Response Reading Error:', error);
+    throw new Error('Failed to read response');
+  }
+};
+
+/**
  * Initiates a payment request (deposit or withdrawal)
  */
 export const initiatePayment = async (
@@ -60,6 +85,13 @@ export const initiatePayment = async (
       throw new Error('Authentication token not found');
     }
 
+    console.log('Initiating payment with payload:', {
+      uuid: user.id,
+      amount,
+      phone_number: phoneNumber,
+      type
+    });
+
     const response = await fetch(`${API_URL}?action=process`, {
       method: 'POST',
       headers: {
@@ -74,12 +106,26 @@ export const initiatePayment = async (
       })
     });
 
+    console.log('Response status:', response.status);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await safeJsonParse(response);
       throw new Error(errorData.error || `${type} request failed: ${response.status}`);
     }
 
-    return await response.json();
+    const data = await safeJsonParse(response);
+    console.log('Parsed response data:', data);
+
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid response format');
+    }
+
+    return {
+      success: true,
+      ...data
+    };
+
   } catch (error: any) {
     console.error('Payment initiation error:', error);
     return {
@@ -105,6 +151,8 @@ export const checkPaymentStatus = async (
       throw new Error('Authentication token not found');
     }
 
+    console.log('Checking payment status for reference:', reference);
+
     const response = await fetch(`${API_URL}?action=status&reference=${encodeURIComponent(reference)}`, {
       method: 'GET',
       headers: {
@@ -112,12 +160,25 @@ export const checkPaymentStatus = async (
       }
     });
 
+    console.log('Status check response:', response.status);
+
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await safeJsonParse(response);
       throw new Error(errorData.error || `Status check failed: ${response.status}`);
     }
 
-    return await response.json();
+    const data = await safeJsonParse(response);
+    console.log('Status check data:', data);
+
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid status response format');
+    }
+
+    return {
+      success: true,
+      ...data
+    };
+
   } catch (error: any) {
     console.error('Status check error:', error);
     return {
