@@ -1,165 +1,731 @@
+import React, { useState, useEffect } from 'react';
 
-import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
 import { Input } from "@/components/ui/input";
+
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { initiateWithdrawal } from "@/services/payHeroService";
+
+import { useToast } from "@/components/ui/use-toast";
+
+import { initiatePayment, pollTransactionStatus } from '@/services/payHeroService';
+
+import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+
+import { initiatePayment, checkPaymentStatus } from '@/services/PayHeroService';
+
+// Define props for the WithdrawDialog component
 
 interface WithdrawDialogProps {
-  isOpen: boolean;
+
+  open: boolean;
+
   onClose: () => void;
-  currency: string;
-  maxAmount: number;
-  onSuccess?: () => void;
+
+  onSuccess?: (amount: number) => void;
+
+  maxAmount?: number; // Maximum amount user can withdraw
+
 }
 
-const WithdrawDialog = ({ isOpen, onClose, currency, maxAmount, onSuccess }: WithdrawDialogProps) => {
-  const { toast } = useToast();
-  const [amount, setAmount] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+// Define possible states for the dialog
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const parsedAmount = parseFloat(amount);
-    
-    if (!amount || !phoneNumber || isNaN(parsedAmount)) {
-      toast({
-        title: "Error",
-        description: "Please enter all required fields with valid values",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (parsedAmount < 10) {
-      toast({
-        title: "Invalid amount",
-        description: "Minimum withdrawal amount is KES 10",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (parsedAmount > maxAmount) {
-      toast({
-        title: "Insufficient balance",
-        description: `Maximum available withdrawal is KES ${maxAmount}`,
-        variant: "destructive",
-      });
-      return;
-    }
+type DialogState = 
 
-    // Simple phone number validation for Kenya
-    let formattedPhone = phoneNumber.trim();
-    if (formattedPhone.startsWith('0')) {
-      formattedPhone = `254${formattedPhone.substring(1)}`;
-    } else if (!formattedPhone.startsWith('254')) {
-      formattedPhone = `254${formattedPhone}`;
-    }
-    
-    setIsLoading(true);
-    
-    try {
-      const result = await initiateWithdrawal(
-        parsedAmount,
-        formattedPhone
-      );
-      
-      if (result.status) {
-        toast({
-          title: "Withdrawal initiated",
-          description: "Your withdrawal request has been processed.",
-        });
-        
-        if (onSuccess) {
-          onSuccess();
-        }
-        onClose();
-      } else {
-        toast({
-          title: "Withdrawal failed",
-          description: "Unable to process withdrawal. Please try again.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Withdrawal error:", error);
-      toast({
-        title: "Withdrawal failed",
-        description: "An error occurred while processing your withdrawal",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  'initial' | 
+
+  'processing' | 
+
+  'pending' | 
+
+  'delayed' | 
+
+  'completed' | 
+
+  'failed' | 
+
+  'canceled';
+
+const WithdrawDialog: React.FC<WithdrawDialogProps> = ({ 
+
+  open, 
+
+  onClose, 
+
+  onSuccess,
+
+  maxAmount
+
+}) => {
+
+  // Get current user 
+
+  const user = useUser();
+
+  
+
+  // State variables
+
+  const [amount, setAmount] = useState<string>('');
+
+  const [phoneNumber, setPhoneNumber] = useState<string>('');
+
+  const [error, setError] = useState<string>('');
+
+  const [dialogState, setDialogState] = useState<DialogState>('initial');
+
+  const [reference, setReference] = useState<string>('');
+
+  const [statusMessage, setStatusMessage] = useState<string>('');
+
+  
+
+  // Ref for timeouts and intervals
+
+  const timeouts = useRef<{
+
+    delayedTimer?: number,
+
+    pollingInterval?: number,
+
+    closeTimer?: number
+
+  }>({});
+
+  
+
+  // Clean up intervals and timeouts on unmount
+
+  useEffect(() => {
+
+    return () => {
+
+      clearAllTimers();
+
+    };
+
+  }, []);
+
+  
+
+  // Helper to clear all timers
+
+  const clearAllTimers = () => {
+
+    if (timeouts.current.delayedTimer) clearTimeout(timeouts.current.delayedTimer);
+
+    if (timeouts.current.pollingInterval) clearInterval(timeouts.current.pollingInterval);
+
+    if (timeouts.current.closeTimer) clearTimeout(timeouts.current.closeTimer);
+
   };
 
-  // Only show for KES currency
-  if (currency !== "KES") {
+  
+
+  // Reset dialog state when opened
+
+  useEffect(() => {
+
+    if (open) {
+
+      setDialogState('initial');
+
+      setError('');
+
+      setReference('');
+
+      setStatusMessage('');
+
+      clearAllTimers();
+
+    }
+
+  }, [open]);
+
+  
+
+  // Handle amount input change
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+
+    // Only allow numbers and a single decimal point
+
+    const value = e.target.value.replace(/[^0-9.]/g, '');
+
+    if (value === '' || /^\d+(\.\d{0,2})?$/.test(value)) {
+
+      setAmount(value);
+
+    }
+
+  };
+
+  
+
+  // Handle phone number input change
+
+  const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+
+    // Only allow numbers and plus sign
+
+    const value = e.target.value.replace(/[^0-9+]/g, '');
+
+    setPhoneNumber(value);
+
+  };
+
+  
+
+  // Handle form submission
+
+  const handleSubmit = async () => {
+
+    try {
+
+      // Validate input
+
+      if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+
+        setError('Please enter a valid amount');
+
+        return;
+
+      }
+
+      
+
+      // Check if amount exceeds maximum allowed
+
+      if (maxAmount !== undefined && parseFloat(amount) > maxAmount) {
+
+        setError(`Withdrawal amount cannot exceed your available balance of ${maxAmount} KES`);
+
+        return;
+
+      }
+
+      
+
+      if (!phoneNumber || phoneNumber.length < 9) {
+
+        setError('Please enter a valid phone number');
+
+        return;
+
+      }
+
+      
+
+      if (!user) {
+
+        setError('You must be logged in to make a withdrawal');
+
+        return;
+
+      }
+
+      
+
+      // Clear error and set state to processing
+
+      setError('');
+
+      setDialogState('processing');
+
+      setStatusMessage('Initiating withdrawal...');
+
+      
+
+      // Initiate withdrawal
+
+      const response = await initiatePayment(
+
+        user,
+
+        parseFloat(amount),
+
+        phoneNumber,
+
+        'withdrawal'
+
+      );
+
+      
+
+      if (!response.success) {
+
+        setError(response.error || 'Failed to initiate withdrawal');
+
+        setDialogState('initial');
+
+        return;
+
+      }
+
+      
+
+      // Store reference for status checks
+
+      setReference(response.reference || '');
+
+      
+
+      // Update dialog state to pending
+
+      setDialogState('pending');
+
+      setStatusMessage('Withdrawal request is being processed. This may take a few minutes.');
+
+      
+
+      // Start polling for status
+
+      startPolling(response.reference || '');
+
+      
+
+      // Set a delayed timer to handle long processing times
+
+      timeouts.current.delayedTimer = setTimeout(() => {
+
+        if (dialogState !== 'completed' && dialogState !== 'failed' && dialogState !== 'canceled') {
+
+          setDialogState('delayed');
+
+          setStatusMessage('Withdrawal is taking longer than expected. Please wait...');
+
+          
+
+          // After 60 seconds total, close dialog with "still processing" message
+
+          timeouts.current.closeTimer = setTimeout(() => {
+
+            setStatusMessage('Withdrawal is still processing. We\'ll notify you when it\'s complete.');
+
+            
+
+            // Close dialog after showing the message for 3 seconds
+
+            timeouts.current.closeTimer = setTimeout(() => {
+
+              onClose();
+
+            }, 3000);
+
+          }, 30000); // 30 more seconds after "delayed" state (total 60 seconds)
+
+        }
+
+      }, 30000); // 30 seconds initial delay
+
+      
+
+    } catch (error) {
+
+      console.error('Withdrawal error:', error);
+
+      setError(error.message || 'An error occurred while processing your withdrawal');
+
+      setDialogState('initial');
+
+    }
+
+  };
+
+  
+
+  // Start polling for withdrawal status
+
+  const startPolling = (ref: string) => {
+
+    // Clear any existing interval
+
+    if (timeouts.current.pollingInterval) {
+
+      clearInterval(timeouts.current.pollingInterval);
+
+    }
+
+    
+
+    // Start polling every 5 seconds
+
+    timeouts.current.pollingInterval = setInterval(async () => {
+
+      try {
+
+        // Check withdrawal status
+
+        const statusResponse = await checkPaymentStatus(ref);
+
+        
+
+        if (!statusResponse.success) {
+
+          console.error('Status check failed:', statusResponse.error);
+
+          return;
+
+        }
+
+        
+
+        // Handle status changes
+
+        if (statusResponse.status === 'completed') {
+
+          handleWithdrawalCompleted(statusResponse.amount || 0);
+
+        } else if (statusResponse.status === 'failed') {
+
+          handleWithdrawalFailed('Withdrawal failed. Please try again.');
+
+        } else if (statusResponse.status === 'canceled') {
+
+          handleWithdrawalFailed('Withdrawal was canceled.');
+
+        }
+
+        
+
+      } catch (error) {
+
+        console.error('Status polling error:', error);
+
+      }
+
+    }, 5000);
+
+  };
+
+  
+
+  // Handle completed withdrawal
+
+  const handleWithdrawalCompleted = (completedAmount: number) => {
+
+    // Clear all timers
+
+    clearAllTimers();
+
+    
+
+    // Update dialog state
+
+    setDialogState('completed');
+
+    setStatusMessage(`Withdrawal of ${completedAmount} KES completed successfully! Funds should arrive in your M-Pesa account shortly.`);
+
+    
+
+    // Notify parent component
+
+    if (onSuccess) {
+
+      onSuccess(completedAmount);
+
+    }
+
+    
+
+    // Close dialog after 3 seconds
+
+    timeouts.current.closeTimer = setTimeout(() => {
+
+      onClose();
+
+    }, 3000);
+
+  };
+
+  
+
+  // Handle failed withdrawal
+
+  const handleWithdrawalFailed = (message: string) => {
+
+    // Clear all timers
+
+    clearAllTimers();
+
+    
+
+    // Update dialog state
+
+    setDialogState('failed');
+
+    setStatusMessage(message);
+
+    
+
+    // Close dialog after 3 seconds
+
+    timeouts.current.closeTimer = setTimeout(() => {
+
+      onClose();
+
+    }, 3000);
+
+  };
+
+  
+
+  // Render dialog content based on state
+
+  const renderDialogContent = () => {
+
+    switch (dialogState) {
+
+      case 'initial':
+
+        return (
+
+          <>
+
+            <TextField
+
+              autoFocus
+
+              margin="dense"
+
+              id="amount"
+
+              label="Amount (KES)"
+
+              type="text"
+
+              fullWidth
+
+              variant="outlined"
+
+              value={amount}
+
+              onChange={handleAmountChange}
+
+              disabled={dialogState !== 'initial'}
+
+              helperText={maxAmount !== undefined ? `Available balance: ${maxAmount} KES` : ''}
+
+            />
+
+            <TextField
+
+              margin="dense"
+
+              id="phoneNumber"
+
+              label="Phone Number (M-Pesa)"
+
+              type="text"
+
+              fullWidth
+
+              variant="outlined"
+
+              value={phoneNumber}
+
+              onChange={handlePhoneNumberChange}
+
+              placeholder="e.g., 07XXXXXXXX"
+
+              disabled={dialogState !== 'initial'}
+
+            />
+
+            {error && (
+
+              <Alert severity="error" sx={{ mt: 2 }}>
+
+                {error}
+
+              </Alert>
+
+            )}
+
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+
+              Withdrawals typically process within minutes but may take longer during peak hours.
+
+            </Typography>
+
+          </>
+
+        );
+
+      
+
+      case 'processing':
+
+      case 'pending':
+
+      case 'delayed':
+
+        return (
+
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 3 }}>
+
+            <CircularProgress size={60} sx={{ mb: 2 }} />
+
+            <Typography variant="body1" align="center">
+
+              {statusMessage}
+
+            </Typography>
+
+          </Box>
+
+        );
+
+      
+
+      case 'completed':
+
+        return (
+
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 3 }}>
+
+            <Alert severity="success" sx={{ width: '100%', mb: 2 }}>
+
+              {statusMessage}
+
+            </Alert>
+
+          </Box>
+
+        );
+
+      
+
+      case 'failed':
+
+      case 'canceled':
+
+        return (
+
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 3 }}>
+
+            <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
+
+              {statusMessage}
+
+            </Alert>
+
+          </Box>
+
+        );
+
+      
+
+      default:
+
+        return null;
+
+    }
+
+  };
+
+  
+
+  // Render dialog actions based on state
+
+  const renderDialogActions = () => {
+
+    if (dialogState === 'initial') {
+
+      return (
+
+        <>
+
+          <Button onClick={onClose} color="inherit">
+
+            Cancel
+
+          </Button>
+
+          <Button onClick={handleSubmit} color="primary" variant="contained">
+
+            Withdraw
+
+          </Button>
+
+        </>
+
+      );
+
+    }
+
+    
+
+    if (dialogState === 'processing' || dialogState === 'pending' || dialogState === 'delayed') {
+
+      return (
+
+        <Button onClick={onClose} color="inherit" disabled={dialogState === 'processing'}>
+
+          Close
+
+        </Button>
+
+      );
+
+    }
+
+    
+
     return null;
-  }
+
+  };
+
+  
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Withdraw KES</DialogTitle>
-          <DialogDescription>
-            Enter the amount and phone number to withdraw via M-Pesa.
-            Minimum withdrawal: KES 100
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="amount" className="text-right">
-                Amount
-              </Label>
-              <Input
-                id="amount"
-                type="number"
-                min="100"
-                max={maxAmount}
-                step="1"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="Enter amount"
-                className="col-span-3"
-              />
-              <div className="col-span-4 text-xs text-gray-500 text-right">
-                Available: KES {maxAmount.toLocaleString()}
-              </div>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="phone" className="text-right">
-                Phone
-              </Label>
-              <Input
-                id="phone"
-                type="text"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="e.g. 0712345678"
-                className="col-span-3"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Processing..." : "Withdraw"}
-            </Button>
-          </DialogFooter>
-        </form>
+
+    <Dialog
+
+      open={open}
+
+      onClose={(_, reason) => {
+
+        // Prevent closing by backdrop or escape key during processing
+
+        if (dialogState !== 'processing' && reason !== 'backdropClick') {
+
+          clearAllTimers();
+
+          onClose();
+
+        }
+
+      }}
+
+      fullWidth
+
+      maxWidth="sm"
+
+    >
+
+      <DialogTitle>Withdraw Funds</DialogTitle>
+
+      <DialogContent>
+
+        {renderDialogContent()}
+
       </DialogContent>
+
+      <DialogActions>
+
+        {renderDialogActions()}
+
+      </DialogActions>
+
     </Dialog>
+
   );
+
 };
 
 export default WithdrawDialog;
