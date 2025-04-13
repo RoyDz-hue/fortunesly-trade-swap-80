@@ -22,39 +22,40 @@ export interface PaymentStatusResponse {
   error?: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_SUPABASE_URL + '/functions/v1/hyper-task';
+// Get the Supabase URL from environment
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bfsodqqylpfotszjlfuk.supabase.co';
+const API_URL = `${SUPABASE_URL}/functions/v1/hyper-task`;
 
 /**
  * Gets the current Supabase session token
  */
 const getAuthToken = async (): Promise<string> => {
   const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token || '';
+  if (!session?.access_token) {
+    throw new Error('No active session found');
+  }
+  return session.access_token;
 };
 
 /**
- * Safely parses JSON response
+ * Format phone number to ensure it has country code
  */
-const safeJsonParse = async (response: Response) => {
-  try {
-    const text = await response.text(); // Get raw response text
-    console.log('Raw API Response:', text); // Log raw response for debugging
-
-    if (!text) {
-      throw new Error('Empty response received');
-    }
-
-    try {
-      return JSON.parse(text);
-    } catch (parseError) {
-      console.error('JSON Parse Error:', parseError);
-      console.error('Failed to parse response:', text);
-      throw new Error(`Invalid JSON response: ${text}`);
-    }
-  } catch (error) {
-    console.error('Response Reading Error:', error);
-    throw new Error('Failed to read response');
+const formatPhoneNumber = (phoneNumber: string): string => {
+  // Remove all non-digit characters
+  let cleaned = phoneNumber.replace(/\D/g, '');
+  
+  // Check if it's a Kenyan number starting with 0
+  if (cleaned.length === 10 && cleaned.startsWith('0')) {
+    // Replace the leading 0 with 254
+    cleaned = '254' + cleaned.substring(1);
   }
+  
+  // If it doesn't have country code yet, add it
+  if (cleaned.length === 9 && !cleaned.startsWith('254')) {
+    cleaned = '254' + cleaned;
+  }
+  
+  return cleaned;
 };
 
 /**
@@ -79,19 +80,14 @@ export const initiatePayment = async (
     if (!phoneNumber || phoneNumber.length < 9) {
       throw new Error('Invalid phone number');
     }
+
+    // Format phone number
+    const formattedPhone = formatPhoneNumber(phoneNumber);
     
     const authToken = await getAuthToken();
-    if (!authToken) {
-      throw new Error('Authentication token not found');
-    }
 
-    console.log('Initiating payment with payload:', {
-      uuid: user.id,
-      amount,
-      phone_number: phoneNumber,
-      type
-    });
-
+    console.log('Making request to:', `${API_URL}?action=process`);
+    
     const response = await fetch(`${API_URL}?action=process`, {
       method: 'POST',
       headers: {
@@ -100,31 +96,35 @@ export const initiatePayment = async (
       },
       body: JSON.stringify({
         uuid: user.id,
-        amount,
-        phone_number: phoneNumber,
+        amount: Number(amount),
+        phone_number: formattedPhone,
         type
       })
     });
 
-    console.log('Response status:', response.status);
-    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
     if (!response.ok) {
-      const errorData = await safeJsonParse(response);
-      throw new Error(errorData.error || `${type} request failed: ${response.status}`);
+      const errorText = await response.text();
+      console.error('API Error Response:', errorText);
+      throw new Error(`Request failed: ${response.status} - ${errorText}`);
     }
 
-    const data = await safeJsonParse(response);
-    console.log('Parsed response data:', data);
+    const text = await response.text();
+    console.log('Raw API Response:', text);
 
-    if (!data || typeof data !== 'object') {
-      throw new Error('Invalid response format');
+    if (!text) {
+      throw new Error('Empty response received from server');
     }
 
-    return {
-      success: true,
-      ...data
-    };
+    try {
+      const data = JSON.parse(text);
+      return {
+        success: true,
+        ...data
+      };
+    } catch (parseError) {
+      console.error('JSON Parse Error:', parseError);
+      throw new Error(`Invalid JSON response: ${text}`);
+    }
 
   } catch (error: any) {
     console.error('Payment initiation error:', error);
@@ -147,11 +147,6 @@ export const checkPaymentStatus = async (
     }
 
     const authToken = await getAuthToken();
-    if (!authToken) {
-      throw new Error('Authentication token not found');
-    }
-
-    console.log('Checking payment status for reference:', reference);
 
     const response = await fetch(`${API_URL}?action=status&reference=${encodeURIComponent(reference)}`, {
       method: 'GET',
@@ -160,24 +155,29 @@ export const checkPaymentStatus = async (
       }
     });
 
-    console.log('Status check response:', response.status);
-
     if (!response.ok) {
-      const errorData = await safeJsonParse(response);
-      throw new Error(errorData.error || `Status check failed: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Status Check Error Response:', errorText);
+      throw new Error(`Status check failed: ${response.status} - ${errorText}`);
     }
 
-    const data = await safeJsonParse(response);
-    console.log('Status check data:', data);
+    const text = await response.text();
+    console.log('Raw Status Response:', text);
 
-    if (!data || typeof data !== 'object') {
-      throw new Error('Invalid status response format');
+    if (!text) {
+      throw new Error('Empty status response received');
     }
 
-    return {
-      success: true,
-      ...data
-    };
+    try {
+      const data = JSON.parse(text);
+      return {
+        success: true,
+        ...data
+      };
+    } catch (parseError) {
+      console.error('Status JSON Parse Error:', parseError);
+      throw new Error(`Invalid status response: ${text}`);
+    }
 
   } catch (error: any) {
     console.error('Status check error:', error);
