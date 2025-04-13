@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,26 +9,19 @@ import { Loader2 } from "lucide-react";
 import { initiatePayment, checkPaymentStatus } from '@/services/payHeroService';
 import { useAuth } from "@/context/AuthContext";
 
-interface DepositDialogProps {
+interface WithdrawDialogProps {
   isOpen: boolean;
   onClose: () => void;
   currency: string;
+  maxAmount?: number;
   onSuccess?: (amount: number) => void;
 }
 
-type DialogState = 
-  'initial' | 
-  'processing' | 
-  'stk_sent' | 
-  'pending' | 
-  'delayed' | 
-  'completed' | 
-  'failed' | 
-  'canceled';
+type DialogState = 'initial' | 'processing' | 'pending' | 'completed' | 'failed' | 'canceled' | 'delayed';
 
-const DepositDialog = ({ isOpen, onClose, currency = 'KES', onSuccess }: DepositDialogProps) => {
+const WithdrawDialog = ({ isOpen, onClose, currency = 'KES', maxAmount, onSuccess }: WithdrawDialogProps) => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, session } = useAuth(); // Add session from useAuth
   const [amount, setAmount] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [error, setError] = useState("");
@@ -61,8 +54,18 @@ const DepositDialog = ({ isOpen, onClose, currency = 'KES', onSuccess }: Deposit
 
   const handleSubmit = async () => {
     try {
+      if (!user || !session?.access_token) {
+        setError('Please log in to make a withdrawal');
+        return;
+      }
+
       if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
         setError('Please enter a valid amount');
+        return;
+      }
+
+      if (maxAmount && parseFloat(amount) > maxAmount) {
+        setError(`Amount cannot exceed ${maxAmount} ${currency}`);
         return;
       }
 
@@ -71,43 +74,38 @@ const DepositDialog = ({ isOpen, onClose, currency = 'KES', onSuccess }: Deposit
         return;
       }
 
-      if (!user) {
-        setError('You must be logged in to make a deposit');
-        return;
-      }
-
       setError('');
       setDialogState('processing');
-      setStatusMessage('Initiating deposit...');
+      setStatusMessage('Processing your withdrawal...');
 
       const response = await initiatePayment(
         user,
         parseFloat(amount),
         phoneNumber,
-        'deposit'
+        'withdrawal'
       );
 
       if (!response.success) {
-        throw new Error(response.error || 'Failed to initiate deposit');
+        throw new Error(response.error || 'Failed to process withdrawal');
       }
 
       setReference(response.reference || '');
-      setDialogState('stk_sent');
-      setStatusMessage('STK Push sent. Please check your phone and enter your PIN.');
-      
+      setDialogState('pending');
       startPolling(response.reference || '');
 
-      timeouts.current.delayedTimer = setTimeout(() => {
-        if (dialogState !== 'completed' && dialogState !== 'failed' && dialogState !== 'canceled') {
-          setDialogState('delayed');
-          setStatusMessage('Transaction is taking longer than expected...');
-        }
-      }, 30000);
-
     } catch (error: any) {
-      console.error('Deposit error:', error);
+      console.error('Withdrawal error:', error);
       setError(error.message || 'An error occurred');
       setDialogState('initial');
+      
+      // Show toast for authentication errors
+      if (error.message.includes('Authentication')) {
+        toast({
+          variant: "destructive",
+          title: "Authentication Error",
+          description: "Please log in again to continue",
+        });
+      }
     }
   };
 
@@ -131,12 +129,19 @@ const DepositDialog = ({ isOpen, onClose, currency = 'KES', onSuccess }: Deposit
         console.error('Polling error:', error);
       }
     }, 5000);
+
+    timeouts.current.delayedTimer = setTimeout(() => {
+      if (dialogState !== 'completed' && dialogState !== 'failed') {
+        setDialogState('delayed');
+        setStatusMessage('Taking longer than expected...');
+      }
+    }, 60000);
   };
 
   const handleSuccess = (amount: number) => {
     clearAllTimers();
     setDialogState('completed');
-    setStatusMessage(`Deposit of ${amount} ${currency} successful!`);
+    setStatusMessage(`Withdrawal of ${amount} ${currency} successful`);
     if (onSuccess) onSuccess(amount);
     
     timeouts.current.closeTimer = setTimeout(() => {
@@ -147,7 +152,7 @@ const DepositDialog = ({ isOpen, onClose, currency = 'KES', onSuccess }: Deposit
   const handleFailure = (message: string) => {
     clearAllTimers();
     setDialogState('failed');
-    setStatusMessage(message);
+    setStatusMessage(message || 'Withdrawal failed');
     
     timeouts.current.closeTimer = setTimeout(() => {
       onClose();
@@ -161,9 +166,12 @@ const DepositDialog = ({ isOpen, onClose, currency = 'KES', onSuccess }: Deposit
         onClose();
       }
     }}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Deposit {currency}</DialogTitle>
+          <DialogTitle>Withdraw {currency}</DialogTitle>
+          <DialogDescription>
+            Withdraw funds to your M-Pesa account.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -178,7 +186,13 @@ const DepositDialog = ({ isOpen, onClose, currency = 'KES', onSuccess }: Deposit
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="Enter amount"
                   min={1}
+                  max={maxAmount}
                 />
+                {maxAmount && (
+                  <p className="text-sm text-gray-500">
+                    Available: {maxAmount} {currency}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -200,7 +214,7 @@ const DepositDialog = ({ isOpen, onClose, currency = 'KES', onSuccess }: Deposit
             </>
           )}
 
-          {(dialogState === 'processing' || dialogState === 'stk_sent' || dialogState === 'pending' || dialogState === 'delayed') && (
+          {(dialogState === 'processing' || dialogState === 'pending' || dialogState === 'delayed') && (
             <div className="flex flex-col items-center justify-center py-4">
               <Loader2 className="h-8 w-8 animate-spin mb-4" />
               <p className="text-center text-sm text-gray-600">{statusMessage}</p>
@@ -226,12 +240,12 @@ const DepositDialog = ({ isOpen, onClose, currency = 'KES', onSuccess }: Deposit
               Cancel
             </Button>
             <Button onClick={handleSubmit}>
-              Deposit
+              Withdraw
             </Button>
           </div>
         )}
 
-        {(dialogState === 'stk_sent' || dialogState === 'pending' || dialogState === 'delayed') && (
+        {(dialogState === 'pending' || dialogState === 'delayed') && (
           <div className="flex justify-end">
             <Button variant="outline" onClick={onClose}>
               Close
@@ -243,4 +257,4 @@ const DepositDialog = ({ isOpen, onClose, currency = 'KES', onSuccess }: Deposit
   );
 };
 
-export default DepositDialog;
+export default WithdrawDialog;
