@@ -6,19 +6,27 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import { initiatePayment, pollTransactionStatus } from '@/services/payHeroService';
+import { initiatePayment, checkPaymentStatus } from '@/services/payHeroService';
 import { useAuth } from "@/context/AuthContext";
 
-interface WithdrawDialogProps {
+interface DepositDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  maxAmount?: number;
+  currency: string;
   onSuccess?: (amount: number) => void;
 }
 
-type DialogState = 'initial' | 'processing' | 'pending' | 'completed' | 'failed' | 'canceled' | 'delayed';
+type DialogState = 
+  'initial' | 
+  'processing' | 
+  'stk_sent' | 
+  'pending' | 
+  'delayed' | 
+  'completed' | 
+  'failed' | 
+  'canceled';
 
-const WithdrawDialog = ({ isOpen, onClose, maxAmount, onSuccess }: WithdrawDialogProps) => {
+const DepositDialog = ({ isOpen, onClose, currency = 'KES', onSuccess }: DepositDialogProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [amount, setAmount] = useState("");
@@ -58,32 +66,46 @@ const WithdrawDialog = ({ isOpen, onClose, maxAmount, onSuccess }: WithdrawDialo
         return;
       }
 
-      if (maxAmount && parseFloat(amount) > maxAmount) {
-        setError(`Amount cannot exceed ${maxAmount} KES`);
-        return;
-      }
-
       if (!phoneNumber || phoneNumber.length < 9) {
         setError('Please enter a valid phone number');
         return;
       }
 
-      setError('');
-      setDialogState('processing');
-      setStatusMessage('Processing your withdrawal...');
-
-      const response = await initiatePayment(parseFloat(amount), phoneNumber);
-
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to process withdrawal');
+      if (!user) {
+        setError('You must be logged in to make a deposit');
+        return;
       }
 
-      setReference(response.reference);
-      setDialogState('pending');
-      startPolling(response.reference);
+      setError('');
+      setDialogState('processing');
+      setStatusMessage('Initiating deposit...');
+
+      const response = await initiatePayment(
+        user,
+        parseFloat(amount),
+        phoneNumber,
+        'deposit'
+      );
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to initiate deposit');
+      }
+
+      setReference(response.reference || '');
+      setDialogState('stk_sent');
+      setStatusMessage('STK Push sent. Please check your phone and enter your PIN.');
+      
+      startPolling(response.reference || '');
+
+      timeouts.current.delayedTimer = setTimeout(() => {
+        if (dialogState !== 'completed' && dialogState !== 'failed' && dialogState !== 'canceled') {
+          setDialogState('delayed');
+          setStatusMessage('Transaction is taking longer than expected...');
+        }
+      }, 30000);
 
     } catch (error: any) {
-      console.error('Withdrawal error:', error);
+      console.error('Deposit error:', error);
       setError(error.message || 'An error occurred');
       setDialogState('initial');
     }
@@ -96,31 +118,25 @@ const WithdrawDialog = ({ isOpen, onClose, maxAmount, onSuccess }: WithdrawDialo
 
     timeouts.current.pollingInterval = setInterval(async () => {
       try {
-        const status = await pollTransactionStatus(ref);
+        const status = await checkPaymentStatus(ref);
         
-        if (status.completed) {
-          handleSuccess(status.amount);
-        } else if (status.failed) {
-          handleFailure(status.message);
+        if (status.status === 'completed') {
+          handleSuccess(status.amount || 0);
+        } else if (status.status === 'failed') {
+          handleFailure(status.error || 'Transaction failed');
+        } else if (status.status === 'canceled') {
+          handleFailure('Transaction was canceled');
         }
       } catch (error) {
         console.error('Polling error:', error);
       }
     }, 5000);
-
-    // Add timeout after 60 seconds
-    timeouts.current.delayedTimer = setTimeout(() => {
-      if (dialogState !== 'completed' && dialogState !== 'failed') {
-        setDialogState('delayed');
-        setStatusMessage('Taking longer than expected...');
-      }
-    }, 60000);
   };
 
   const handleSuccess = (amount: number) => {
     clearAllTimers();
     setDialogState('completed');
-    setStatusMessage(`Withdrawal of ${amount} KES successful`);
+    setStatusMessage(`Deposit of ${amount} ${currency} successful!`);
     if (onSuccess) onSuccess(amount);
     
     timeouts.current.closeTimer = setTimeout(() => {
@@ -131,7 +147,7 @@ const WithdrawDialog = ({ isOpen, onClose, maxAmount, onSuccess }: WithdrawDialo
   const handleFailure = (message: string) => {
     clearAllTimers();
     setDialogState('failed');
-    setStatusMessage(message || 'Withdrawal failed');
+    setStatusMessage(message);
     
     timeouts.current.closeTimer = setTimeout(() => {
       onClose();
@@ -139,17 +155,22 @@ const WithdrawDialog = ({ isOpen, onClose, maxAmount, onSuccess }: WithdrawDialo
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open && dialogState !== 'processing') {
+        clearAllTimers();
+        onClose();
+      }
+    }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Withdraw KES</DialogTitle>
+          <DialogTitle>Deposit {currency}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           {dialogState === 'initial' && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="amount">Amount (KES)</Label>
+                <Label htmlFor="amount">Amount ({currency})</Label>
                 <Input
                   id="amount"
                   type="number"
@@ -157,13 +178,7 @@ const WithdrawDialog = ({ isOpen, onClose, maxAmount, onSuccess }: WithdrawDialo
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="Enter amount"
                   min={1}
-                  max={maxAmount}
                 />
-                {maxAmount && (
-                  <p className="text-sm text-gray-500">
-                    Available: {maxAmount} KES
-                  </p>
-                )}
               </div>
 
               <div className="space-y-2">
@@ -172,7 +187,7 @@ const WithdrawDialog = ({ isOpen, onClose, maxAmount, onSuccess }: WithdrawDialo
                   id="phone"
                   type="tel"
                   value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9+]/g, ''))}
                   placeholder="e.g., 0712345678"
                 />
               </div>
@@ -185,15 +200,21 @@ const WithdrawDialog = ({ isOpen, onClose, maxAmount, onSuccess }: WithdrawDialo
             </>
           )}
 
-          {(dialogState === 'processing' || dialogState === 'pending' || dialogState === 'delayed') && (
+          {(dialogState === 'processing' || dialogState === 'stk_sent' || dialogState === 'pending' || dialogState === 'delayed') && (
             <div className="flex flex-col items-center justify-center py-4">
               <Loader2 className="h-8 w-8 animate-spin mb-4" />
               <p className="text-center text-sm text-gray-600">{statusMessage}</p>
             </div>
           )}
 
-          {(dialogState === 'completed' || dialogState === 'failed') && (
-            <Alert variant={dialogState === 'completed' ? 'default' : 'destructive'}>
+          {dialogState === 'completed' && (
+            <Alert>
+              <AlertDescription>{statusMessage}</AlertDescription>
+            </Alert>
+          )}
+
+          {(dialogState === 'failed' || dialogState === 'canceled') && (
+            <Alert variant="destructive">
               <AlertDescription>{statusMessage}</AlertDescription>
             </Alert>
           )}
@@ -205,7 +226,15 @@ const WithdrawDialog = ({ isOpen, onClose, maxAmount, onSuccess }: WithdrawDialo
               Cancel
             </Button>
             <Button onClick={handleSubmit}>
-              Withdraw
+              Deposit
+            </Button>
+          </div>
+        )}
+
+        {(dialogState === 'stk_sent' || dialogState === 'pending' || dialogState === 'delayed') && (
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={onClose}>
+              Close
             </Button>
           </div>
         )}
@@ -214,4 +243,4 @@ const WithdrawDialog = ({ isOpen, onClose, maxAmount, onSuccess }: WithdrawDialo
   );
 };
 
-export default WithdrawDialog;
+export default DepositDialog;
