@@ -1,7 +1,7 @@
 // src/components/dashboard/WithdrawDialog.tsx
 
 import { useState } from "react"
-import { toast } from "react-hot-toast"
+import { toast } from "sonner"
 import { initiatePayment, pollTransactionStatus, PaymentStatusResponse } from "@/lib/payment"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -140,9 +140,20 @@ export default function WithdrawDialog({
 
   const handleClose = () => {
     if (isLoading && currentStatus !== "Withdrawal completed!") {
-      if (window.confirm("Are you sure you want to close? The withdrawal might still be processing.")) {
-        resetForm()
-      }
+      toast.promise(
+        new Promise((resolve, reject) => {
+          if (window.confirm("Are you sure you want to close? The withdrawal might still be processing.")) {
+            resolve(resetForm())
+          } else {
+            reject()
+          }
+        }),
+        {
+          loading: 'Checking...',
+          success: 'Dialog closed',
+          error: 'Closing cancelled'
+        }
+      )
     } else {
       resetForm()
     }
