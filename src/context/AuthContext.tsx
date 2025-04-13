@@ -1,11 +1,12 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
+  session: Session | null;
   login: (email: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
   logout: () => void;
@@ -30,18 +31,18 @@ interface AuthProviderProps {
 
 const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   
   useEffect(() => {
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
         
         if (session && session.user) {
-          // Only set basic info from the session initially 
-          // to avoid infinite recursion with RLS policies
+          setSession(session);
           setUser({
             id: session.user.id,
             email: session.user.email || '',
@@ -50,6 +51,7 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           });
           setIsAuthenticated(true);
         } else {
+          setSession(null);
           setUser(null);
           setIsAuthenticated(false);
         }
@@ -63,7 +65,7 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session && session.user) {
-          // Set basic user info from session
+          setSession(session);
           setUser({
             id: session.user.id,
             email: session.user.email || '',
@@ -96,7 +98,6 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (error) throw error;
       
-      // Authentication is handled by the onAuthStateChange event
       toast.success("Login successful!");
       return;
     } catch (error: any) {
@@ -150,6 +151,7 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     <AuthContext.Provider
       value={{
         user,
+        session,
         login,
         register,
         logout,
