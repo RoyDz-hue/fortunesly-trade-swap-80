@@ -1,6 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-
-// src/services/PayHeroService.ts
 import { User } from '@supabase/auth-helpers-react';
 
 export interface PaymentResponse {
@@ -27,14 +25,11 @@ export interface PaymentStatusResponse {
 const API_URL = process.env.NEXT_PUBLIC_SUPABASE_URL + '/functions/v1/hyper-task';
 
 /**
- * Gets the Supabase auth token from storage
+ * Gets the current Supabase session token
  */
-const getAuthToken = (): string => {
-  // For browser environment
-  if (typeof window !== 'undefined' && window.localStorage) {
-    return localStorage.getItem('supabase.auth.token') || '';
-  }
-  return '';
+const getAuthToken = async (): Promise<string> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token || '';
 };
 
 /**
@@ -60,7 +55,7 @@ export const initiatePayment = async (
       throw new Error('Invalid phone number');
     }
     
-    const authToken = getAuthToken();
+    const authToken = await getAuthToken();
     if (!authToken) {
       throw new Error('Authentication token not found');
     }
@@ -85,7 +80,7 @@ export const initiatePayment = async (
     }
 
     return await response.json();
-  } catch (error) {
+  } catch (error: any) {
     console.error('Payment initiation error:', error);
     return {
       success: false,
@@ -105,7 +100,7 @@ export const checkPaymentStatus = async (
       throw new Error('Payment reference is required');
     }
 
-    const authToken = getAuthToken();
+    const authToken = await getAuthToken();
     if (!authToken) {
       throw new Error('Authentication token not found');
     }
@@ -123,7 +118,7 @@ export const checkPaymentStatus = async (
     }
 
     return await response.json();
-  } catch (error) {
+  } catch (error: any) {
     console.error('Status check error:', error);
     return {
       success: false,
