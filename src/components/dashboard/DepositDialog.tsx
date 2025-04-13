@@ -6,14 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import { initiatePayment, pollTransactionStatus } from '@/services/payHeroService';
+import { initiatePayment, checkPaymentStatus } from '@/services/payHeroService'; // Fixed this line
 import { useAuth } from "@/context/AuthContext";
 
 interface DepositDialogProps {
-  open: boolean;
+  isOpen: boolean; // Changed from open to isOpen to match your usage
   onClose: () => void;
   onSuccess?: (amount: number) => void;
-  type: 'deposit' | 'withdrawal';
+  currency?: string; // Added currency prop
 }
 
 type DialogState = 
@@ -26,7 +26,7 @@ type DialogState =
   'failed' | 
   'canceled';
 
-const DepositDialog = ({ open, onClose, onSuccess, type }: DepositDialogProps) => {
+const DepositDialog = ({ isOpen, onClose, onSuccess, currency = 'KES' }: DepositDialogProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [amount, setAmount] = useState("");
@@ -42,9 +42,6 @@ const DepositDialog = ({ open, onClose, onSuccess, type }: DepositDialogProps) =
     closeTimer?: NodeJS.Timeout;
   }>({});
 
-  const dialogTitle = type === 'deposit' ? 'Deposit Funds' : 'Withdraw Funds';
-  const buttonText = type === 'deposit' ? 'Deposit' : 'Withdraw';
-
   const clearAllTimers = () => {
     if (timeouts.current.delayedTimer) clearTimeout(timeouts.current.delayedTimer);
     if (timeouts.current.pollingInterval) clearInterval(timeouts.current.pollingInterval);
@@ -52,7 +49,7 @@ const DepositDialog = ({ open, onClose, onSuccess, type }: DepositDialogProps) =
   };
 
   useEffect(() => {
-    if (open) {
+    if (isOpen) {
       setDialogState('initial');
       setError('');
       setReference('');
@@ -60,7 +57,7 @@ const DepositDialog = ({ open, onClose, onSuccess, type }: DepositDialogProps) =
       clearAllTimers();
     }
     return clearAllTimers;
-  }, [open]);
+  }, [isOpen]);
 
   const handleSubmit = async () => {
     try {
@@ -74,37 +71,42 @@ const DepositDialog = ({ open, onClose, onSuccess, type }: DepositDialogProps) =
         return;
       }
 
+      if (!user) {
+        setError('You must be logged in to make a deposit');
+        return;
+      }
+
       setError('');
       setDialogState('processing');
-      setStatusMessage(`Initiating ${type}...`);
+      setStatusMessage('Initiating deposit...');
 
       const response = await initiatePayment(
         user,
         parseFloat(amount),
         phoneNumber,
-        type
+        'deposit'
       );
 
       if (!response.success) {
-        throw new Error(response.error || `Failed to initiate ${type}`);
+        throw new Error(response.error || 'Failed to initiate deposit');
       }
 
       setReference(response.reference || '');
       setDialogState('stk_sent');
-      setStatusMessage(`${type === 'deposit' ? 'STK Push' : 'Withdrawal'} initiated. Please check your phone and enter your PIN.`);
+      setStatusMessage('STK Push sent. Please check your phone and enter your PIN.');
       
       startPolling(response.reference || '');
 
       timeouts.current.delayedTimer = setTimeout(() => {
         if (dialogState !== 'completed' && dialogState !== 'failed' && dialogState !== 'canceled') {
           setDialogState('delayed');
-          setStatusMessage(`${type} is taking longer than expected...`);
+          setStatusMessage('Transaction is taking longer than expected...');
         }
       }, 30000);
 
     } catch (error: any) {
-      console.error(`${type} error:`, error);
-      setError(error.message || `An error occurred`);
+      console.error('Deposit error:', error);
+      setError(error.message || 'An error occurred');
       setDialogState('initial');
     }
   };
@@ -116,12 +118,14 @@ const DepositDialog = ({ open, onClose, onSuccess, type }: DepositDialogProps) =
 
     timeouts.current.pollingInterval = setInterval(async () => {
       try {
-        const status = await pollTransactionStatus(ref);
+        const status = await checkPaymentStatus(ref);
         
-        if (status.completed) {
-          handleSuccess(status.amount);
-        } else if (status.failed) {
-          handleFailure(status.message);
+        if (status.status === 'completed') {
+          handleSuccess(status.amount || 0);
+        } else if (status.status === 'failed') {
+          handleFailure(status.error || 'Transaction failed');
+        } else if (status.status === 'canceled') {
+          handleFailure('Transaction was canceled');
         }
       } catch (error) {
         console.error('Polling error:', error);
@@ -132,7 +136,7 @@ const DepositDialog = ({ open, onClose, onSuccess, type }: DepositDialogProps) =
   const handleSuccess = (amount: number) => {
     clearAllTimers();
     setDialogState('completed');
-    setStatusMessage(`${type === 'deposit' ? 'Deposit' : 'Withdrawal'} of ${amount} KES successful!`);
+    setStatusMessage(`Deposit of ${amount} ${currency} successful!`);
     if (onSuccess) onSuccess(amount);
     
     timeouts.current.closeTimer = setTimeout(() => {
@@ -143,7 +147,7 @@ const DepositDialog = ({ open, onClose, onSuccess, type }: DepositDialogProps) =
   const handleFailure = (message: string) => {
     clearAllTimers();
     setDialogState('failed');
-    setStatusMessage(message || `${type} failed`);
+    setStatusMessage(message);
     
     timeouts.current.closeTimer = setTimeout(() => {
       onClose();
@@ -151,7 +155,7 @@ const DepositDialog = ({ open, onClose, onSuccess, type }: DepositDialogProps) =
   };
 
   return (
-    <Dialog open={open} onOpenChange={(open) => {
+    <Dialog open={isOpen} onOpenChange={(open) => {
       if (!open && dialogState !== 'processing') {
         clearAllTimers();
         onClose();
@@ -159,14 +163,14 @@ const DepositDialog = ({ open, onClose, onSuccess, type }: DepositDialogProps) =
     }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{dialogTitle}</DialogTitle>
+          <DialogTitle>Deposit {currency}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           {dialogState === 'initial' && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="amount">Amount (KES)</Label>
+                <Label htmlFor="amount">Amount ({currency})</Label>
                 <Input
                   id="amount"
                   type="number"
@@ -182,7 +186,7 @@ const DepositDialog = ({ open, onClose, onSuccess, type }: DepositDialogProps) =
                   id="phone"
                   type="tel"
                   value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9+]/g, ''))}
                   placeholder="e.g., 0712345678"
                 />
               </div>
@@ -221,7 +225,7 @@ const DepositDialog = ({ open, onClose, onSuccess, type }: DepositDialogProps) =
               Cancel
             </Button>
             <Button onClick={handleSubmit}>
-              {buttonText}
+              Deposit
             </Button>
           </div>
         )}
