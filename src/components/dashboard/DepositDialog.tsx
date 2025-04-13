@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import { initiatePayment, checkPaymentStatus } from '@/services/payHeroService'; // Fixed this line
+import { initiatePayment, checkPaymentStatus } from '@/services/payHeroService';
 import { useAuth } from "@/context/AuthContext";
 
 interface DepositDialogProps {
-  isOpen: boolean; // Changed from open to isOpen to match your usage
+  isOpen: boolean;
   onClose: () => void;
   onSuccess?: (amount: number) => void;
-  currency?: string; // Added currency prop
+  currency?: string;
 }
 
 type DialogState = 
@@ -28,7 +28,7 @@ type DialogState =
 
 const DepositDialog = ({ isOpen, onClose, onSuccess, currency = 'KES' }: DepositDialogProps) => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, session } = useAuth(); // Add session from useAuth
   const [amount, setAmount] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [error, setError] = useState("");
@@ -61,6 +61,16 @@ const DepositDialog = ({ isOpen, onClose, onSuccess, currency = 'KES' }: Deposit
 
   const handleSubmit = async () => {
     try {
+      if (!user || !session?.access_token) {
+        setError('Please log in to make a deposit');
+        toast({
+          variant: "destructive",
+          title: "Authentication Error",
+          description: "Please log in again to continue",
+        });
+        return;
+      }
+
       if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
         setError('Please enter a valid amount');
         return;
@@ -68,11 +78,6 @@ const DepositDialog = ({ isOpen, onClose, onSuccess, currency = 'KES' }: Deposit
 
       if (!phoneNumber || phoneNumber.length < 9) {
         setError('Please enter a valid phone number');
-        return;
-      }
-
-      if (!user) {
-        setError('You must be logged in to make a deposit');
         return;
       }
 
@@ -108,6 +113,15 @@ const DepositDialog = ({ isOpen, onClose, onSuccess, currency = 'KES' }: Deposit
       console.error('Deposit error:', error);
       setError(error.message || 'An error occurred');
       setDialogState('initial');
+
+      // Show toast for authentication errors
+      if (error.message.includes('Authentication')) {
+        toast({
+          variant: "destructive",
+          title: "Authentication Error",
+          description: "Please log in again to continue",
+        });
+      }
     }
   };
 
@@ -161,9 +175,12 @@ const DepositDialog = ({ isOpen, onClose, onSuccess, currency = 'KES' }: Deposit
         onClose();
       }
     }}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Deposit {currency}</DialogTitle>
+          <DialogDescription>
+            Deposit funds using M-Pesa.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -177,6 +194,7 @@ const DepositDialog = ({ isOpen, onClose, onSuccess, currency = 'KES' }: Deposit
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="Enter amount"
+                  min={1}
                 />
               </div>
 
