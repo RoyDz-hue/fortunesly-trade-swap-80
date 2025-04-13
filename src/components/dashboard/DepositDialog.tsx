@@ -28,7 +28,7 @@ type DialogState =
 
 const DepositDialog = ({ isOpen, onClose, onSuccess, currency = 'KES' }: DepositDialogProps) => {
   const { toast } = useToast();
-  const { user, session } = useAuth(); // Add session from useAuth
+  const { user, isAuthenticated } = useAuth();
   const [amount, setAmount] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [error, setError] = useState("");
@@ -59,15 +59,18 @@ const DepositDialog = ({ isOpen, onClose, onSuccess, currency = 'KES' }: Deposit
     return clearAllTimers;
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setError('Please log in to make a deposit');
+    } else {
+      setError('');
+    }
+  }, [isAuthenticated]);
+
   const handleSubmit = async () => {
     try {
-      if (!user || !session?.access_token) {
+      if (!isAuthenticated || !user) {
         setError('Please log in to make a deposit');
-        toast({
-          variant: "destructive",
-          title: "Authentication Error",
-          description: "Please log in again to continue",
-        });
         return;
       }
 
@@ -113,15 +116,6 @@ const DepositDialog = ({ isOpen, onClose, onSuccess, currency = 'KES' }: Deposit
       console.error('Deposit error:', error);
       setError(error.message || 'An error occurred');
       setDialogState('initial');
-
-      // Show toast for authentication errors
-      if (error.message.includes('Authentication')) {
-        toast({
-          variant: "destructive",
-          title: "Authentication Error",
-          description: "Please log in again to continue",
-        });
-      }
     }
   };
 
