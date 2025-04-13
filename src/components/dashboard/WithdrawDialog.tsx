@@ -1,4 +1,4 @@
-// src/components/dashboard/WithdrawDialog.tsx
+// src/components/dashboard/DepositDialog.tsx
 
 import { useState } from "react"
 import { toast } from "react-hot-toast"
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Icons } from "@/components/icons"
-import { useAuth } from "@/lib/hooks/use-auth" // Update this path to match your auth hook
+import { useAuth } from "@/lib/hooks/use-auth"
 import {
   Dialog,
   DialogContent,
@@ -15,22 +15,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
-interface WithdrawDialogProps {
+interface DepositDialogProps {
   isOpen: boolean
   onClose: () => void
   onSuccess?: () => void
   onError?: (error: Error) => void
-  maxAmount?: number
 }
 
-export default function WithdrawDialog({ 
+export default function DepositDialog({ 
   isOpen, 
   onClose, 
   onSuccess,
-  onError,
-  maxAmount
-}: WithdrawDialogProps) {
-  const { user } = useAuth() // Using your auth hook instead of Supabase's
+  onError 
+}: DepositDialogProps) {
+  const { user } = useAuth()
   const [amount, setAmount] = useState("")
   const [phoneNumber, setPhoneNumber] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -44,8 +42,8 @@ export default function WithdrawDialog({
 
     switch (status.status) {
       case "completed":
-        toast.success("Withdrawal completed successfully!")
-        setCurrentStatus("Withdrawal completed!")
+        toast.success("Deposit completed successfully!")
+        setCurrentStatus("Payment completed!")
         setTimeout(() => {
           setIsLoading(false)
           onSuccess?.()
@@ -53,103 +51,89 @@ export default function WithdrawDialog({
         }, 2000)
         break
       case "failed":
-        toast.error(status.error || "Withdrawal failed")
-        setCurrentStatus("Withdrawal failed")
+        toast.error(status.error || "Payment failed")
+        setCurrentStatus("Payment failed")
         setTimeout(() => {
           setIsLoading(false)
-          onError?.(new Error(status.error || "Withdrawal failed"))
+          onError?.(new Error(status.error || "Payment failed"))
           handleClose()
         }, 2000)
         break
       case "canceled":
-        toast.error("Withdrawal was canceled")
-        setCurrentStatus("Withdrawal canceled")
+        toast.error("Payment was canceled")
+        setCurrentStatus("Payment canceled")
         setTimeout(() => {
           setIsLoading(false)
-          onError?.(new Error("Withdrawal was canceled"))
+          onError?.(new Error("Payment was canceled"))
           handleClose()
         }, 2000)
         break
       case "pending":
-        setCurrentStatus("Processing withdrawal...")
+        setCurrentStatus("Waiting for payment...")
         break
       case "queued":
-        setCurrentStatus("Withdrawal is queued...")
+        setCurrentStatus("Payment is being processed...")
         break
       default:
         setCurrentStatus(`Status: ${status.status}`)
     }
   }
 
-  const validateWithdrawal = (): boolean => {
+  const handleDeposit = async () => {
     if (!user) {
-      toast.error("Please sign in to make a withdrawal")
-      return false
+      toast.error("Please sign in to make a deposit")
+      return
     }
 
-    const withdrawalAmount = Number(amount)
-    if (!amount || withdrawalAmount <= 0) {
+    if (!amount || Number(amount) <= 0) {
       toast.error("Please enter a valid amount")
-      return false
-    }
-
-    if (maxAmount && withdrawalAmount > maxAmount) {
-      toast.error(`Maximum withdrawal amount is ${maxAmount} KES`)
-      return false
+      return
     }
 
     if (!phoneNumber || phoneNumber.length < 9) {
       toast.error("Please enter a valid phone number")
-      return false
+      return
     }
-
-    return true
-  }
-
-  const handleWithdraw = async () => {
-    if (!validateWithdrawal()) return
 
     try {
       setIsLoading(true)
-      setCurrentStatus("Initiating withdrawal...")
+      setCurrentStatus("Initiating payment...")
 
       const response = await initiatePayment(
-        user!,
+        user,
         Number(amount),
         phoneNumber,
-        "withdrawal"
+        "deposit"
       )
 
       if (!response.success || !response.reference) {
-        throw new Error(response.error || "Failed to initiate withdrawal")
+        throw new Error(response.error || "Failed to initiate payment")
       }
 
-      setCurrentStatus("Withdrawal initiated. Processing...")
+      setCurrentStatus("Payment initiated. Please check your phone...")
 
       pollTransactionStatus(
         response.reference,
-        handleStatusUpdate,
-        3000,  // Poll every 3 seconds
-        180000 // Timeout after 3 minutes
+        handleStatusUpdate
       ).catch(error => {
         console.error("Status polling error:", error)
-        setCurrentStatus("Error checking withdrawal status")
+        setCurrentStatus("Error checking payment status")
         setIsLoading(false)
         onError?.(error)
       })
 
     } catch (error: any) {
-      console.error("Withdrawal error:", error)
+      console.error("Deposit error:", error)
       setIsLoading(false)
       setCurrentStatus("")
-      toast.error(error.message || "Failed to process withdrawal")
+      toast.error(error.message || "Failed to process deposit")
       onError?.(error)
     }
   }
 
   const handleClose = () => {
-    if (isLoading && currentStatus !== "Withdrawal completed!") {
-      if (window.confirm("Are you sure you want to close? The withdrawal might still be processing.")) {
+    if (isLoading && currentStatus !== "Payment completed!") {
+      if (window.confirm("Are you sure you want to close? The payment might still be processing.")) {
         resetForm()
       }
     } else {
@@ -169,7 +153,7 @@ export default function WithdrawDialog({
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Withdraw Funds</DialogTitle>
+          <DialogTitle>Deposit Funds</DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
@@ -182,13 +166,7 @@ export default function WithdrawDialog({
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               disabled={isLoading}
-              max={maxAmount}
             />
-            {maxAmount && (
-              <p className="text-sm text-muted-foreground">
-                Maximum: {maxAmount.toLocaleString()} KES
-              </p>
-            )}
           </div>
 
           <div className="grid gap-2">
@@ -212,7 +190,7 @@ export default function WithdrawDialog({
 
         <Button
           className="w-full"
-          onClick={handleWithdraw}
+          onClick={handleDeposit}
           disabled={isLoading}
         >
           {isLoading ? (
@@ -221,7 +199,7 @@ export default function WithdrawDialog({
               Processing...
             </>
           ) : (
-            'Withdraw'
+            'Deposit'
           )}
         </Button>
       </DialogContent>
@@ -229,4 +207,4 @@ export default function WithdrawDialog({
   )
 }
 
-export { WithdrawDialog }
+export { DepositDialog }
