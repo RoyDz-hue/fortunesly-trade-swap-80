@@ -1,168 +1,133 @@
 import { supabase } from "@/integrations/supabase/client";
 
-interface PaymentRequest {
-  amount: number;
-  phoneNumber: string;
-  type: 'deposit' | 'withdrawal';
-  customerName?: string;
-  callbackUrl?: string;
+// src/services/PayHeroService.ts
+import { User } from '@supabase/auth-helpers-react';
+
+export interface PaymentResponse {
+  success: boolean;
+  reference?: string;
+  status?: string;
+  message?: string;
+  error?: string;
+  provider_data?: any;
 }
 
-// Edge function URL for callbacks
-const EDGE_FUNCTION_URL = 'https://bfsodqqylpfotszjlfuk.supabase.co/functions/v1/hyper-task';
-const CALLBACK_URL = `${EDGE_FUNCTION_URL}?action=callback`;
+export interface PaymentStatusResponse {
+  success: boolean;
+  reference?: string;
+  type?: string;
+  amount?: number;
+  status?: string;
+  created_at?: string;
+  updated_at?: string;
+  provider_reference?: string;
+  error?: string;
+}
 
-export const initiatePayment = async ({
-  amount,
-  phoneNumber,
-  type,
-  customerName
-}: PaymentRequest) => {
+const API_URL = process.env.NEXT_PUBLIC_SUPABASE_URL + '/functions/v1/hyper-task';
+
+/**
+ * Gets the Supabase auth token from storage
+ */
+const getAuthToken = (): string => {
+  // For browser environment
+  if (typeof window !== 'undefined' && window.localStorage) {
+    return localStorage.getItem('supabase.auth.token') || '';
+  }
+  return '';
+};
+
+/**
+ * Initiates a payment request (deposit or withdrawal)
+ */
+export const initiatePayment = async (
+  user: User,
+  amount: number,
+  phoneNumber: string,
+  type: 'deposit' | 'withdrawal'
+): Promise<PaymentResponse> => {
   try {
-    // Input validation
+    // Validate input
+    if (!user?.id) {
+      throw new Error('User not authenticated');
+    }
+    
     if (amount <= 0) {
-      throw new Error('Amount must be greater than 0');
+      throw new Error('Amount must be greater than zero');
     }
     
-    if (!phoneNumber) {
-      throw new Error('Phone number is required');
+    if (!phoneNumber || phoneNumber.length < 9) {
+      throw new Error('Invalid phone number');
+    }
+    
+    const authToken = getAuthToken();
+    if (!authToken) {
+      throw new Error('Authentication token not found');
     }
 
-    // Get user ID
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
-    if (!userData.user) throw new Error('User not authenticated');
-    
-    // Step 1: Create payment request via RPC
-    const { data: paymentRequest, error: rpcError } = await supabase
-      .rpc('initiate_payment_request', {
-        p_user_id: userData.user.id,
-        p_amount: amount,
-        p_phone_number: phoneNumber,
-        p_type: type,
-        p_customer_name: customerName,
-        p_callback_url: CALLBACK_URL // Pass the callback URL to the database
-      });
-
-    if (rpcError) throw new Error(`RPC Error: ${rpcError.message}`);
-    
-    // Handle error response from RPC function
-    if (!paymentRequest.success) {
-      // Handle specific error cases
-      if (paymentRequest.error === 'Insufficient balance') {
-        throw new Error(`Insufficient balance. Available: ${paymentRequest.available || 0}`);
-      } else {
-        throw new Error(paymentRequest.error || 'Payment request failed');
-      }
-    }
-
-    // Step 2: Process payment via Edge Function
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError) throw new Error(`Session error: ${sessionError.message}`);
-    if (!sessionData.session) throw new Error('No active session');
-    
-    const response = await fetch(`${EDGE_FUNCTION_URL}?action=process`, {
+    const response = await fetch(`${API_URL}?action=process`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${sessionData.session.access_token}`
+        'Authorization': `Bearer ${authToken}`
       },
-      body: JSON.stringify({ ...paymentRequest, action: 'process' })
+      body: JSON.stringify({
+        uuid: user.id,
+        amount,
+        phone_number: phoneNumber,
+        type
+      })
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Payment processing error: ${response.status} - ${errorText}`);
+      const errorData = await response.json();
+      throw new Error(errorData.error || `${type} request failed: ${response.status}`);
     }
 
-    const paymentResult = await response.json();
-    if (!paymentResult.success) throw new Error(paymentResult.error || 'Payment processing failed');
-
+    return await response.json();
+  } catch (error) {
+    console.error('Payment initiation error:', error);
     return {
-      ...paymentResult,
-      reference: paymentRequest.reference
+      success: false,
+      error: error.message || 'Payment request failed'
     };
-  } catch (error) {
-    console.error('Payment initiation failed:', error);
-    throw error;
   }
 };
 
-export const checkTransactionStatus = async (reference: string) => {
+/**
+ * Checks the status of a payment
+ */
+export const checkPaymentStatus = async (
+  reference: string
+): Promise<PaymentStatusResponse> => {
   try {
-    if (!reference) throw new Error('Transaction reference is required');
-    
-    // First try to get status from database
-    const { data: statusData, error: statusError } = await supabase
-      .rpc('get_transaction_status', {
-        p_reference: reference
-      });
-
-    if (!statusError && statusData?.success) {
-      return statusData.transaction;
+    if (!reference) {
+      throw new Error('Payment reference is required');
     }
-    
-    // If database check fails, fall back to edge function
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError) throw new Error(`Session error: ${sessionError.message}`);
-    if (!sessionData.session) throw new Error('No active session');
-    
-    const response = await fetch(`${EDGE_FUNCTION_URL}?action=status`, {
-      method: 'POST',
+
+    const authToken = getAuthToken();
+    if (!authToken) {
+      throw new Error('Authentication token not found');
+    }
+
+    const response = await fetch(`${API_URL}?action=status&reference=${encodeURIComponent(reference)}`, {
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${sessionData.session.access_token}`
-      },
-      body: JSON.stringify({ reference, action: 'status' })
+        'Authorization': `Bearer ${authToken}`
+      }
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Status check error: ${response.status} - ${errorText}`);
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Status check failed: ${response.status}`);
     }
 
-    const statusResult = await response.json();
-    if (!statusResult.success) throw new Error(statusResult.error || 'Status check failed');
-
-    return statusResult.transaction;
+    return await response.json();
   } catch (error) {
-    console.error('Transaction status check failed:', error);
-    throw error;
+    console.error('Status check error:', error);
+    return {
+      success: false,
+      error: error.message || 'Status check failed'
+    };
   }
-};
-
-export const pollTransactionStatus = async (
-  reference: string,
-  onStatusUpdate: (status: any) => void,
-  maxAttempts = 20,
-  interval = 3000
-) => {
-  let attempts = 0;
-
-  const checkStatus = async () => {
-    if (attempts >= maxAttempts) {
-      onStatusUpdate({ status: 'timeout', error: 'Status check timed out' });
-      return;
-    }
-
-    attempts++;
-
-    try {
-      const transaction = await checkTransactionStatus(reference);
-
-      onStatusUpdate(transaction);
-
-      if (transaction.status === 'completed' || transaction.status === 'failed') {
-        return;
-      }
-
-      setTimeout(checkStatus, interval);
-    } catch (error) {
-      console.error('Polling error:', error);
-      // Increase interval on errors to prevent hammering the server
-      setTimeout(checkStatus, interval * 2);
-    }
-  };
-
-  checkStatus();
 };
