@@ -1,13 +1,13 @@
 // src/components/dashboard/WithdrawDialog.tsx
 
 import { useState } from "react"
-import { useUser } from "@supabase/auth-helpers-react"
 import { toast } from "react-hot-toast"
 import { initiatePayment, pollTransactionStatus, PaymentStatusResponse } from "@/lib/payment"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Icons } from "@/components/icons"
+import { useAuth } from "@/lib/hooks/use-auth" // Update this path to match your auth hook
 import {
   Dialog,
   DialogContent,
@@ -30,7 +30,7 @@ export default function WithdrawDialog({
   onError,
   maxAmount
 }: WithdrawDialogProps) {
-  const user = useUser()
+  const { user } = useAuth() // Using your auth hook instead of Supabase's
   const [amount, setAmount] = useState("")
   const [phoneNumber, setPhoneNumber] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -171,6 +171,7 @@ export default function WithdrawDialog({
         <DialogHeader>
           <DialogTitle>Withdraw Funds</DialogTitle>
         </DialogHeader>
+
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
             <Label htmlFor="amount">Amount (KES)</Label>
