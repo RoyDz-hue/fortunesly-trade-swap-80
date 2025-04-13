@@ -1,266 +1,243 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
-import { initiatePayment, checkPaymentStatus } from '@/services/payHeroService';
-import { useAuth } from "@/context/AuthContext";
+import { Fragment, useState } from 'react';
+import { Dialog, Transition } from '@headlessui/react';
+import { useUser } from '@supabase/auth-helpers-react';
+import { XMarkIcon } from '@heroicons/react/24/outline';
+import { toast } from 'react-hot-toast';
+import { initiatePayment, pollTransactionStatus, PaymentStatusResponse } from '@/services/payHeroService';
+import { LoaderCircle } from './LoaderCircle';
 
-interface WithdrawDialogProps {
+interface DepositDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: (amount: number) => void;
-  currency?: string;
-  balance: number;
+  onSuccess?: () => void;
+  onError?: (error: Error) => void;
 }
 
-type DialogState = 
-  'initial' | 
-  'processing' | 
-  'stk_sent' | 
-  'pending' | 
-  'delayed' | 
-  'completed' | 
-  'failed' | 
-  'canceled';
+export const DepositDialog = ({ 
+  isOpen, 
+  onClose, 
+  onSuccess,
+  onError 
+}: DepositDialogProps) => {
+  const user = useUser();
+  const [amount, setAmount] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState<string>('');
+  const [reference, setReference] = useState<string>('');
 
-const WithdrawDialog = ({ isOpen, onClose, onSuccess, currency = 'KES', balance }: WithdrawDialogProps) => {
-  const { toast } = useToast();
-  const { user, isAuthenticated } = useAuth();
-  const [amount, setAmount] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [error, setError] = useState("");
-  const [dialogState, setDialogState] = useState<DialogState>('initial');
-  const [statusMessage, setStatusMessage] = useState("");
-  const [reference, setReference] = useState("");
+  const handleStatusUpdate = (status: PaymentStatusResponse) => {
+    if (!status.success) {
+      setCurrentStatus('Error checking status');
+      return;
+    }
 
-  const timeouts = useRef<{
-    delayedTimer?: NodeJS.Timeout;
-    pollingInterval?: NodeJS.Timeout;
-    closeTimer?: NodeJS.Timeout;
-  }>({});
-
-  const clearAllTimers = () => {
-    if (timeouts.current.delayedTimer) clearTimeout(timeouts.current.delayedTimer);
-    if (timeouts.current.pollingInterval) clearInterval(timeouts.current.pollingInterval);
-    if (timeouts.current.closeTimer) clearTimeout(timeouts.current.closeTimer);
+    switch (status.status) {
+      case 'completed':
+        setCurrentStatus('Payment completed successfully!');
+        setTimeout(() => {
+          setIsLoading(false);
+          onSuccess?.();
+          handleClose();
+        }, 2000);
+        break;
+      case 'failed':
+        setCurrentStatus('Payment failed');
+        setTimeout(() => {
+          setIsLoading(false);
+          onError?.(new Error(status.error || 'Payment failed'));
+          handleClose();
+        }, 2000);
+        break;
+      case 'canceled':
+        setCurrentStatus('Payment was canceled');
+        setTimeout(() => {
+          setIsLoading(false);
+          onError?.(new Error('Payment was canceled'));
+          handleClose();
+        }, 2000);
+        break;
+      case 'pending':
+        setCurrentStatus('Waiting for payment...');
+        break;
+      case 'queued':
+        setCurrentStatus('Payment is being processed...');
+        break;
+      default:
+        setCurrentStatus(`Status: ${status.status}`);
+    }
   };
 
-  useEffect(() => {
-    if (isOpen) {
-      setDialogState('initial');
-      setError('');
-      setReference('');
-      setStatusMessage('');
-      clearAllTimers();
+  const handleDeposit = async () => {
+    if (!user) {
+      toast.error('Please sign in to make a deposit');
+      return;
     }
-    return clearAllTimers;
-  }, [isOpen]);
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setError('Please log in to make a withdrawal');
-    } else {
-      setError('');
+    if (!amount || Number(amount) <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
     }
-  }, [isAuthenticated]);
 
-  const handleSubmit = async () => {
+    if (!phoneNumber || phoneNumber.length < 9) {
+      toast.error('Please enter a valid phone number');
+      return;
+    }
+
     try {
-      if (!isAuthenticated || !user) {
-        setError('Please log in to make a withdrawal');
-        return;
-      }
-
-      const withdrawalAmount = parseFloat(amount);
-
-      if (!amount || isNaN(withdrawalAmount) || withdrawalAmount <= 0) {
-        setError('Please enter a valid amount');
-        return;
-      }
-
-      if (withdrawalAmount > balance) {
-        setError('Insufficient balance');
-        return;
-      }
-
-      if (!phoneNumber || phoneNumber.length < 9) {
-        setError('Please enter a valid phone number');
-        return;
-      }
-
-      setError('');
-      setDialogState('processing');
-      setStatusMessage('Initiating withdrawal...');
+      setIsLoading(true);
+      setCurrentStatus('Initiating payment...');
 
       const response = await initiatePayment(
         user,
-        withdrawalAmount,
+        Number(amount),
         phoneNumber,
-        'withdrawal'
+        'deposit'
       );
 
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to initiate withdrawal');
+      if (!response.success || !response.reference) {
+        throw new Error(response.error || 'Failed to initiate payment');
       }
 
-      setReference(response.reference || '');
-      setDialogState('stk_sent');
-      setStatusMessage('Processing your withdrawal. Please wait...');
-      
-      startPolling(response.reference || '');
+      setReference(response.reference);
+      setCurrentStatus('Payment initiated. Please check your phone...');
 
-      timeouts.current.delayedTimer = setTimeout(() => {
-        if (dialogState !== 'completed' && dialogState !== 'failed' && dialogState !== 'canceled') {
-          setDialogState('delayed');
-          setStatusMessage('Transaction is taking longer than expected...');
-        }
-      }, 30000);
+      // Start polling for status updates
+      pollTransactionStatus(
+        response.reference,
+        handleStatusUpdate
+      ).catch(error => {
+        console.error('Status polling error:', error);
+        setCurrentStatus('Error checking payment status');
+        setIsLoading(false);
+        onError?.(error);
+      });
 
     } catch (error: any) {
-      console.error('Withdrawal error:', error);
-      setError(error.message || 'An error occurred');
-      setDialogState('initial');
+      console.error('Deposit error:', error);
+      setIsLoading(false);
+      setCurrentStatus('');
+      toast.error(error.message || 'Failed to process deposit');
+      onError?.(error);
     }
   };
 
-  const startPolling = (ref: string) => {
-    if (timeouts.current.pollingInterval) {
-      clearInterval(timeouts.current.pollingInterval);
-    }
-
-    timeouts.current.pollingInterval = setInterval(async () => {
-      try {
-        const status = await checkPaymentStatus(ref);
-        
-        if (status.status === 'completed') {
-          handleSuccess(status.amount || 0);
-        } else if (status.status === 'failed') {
-          handleFailure(status.error || 'Transaction failed');
-        } else if (status.status === 'canceled') {
-          handleFailure('Transaction was canceled');
-        }
-      } catch (error) {
-        console.error('Polling error:', error);
-      }
-    }, 5000);
-  };
-
-  const handleSuccess = (amount: number) => {
-    clearAllTimers();
-    setDialogState('completed');
-    setStatusMessage(`Withdrawal of ${amount} ${currency} successful!`);
-    if (onSuccess) onSuccess(amount);
-    
-    timeouts.current.closeTimer = setTimeout(() => {
-      onClose();
-    }, 2000);
-  };
-
-  const handleFailure = (message: string) => {
-    clearAllTimers();
-    setDialogState('failed');
-    setStatusMessage(message);
-    
-    timeouts.current.closeTimer = setTimeout(() => {
-      onClose();
-    }, 2000);
+  const handleClose = () => {
+    setAmount('');
+    setPhoneNumber('');
+    setCurrentStatus('');
+    setReference('');
+    setIsLoading(false);
+    onClose();
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
-      if (!open && dialogState !== 'processing') {
-        clearAllTimers();
-        onClose();
-      }
-    }}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Withdraw {currency}</DialogTitle>
-          <DialogDescription>
-            Withdraw funds to your M-Pesa account.
-          </DialogDescription>
-        </DialogHeader>
+    <Transition.Root show={isOpen} as={Fragment}>
+      <Dialog as="div" className="relative z-50" onClose={handleClose}>
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+        </Transition.Child>
 
-        <div className="space-y-4 py-4">
-          {dialogState === 'initial' && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount ({currency})</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="Enter amount"
-                  min={1}
-                  max={balance}
-                />
-                <p className="text-sm text-gray-500">Available balance: {balance} {currency}</p>
-              </div>
+        <div className="fixed inset-0 z-10 overflow-y-auto">
+          <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+              enterTo="opacity-100 translate-y-0 sm:scale-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+              leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+            >
+              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-sm sm:p-6">
+                <div className="absolute right-0 top-0 pr-4 pt-4">
+                  <button
+                    type="button"
+                    className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                    onClick={handleClose}
+                  >
+                    <span className="sr-only">Close</span>
+                    <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                  </button>
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="phone">M-Pesa Number</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9+]/g, ''))}
-                  placeholder="e.g., 0712345678"
-                />
-              </div>
+                <div>
+                  <div className="mt-3 text-center sm:mt-5">
+                    <Dialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900">
+                      Deposit Funds
+                    </Dialog.Title>
+                    
+                    <div className="mt-4">
+                      <div className="mb-4">
+                        <label htmlFor="amount" className="block text-sm font-medium text-gray-700">
+                          Amount (KES)
+                        </label>
+                        <input
+                          type="number"
+                          id="amount"
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                          placeholder="Enter amount"
+                          value={amount}
+                          onChange={(e) => setAmount(e.target.value)}
+                          disabled={isLoading}
+                        />
+                      </div>
 
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-            </>
-          )}
+                      <div className="mb-4">
+                        <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+                          Phone Number
+                        </label>
+                        <input
+                          type="tel"
+                          id="phone"
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                          placeholder="Enter M-Pesa number"
+                          value={phoneNumber}
+                          onChange={(e) => setPhoneNumber(e.target.value)}
+                          disabled={isLoading}
+                        />
+                      </div>
 
-          {(dialogState === 'processing' || dialogState === 'stk_sent' || dialogState === 'pending' || dialogState === 'delayed') && (
-            <div className="flex flex-col items-center justify-center py-4">
-              <Loader2 className="h-8 w-8 animate-spin mb-4" />
-              <p className="text-center text-sm text-gray-600">{statusMessage}</p>
-            </div>
-          )}
+                      {currentStatus && (
+                        <div className="mt-2 text-sm text-gray-500">
+                          {currentStatus}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
 
-          {dialogState === 'completed' && (
-            <Alert>
-              <AlertDescription>{statusMessage}</AlertDescription>
-            </Alert>
-          )}
-
-          {(dialogState === 'failed' || dialogState === 'canceled') && (
-            <Alert variant="destructive">
-              <AlertDescription>{statusMessage}</AlertDescription>
-            </Alert>
-          )}
+                <div className="mt-5 sm:mt-6">
+                  <button
+                    type="button"
+                    className="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                    onClick={handleDeposit}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <div className="flex items-center justify-center">
+                        <LoaderCircle className="mr-2 h-4 w-4" />
+                        Processing...
+                      </div>
+                    ) : (
+                      'Deposit'
+                    )}
+                  </button>
+                </div>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
         </div>
-
-        {dialogState === 'initial' && (
-          <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit}>
-              Withdraw
-            </Button>
-          </div>
-        )}
-
-        {(dialogState === 'stk_sent' || dialogState === 'pending' || dialogState === 'delayed') && (
-          <div className="flex justify-end">
-            <Button variant="outline" onClick={onClose}>
-              Close
-            </Button>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+      </Dialog>
+    </Transition.Root>
   );
 };
 
