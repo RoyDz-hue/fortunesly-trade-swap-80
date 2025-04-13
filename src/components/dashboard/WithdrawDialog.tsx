@@ -12,16 +12,24 @@ import { useAuth } from "@/context/AuthContext";
 interface WithdrawDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  currency: string;
-  maxAmount?: number;
   onSuccess?: (amount: number) => void;
+  currency?: string;
+  balance: number;
 }
 
-type DialogState = 'initial' | 'processing' | 'pending' | 'completed' | 'failed' | 'canceled' | 'delayed';
+type DialogState = 
+  'initial' | 
+  'processing' | 
+  'stk_sent' | 
+  'pending' | 
+  'delayed' | 
+  'completed' | 
+  'failed' | 
+  'canceled';
 
-const WithdrawDialog = ({ isOpen, onClose, currency = 'KES', maxAmount, onSuccess }: WithdrawDialogProps) => {
+const WithdrawDialog = ({ isOpen, onClose, onSuccess, currency = 'KES', balance }: WithdrawDialogProps) => {
   const { toast } = useToast();
-  const { user, session } = useAuth(); // Add session from useAuth
+  const { user, isAuthenticated } = useAuth();
   const [amount, setAmount] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [error, setError] = useState("");
@@ -52,20 +60,30 @@ const WithdrawDialog = ({ isOpen, onClose, currency = 'KES', maxAmount, onSucces
     return clearAllTimers;
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setError('Please log in to make a withdrawal');
+    } else {
+      setError('');
+    }
+  }, [isAuthenticated]);
+
   const handleSubmit = async () => {
     try {
-      if (!user || !session?.access_token) {
+      if (!isAuthenticated || !user) {
         setError('Please log in to make a withdrawal');
         return;
       }
 
-      if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+      const withdrawalAmount = parseFloat(amount);
+
+      if (!amount || isNaN(withdrawalAmount) || withdrawalAmount <= 0) {
         setError('Please enter a valid amount');
         return;
       }
 
-      if (maxAmount && parseFloat(amount) > maxAmount) {
-        setError(`Amount cannot exceed ${maxAmount} ${currency}`);
+      if (withdrawalAmount > balance) {
+        setError('Insufficient balance');
         return;
       }
 
@@ -76,36 +94,36 @@ const WithdrawDialog = ({ isOpen, onClose, currency = 'KES', maxAmount, onSucces
 
       setError('');
       setDialogState('processing');
-      setStatusMessage('Processing your withdrawal...');
+      setStatusMessage('Initiating withdrawal...');
 
       const response = await initiatePayment(
         user,
-        parseFloat(amount),
+        withdrawalAmount,
         phoneNumber,
         'withdrawal'
       );
 
       if (!response.success) {
-        throw new Error(response.error || 'Failed to process withdrawal');
+        throw new Error(response.error || 'Failed to initiate withdrawal');
       }
 
       setReference(response.reference || '');
-      setDialogState('pending');
+      setDialogState('stk_sent');
+      setStatusMessage('Processing your withdrawal. Please wait...');
+      
       startPolling(response.reference || '');
+
+      timeouts.current.delayedTimer = setTimeout(() => {
+        if (dialogState !== 'completed' && dialogState !== 'failed' && dialogState !== 'canceled') {
+          setDialogState('delayed');
+          setStatusMessage('Transaction is taking longer than expected...');
+        }
+      }, 30000);
 
     } catch (error: any) {
       console.error('Withdrawal error:', error);
       setError(error.message || 'An error occurred');
       setDialogState('initial');
-      
-      // Show toast for authentication errors
-      if (error.message.includes('Authentication')) {
-        toast({
-          variant: "destructive",
-          title: "Authentication Error",
-          description: "Please log in again to continue",
-        });
-      }
     }
   };
 
@@ -129,19 +147,12 @@ const WithdrawDialog = ({ isOpen, onClose, currency = 'KES', maxAmount, onSucces
         console.error('Polling error:', error);
       }
     }, 5000);
-
-    timeouts.current.delayedTimer = setTimeout(() => {
-      if (dialogState !== 'completed' && dialogState !== 'failed') {
-        setDialogState('delayed');
-        setStatusMessage('Taking longer than expected...');
-      }
-    }, 60000);
   };
 
   const handleSuccess = (amount: number) => {
     clearAllTimers();
     setDialogState('completed');
-    setStatusMessage(`Withdrawal of ${amount} ${currency} successful`);
+    setStatusMessage(`Withdrawal of ${amount} ${currency} successful!`);
     if (onSuccess) onSuccess(amount);
     
     timeouts.current.closeTimer = setTimeout(() => {
@@ -152,7 +163,7 @@ const WithdrawDialog = ({ isOpen, onClose, currency = 'KES', maxAmount, onSucces
   const handleFailure = (message: string) => {
     clearAllTimers();
     setDialogState('failed');
-    setStatusMessage(message || 'Withdrawal failed');
+    setStatusMessage(message);
     
     timeouts.current.closeTimer = setTimeout(() => {
       onClose();
@@ -186,13 +197,9 @@ const WithdrawDialog = ({ isOpen, onClose, currency = 'KES', maxAmount, onSucces
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="Enter amount"
                   min={1}
-                  max={maxAmount}
+                  max={balance}
                 />
-                {maxAmount && (
-                  <p className="text-sm text-gray-500">
-                    Available: {maxAmount} {currency}
-                  </p>
-                )}
+                <p className="text-sm text-gray-500">Available balance: {balance} {currency}</p>
               </div>
 
               <div className="space-y-2">
@@ -214,7 +221,7 @@ const WithdrawDialog = ({ isOpen, onClose, currency = 'KES', maxAmount, onSucces
             </>
           )}
 
-          {(dialogState === 'processing' || dialogState === 'pending' || dialogState === 'delayed') && (
+          {(dialogState === 'processing' || dialogState === 'stk_sent' || dialogState === 'pending' || dialogState === 'delayed') && (
             <div className="flex flex-col items-center justify-center py-4">
               <Loader2 className="h-8 w-8 animate-spin mb-4" />
               <p className="text-center text-sm text-gray-600">{statusMessage}</p>
@@ -245,7 +252,7 @@ const WithdrawDialog = ({ isOpen, onClose, currency = 'KES', maxAmount, onSucces
           </div>
         )}
 
-        {(dialogState === 'pending' || dialogState === 'delayed') && (
+        {(dialogState === 'stk_sent' || dialogState === 'pending' || dialogState === 'delayed') && (
           <div className="flex justify-end">
             <Button variant="outline" onClick={onClose}>
               Close
