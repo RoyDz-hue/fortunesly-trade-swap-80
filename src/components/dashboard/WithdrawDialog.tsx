@@ -16,7 +16,6 @@ import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-import { initiatePayment, checkPaymentStatus } from '@/services/PayHeroService';
 
 // Define props for the WithdrawDialog component
 
