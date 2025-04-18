@@ -14,3 +14,4 @@ const SuccessAlert: React.FC<SuccessAlertProps> = ({ message }) => {
 };
 
 export default SuccessAlert;
+
