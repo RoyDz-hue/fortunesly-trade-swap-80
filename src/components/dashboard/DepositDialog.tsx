@@ -1,8 +1,8 @@
-// src/components/dashboard/WithdrawDialog.tsx
+// src/components/dashboard/DepositDialog.tsx
 
 import { useState } from "react"
 import { toast } from "sonner"
-import { initiatePayment, pollTransactionStatus, PaymentStatusResponse } from "@/services/payHeroService"
+import { initiatePayment, pollTrasactionStatus, PaymentStatusResponse } from "@/services/payHeroService"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -33,8 +33,132 @@ export default function DepositDialog({
   const [phoneNumber, setPhoneNumber] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [currentStatus, setCurrentStatus] = useState<string>("")
+  
+  const handleStatusUpdate = (status: PaymentStatusResponse) => {
+    if (!status.success) {
+      setCurrentStatus("Error checking status")
+      return
+    }
 
-  // Rest of your existing code stays the same until the return statement
+    switch (status.status) {
+      case "completed":
+        toast.success("Deposit completed successfully!")
+        setCurrentStatus("Deposit completed!")
+        setTimeout(() => {
+          setIsLoading(false)
+          onSuccess?.()
+          handleClose()
+        }, 2000)
+        break
+      case "failed":
+        toast.error(status.error || "Deposit failed")
+        setCurrentStatus("Deposit failed")
+        setTimeout(() => {
+          setIsLoading(false)
+          onError?.(new Error(status.error || "Deposit failed"))
+          handleClose()
+        }, 2000)
+        break
+      case "canceled":
+        toast.error("Deposit was canceled")
+        setCurrentStatus("Deposit canceled")
+        setTimeout(() => {
+          setIsLoading(false)
+          onError?.(new Error("Deposit was canceled"))
+          handleClose()
+        }, 2000)
+        break
+      case "pending":
+        setCurrentStatus("Processing deposit...")
+        break
+      case "queued":
+        setCurrentStatus("Deposit is queued...")
+        break
+      default:
+        setCurrentStatus(`Status: ${status.status}`)
+    }
+  }
+
+  const handleDeposit = async () => {
+    if (!user) {
+      toast.error("Please sign in to make a deposit")
+      return
+    }
+
+    if (!amount || Number(amount) <= 0) {
+      toast.error("Please enter a valid amount")
+      return
+    }
+
+    if (!phoneNumber || phoneNumber.length < 9) {
+      toast.error("Please enter a valid phone number")
+      return
+    }
+
+    try {
+      setIsLoading(true)
+      setCurrentStatus("Initiating deposit...")
+
+      const response = await initiatePayment(
+        user,
+        Number(amount),
+        phoneNumber,
+        "deposit"
+      )
+
+      if (!response.success || !response.reference) {
+        throw new Error(response.error || "Failed to initiate deposit")
+      }
+
+      setCurrentStatus("Deposit initiated. Processing...")
+
+      pollTransactionStatus(
+        response.reference,
+        handleStatusUpdate
+      ).catch(error => {
+        console.error("Status polling error:", error)
+        setCurrentStatus("Error checking deposit status")
+        setIsLoading(false)
+        onError?.(error)
+      })
+
+    } catch (error: any) {
+      console.error("Deposit error:", error)
+      setIsLoading(false)
+      setCurrentStatus("")
+      toast.error(error.message || "Failed to process deposit")
+      onError?.(error)
+    }
+  }
+
+  const handleClose = () => {
+    if (isLoading && currentStatus !== "Deposit completed!") {
+      toast.promise(
+        new Promise((resolve, reject) => {
+          if (window.confirm("Are you sure you want to close? The deposit might still be processing.")) {
+            resolve(resetForm())
+          } else {
+            reject()
+          }
+        }),
+        {
+          loading: 'Checking...',
+          success: 'Dialog closed',
+          error: 'Closing cancelled'
+        }
+      )
+    } else {
+      resetForm()
+    }
+  }
+
+  const resetForm = () => {
+    setAmount("")
+    setPhoneNumber("")
+    setCurrentStatus("")
+    setIsLoading(false)
+    onClose()
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
