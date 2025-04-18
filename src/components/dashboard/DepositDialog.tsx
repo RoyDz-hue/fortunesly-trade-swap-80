@@ -1,7 +1,7 @@
 // src/components/dashboard/DepositDialog.tsx
 
 import { useState } from "react"
-import { useAuth } from "@/lib/hooks/use-auth"
+import { useAuth } from "@/context/AuthContext"  // Correct path
 import { toast } from "react-hot-toast"
 import { initiatePayment, pollTransactionStatus, PaymentStatusResponse } from "@/lib/payment"
 import { Button } from "@/components/ui/button"
