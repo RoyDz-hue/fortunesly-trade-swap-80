@@ -103,27 +103,27 @@ const AUTH_TOKEN_TTL = 5 * 60 * 1000; // 5 minutes
  */
 const getAuthToken = async (): Promise<string> => {
   debug.trace("AuthToken", "Getting auth token");
-  
+
   const now = Date.now();
   if (authTokenCache && authTokenCache.expiry > now) {
     debug.info("AuthToken", "Using cached token, expires in", Math.round((authTokenCache.expiry - now) / 1000), "seconds");
     return authTokenCache.token;
   }
-  
+
   debug.info("AuthToken", "Fetching new session token");
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) {
     debug.error("AuthToken", "No active session found");
     throw new Error('No active session found');
   }
-  
+
   authTokenCache = {
     token: session.access_token,
     expiry: now + AUTH_TOKEN_TTL
   };
-  
+
   debug.success("AuthToken", "New token cached, expires in", Math.round(AUTH_TOKEN_TTL / 1000), "seconds");
-  
+
   return session.access_token;
 };
 
@@ -132,7 +132,7 @@ const getAuthToken = async (): Promise<string> => {
  */
 const formatPhoneNumber = (phoneNumber: string): string => {
   debug.log("PhoneFormat", "Formatting phone number:", phoneNumber);
-  
+
   let cleaned = phoneNumber.replace(/\D/g, '');
 
   if (cleaned.length === 10 && cleaned.startsWith('0')) {
@@ -164,14 +164,14 @@ const makeRequest = async <T>(
   retries: number = 2
 ): Promise<T> => {
   let lastError: Error | null = null;
-  
+
   const url = `${API_URL}${endpoint}`;
   debug.log("Request", `${method} request to ${url}`);
-  
+
   if (data) {
     debug.trace("Request", "Request payload:", data);
   }
-  
+
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       debug.info("Request", `Attempt ${attempt + 1} of ${retries + 1}`);
@@ -188,10 +188,10 @@ const makeRequest = async <T>(
       });
 
       debug.info("Request", `Response status: ${response.status} ${response.statusText}`);
-      
+
       const text = await response.text();
       debug.trace("Request", "Raw response:", text);
-      
+
       if (!response.ok) {
         debug.error("Request", `Failed with status ${response.status}:`, text);
         throw new Error(`Request failed: ${response.status} - ${text}`);
@@ -216,20 +216,18 @@ const makeRequest = async <T>(
     } catch (error: any) {
       lastError = error;
       debug.error("Request", `Attempt ${attempt + 1} failed:`, error.message);
-      
-      if (attempt === retries) {
-        debug
 
-.error("Request", "All retry attempts failed");
+      if (attempt === retries) {
+        debug.error("Request", "All retry attempts failed");
         throw error;
       }
-      
+
       const backoffTime = 500 * Math.pow(2, attempt);
       debug.warn("Request", `Retrying in ${backoffTime}ms...`);
       await new Promise(resolve => setTimeout(resolve, backoffTime));
     }
   }
-  
+
   throw lastError || new Error('Unknown error during request');
 };
 
@@ -241,13 +239,13 @@ export const pollTransactionStatus = async (
   options: PaymentOptions = {}
 ): Promise<PaymentStatusResponse> => {
   debug.log("Polling", `Starting to poll for transaction ${reference}`);
-  
+
   const {
     onStatusUpdate,
     pollingInterval = POLLING_INTERVAL,
     pollingTimeout = POLLING_TIMEOUT
   } = options;
-  
+
   const startTime = Date.now();
   let lastStatusHash = '';
   let pollCount = 0;
@@ -259,19 +257,19 @@ export const pollTransactionStatus = async (
       try {
         pollCount++;
         debug.log("Polling", `Poll #${pollCount} for transaction ${reference}`);
-        
+
         const status = await checkPaymentStatus(reference);
-        
+
         const statusHash = JSON.stringify({
           status: status.status,
           provider_status: status.provider_status
         });
-        
+
         const statusChanged = statusHash !== lastStatusHash;
         if (statusChanged) {
           debug.info("Polling", `Status changed to: ${status.status || 'unknown'}, provider status: ${status.provider_status || 'unknown'}`);
         }
-        
+
         if (onStatusUpdate && statusChanged) {
           debug.log("Polling", "Calling onStatusUpdate with new status");
           onStatusUpdate(status);
@@ -289,7 +287,7 @@ export const pollTransactionStatus = async (
 
         const elapsedTime = Date.now() - startTime;
         const remainingTime = pollingTimeout - elapsedTime;
-        
+
         if (remainingTime <= 0) {
           debug.error("Polling", `Timeout after ${pollingTimeout}ms for transaction ${reference}`);
           return reject(new Error('Transaction status check timed out'));
@@ -300,7 +298,7 @@ export const pollTransactionStatus = async (
 
       } catch (error: any) {
         debug.error("Polling", `Error during poll #${pollCount}:`, error.message);
-        
+
         if (error.message?.includes('fetch') || error.message?.includes('network')) {
           debug.warn("Polling", "Network error, continuing to poll");
           setTimeout(checkStatus, pollingInterval);
@@ -326,18 +324,18 @@ export const handlePayment = async (
   options: PaymentOptions = {}
 ): Promise<PaymentStatusResponse> => {
   debug.log("PaymentFlow", `Starting ${type} payment flow for ${amount} to ${phoneNumber}`);
-  
+
   try {
     debug.info("PaymentFlow", "Initiating payment");
     const payment = await initiatePayment(user, amount, phoneNumber, type);
-    
+
     if (!payment.success || !payment.reference) {
       debug.error("PaymentFlow", "Payment initiation failed:", payment.error || "No reference returned");
       throw new Error(payment.error || 'Payment initiation failed');
     }
-    
+
     debug.success("PaymentFlow", `Payment initiated with reference: ${payment.reference}`);
-    
+
     if (options.onStatusUpdate) {
       debug.info("PaymentFlow", "Reporting initial pending status");
       options.onStatusUpdate({
@@ -348,7 +346,7 @@ export const handlePayment = async (
         amount
       });
     }
-    
+
     if (options.skipPolling) {
       debug.info("PaymentFlow", "Skipping status polling as requested");
       return {
@@ -359,10 +357,10 @@ export const handlePayment = async (
         amount
       };
     }
-    
+
     debug.info("PaymentFlow", "Beginning status polling");
     return await pollTransactionStatus(payment.reference, options);
-    
+
   } catch (error: any) {
     debug.error("PaymentFlow", "Payment flow error:", error);
     return {
@@ -382,7 +380,7 @@ export const initiatePayment = async (
   type: PaymentType
 ): Promise<PaymentResponse> => {
   debug.log("Initiate", `Initiating ${type} for ${amount} to ${phoneNumber}`);
-  
+
   try {
     if (!user?.id) {
       debug.error("Initiate", "User not authenticated");
@@ -405,7 +403,7 @@ export const initiatePayment = async (
       phone_number: formattedPhone,
       type
     };
-    
+
     debug.info("Initiate", "Sending payment request to edge function");
     const response = await makeRequest<PaymentResponse>(
       '?action=process',
@@ -435,7 +433,7 @@ export const checkPaymentStatus = async (
   reference: string
 ): Promise<PaymentStatusResponse> => {
   debug.log("Status", `Checking status for transaction ${reference}`);
-  
+
   try {
     if (!reference) {
       debug.error("Status", "Missing payment reference");
@@ -472,25 +470,25 @@ export const getPaymentHistory = async (
   limit: number = 10
 ): Promise<PaymentStatusResponse[]> => {
   debug.log("History", `Getting payment history for user, limit=${limit}`);
-  
+
   try {
     if (!user?.id) {
       debug.error("History", "User not authenticated");
       throw new Error('User not authenticated');
     }
-    
+
     debug.info("History", "Querying payment history from database");
     const { data, error } = await supabase
       .rpc('get_user_payments', { 
         user_id: user.id,
         results_limit: limit
       });
-      
+
     if (error) {
       debug.error("History", "Database error:", error);
       throw error;
     }
-    
+
     debug.success("History", `Retrieved ${data?.length || 0} payment records`);
     return data || [];
   } catch (error: any) {
