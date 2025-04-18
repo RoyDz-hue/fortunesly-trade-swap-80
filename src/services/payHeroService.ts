@@ -31,7 +31,7 @@ export const initiatePayment = async (user: User, amount: number, phone: string,
   return response.json();
 };
 
-export const pollPaymentStatus = async (reference: string) => {
+export const pollTransactionStatus = async (reference: string) => {
   let attempts = 0;
   const maxAttempts = 20; // 2 minutes (3000ms * 20)
   
