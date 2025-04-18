@@ -2,12 +2,12 @@
 
 import { useState } from "react"
 import { toast } from "sonner"
-import { initiatePayment, pollTransactionStatus, PaymentStatusResponse } from "@/lib/payment"
+import { initiatePayment, pollTransactionStatus, PaymentStatusResponse } from "@/services/payHeroService"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Icons } from "@/components/icons"
-import { useAuth } from "@/lib/hooks/use-auth"
+import { Loader2 } from "lucide-react"
+import { useAuth } from "@/context/AuthContext"
 import {
   Dialog,
   DialogContent,
@@ -219,7 +219,7 @@ export default function WithdrawDialog({
         >
           {isLoading ? (
             <>
-              <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Processing...
             </>
           ) : (
