@@ -6,7 +6,7 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bfsodqqylp
 const API_URL = `${SUPABASE_URL}/functions/v1/hyper-task`;
 const POLLING_INTERVAL = 3000; // 3 seconds
 const POLLING_TIMEOUT = 120000; // 2 minutes
-const DEBUG_ENABLED = true; // Set to true to enable detailed console logs
+const DEBUG_ENABLED = true; // Enable detailed console logs
 
 // Types
 export type PaymentType = 'deposit' | 'withdrawal';
@@ -19,6 +19,7 @@ export interface PaymentResponse {
   message?: string;
   error?: string;
   provider_data?: any;
+  debug_logs?: string[]; // Added to handle backend debug logs
 }
 
 export interface PaymentStatusResponse {
@@ -35,6 +36,7 @@ export interface PaymentStatusResponse {
   error?: string;
   provider_error?: string;
   provider_data?: any;
+  debug_logs?: string[]; // Added to handle backend debug logs
 }
 
 export interface PaymentStatusCallback {
@@ -80,6 +82,13 @@ const debug = {
       console.debug(`🔍 [Payment-${context}]`, ...args);
       console.trace();
     }
+  },
+  backend: (context: string, logs: string[]) => {
+    if (DEBUG_ENABLED && logs && logs.length > 0) {
+      console.groupCollapsed(`🌐 [Backend-${context}] Logs`);
+      logs.forEach(log => console.log(log));
+      console.groupEnd();
+    }
   }
 };
 
@@ -95,7 +104,6 @@ const AUTH_TOKEN_TTL = 5 * 60 * 1000; // 5 minutes
 const getAuthToken = async (): Promise<string> => {
   debug.trace("AuthToken", "Getting auth token");
   
-  // Return cached token if still valid
   const now = Date.now();
   if (authTokenCache && authTokenCache.expiry > now) {
     debug.info("AuthToken", "Using cached token, expires in", Math.round((authTokenCache.expiry - now) / 1000), "seconds");
@@ -109,7 +117,6 @@ const getAuthToken = async (): Promise<string> => {
     throw new Error('No active session found');
   }
   
-  // Cache the token
   authTokenCache = {
     token: session.access_token,
     expiry: now + AUTH_TOKEN_TTL
@@ -126,22 +133,18 @@ const getAuthToken = async (): Promise<string> => {
 const formatPhoneNumber = (phoneNumber: string): string => {
   debug.log("PhoneFormat", "Formatting phone number:", phoneNumber);
   
-  // Remove all non-digit characters
   let cleaned = phoneNumber.replace(/\D/g, '');
 
-  // Check if it's a Kenyan number starting with 0
   if (cleaned.length === 10 && cleaned.startsWith('0')) {
     cleaned = '254' + cleaned.substring(1);
     debug.info("PhoneFormat", "Converted 0xx to 254xx");
   }
 
-  // If it has 9 digits (without prefix), add the country code
   if (cleaned.length === 9) {
     cleaned = '254' + cleaned;
     debug.info("PhoneFormat", "Added 254 prefix to 9-digit number");
   }
 
-  // Validate the final format
   if (!cleaned.startsWith('254') || cleaned.length !== 12) {
     debug.error("PhoneFormat", "Invalid phone format:", cleaned);
     throw new Error('Invalid phone number format. Must be a valid Kenyan phone number.');
@@ -202,6 +205,9 @@ const makeRequest = async <T>(
       try {
         const parsed = JSON.parse(text);
         debug.success("Request", "Parsed response:", parsed);
+        if (parsed.debug_logs) {
+          debug.backend(method === 'POST' ? "Process" : "Status", parsed.debug_logs);
+        }
         return parsed;
       } catch (parseError) {
         debug.error("Request", "JSON Parse Error:", parseError);
@@ -211,20 +217,19 @@ const makeRequest = async <T>(
       lastError = error;
       debug.error("Request", `Attempt ${attempt + 1} failed:`, error.message);
       
-      // If we're out of retries, throw the error
       if (attempt === retries) {
-        debug.error("Request", "All retry attempts failed");
+        debug
+
+.error("Request", "All retry attempts failed");
         throw error;
       }
       
-      // Wait before retrying (exponential backoff)
       const backoffTime = 500 * Math.pow(2, attempt);
       debug.warn("Request", `Retrying in ${backoffTime}ms...`);
       await new Promise(resolve => setTimeout(resolve, backoffTime));
     }
   }
   
-  // This should never be reached due to the throw in the loop
   throw lastError || new Error('Unknown error during request');
 };
 
@@ -257,7 +262,6 @@ export const pollTransactionStatus = async (
         
         const status = await checkPaymentStatus(reference);
         
-        // Create a hash of the status to detect changes
         const statusHash = JSON.stringify({
           status: status.status,
           provider_status: status.provider_status
@@ -268,14 +272,12 @@ export const pollTransactionStatus = async (
           debug.info("Polling", `Status changed to: ${status.status || 'unknown'}, provider status: ${status.provider_status || 'unknown'}`);
         }
         
-        // Only notify if status has changed
         if (onStatusUpdate && statusChanged) {
           debug.log("Polling", "Calling onStatusUpdate with new status");
           onStatusUpdate(status);
           lastStatusHash = statusHash;
         }
 
-        // Check if transaction is complete
         if (
           status.status === 'completed' || 
           status.status === 'failed' || 
@@ -285,7 +287,6 @@ export const pollTransactionStatus = async (
           return resolve(status);
         }
 
-        // Check timeout
         const elapsedTime = Date.now() - startTime;
         const remainingTime = pollingTimeout - elapsedTime;
         
@@ -294,14 +295,12 @@ export const pollTransactionStatus = async (
           return reject(new Error('Transaction status check timed out'));
         }
 
-        // Schedule next check
         debug.info("Polling", `Scheduling next poll in ${pollingInterval}ms (${Math.round(remainingTime/1000)}s remaining)`);
         setTimeout(checkStatus, pollingInterval);
 
       } catch (error: any) {
         debug.error("Polling", `Error during poll #${pollCount}:`, error.message);
         
-        // If it's a network error, continue polling
         if (error.message?.includes('fetch') || error.message?.includes('network')) {
           debug.warn("Polling", "Network error, continuing to poll");
           setTimeout(checkStatus, pollingInterval);
@@ -312,7 +311,6 @@ export const pollTransactionStatus = async (
       }
     };
 
-    // Start checking
     checkStatus();
   });
 };
@@ -330,7 +328,6 @@ export const handlePayment = async (
   debug.log("PaymentFlow", `Starting ${type} payment flow for ${amount} to ${phoneNumber}`);
   
   try {
-    // Step 1: Initiate payment
     debug.info("PaymentFlow", "Initiating payment");
     const payment = await initiatePayment(user, amount, phoneNumber, type);
     
@@ -341,7 +338,6 @@ export const handlePayment = async (
     
     debug.success("PaymentFlow", `Payment initiated with reference: ${payment.reference}`);
     
-    // Get initial status to report
     if (options.onStatusUpdate) {
       debug.info("PaymentFlow", "Reporting initial pending status");
       options.onStatusUpdate({
@@ -353,7 +349,6 @@ export const handlePayment = async (
       });
     }
     
-    // Step 2: Skip polling if requested
     if (options.skipPolling) {
       debug.info("PaymentFlow", "Skipping status polling as requested");
       return {
@@ -365,7 +360,6 @@ export const handlePayment = async (
       };
     }
     
-    // Step 3: Poll for status updates
     debug.info("PaymentFlow", "Beginning status polling");
     return await pollTransactionStatus(payment.reference, options);
     
@@ -390,7 +384,6 @@ export const initiatePayment = async (
   debug.log("Initiate", `Initiating ${type} for ${amount} to ${phoneNumber}`);
   
   try {
-    // Validate input
     if (!user?.id) {
       debug.error("Initiate", "User not authenticated");
       throw new Error('User not authenticated');
@@ -403,7 +396,6 @@ export const initiatePayment = async (
 
     debug.info("Initiate", "Input validation passed");
 
-    // Format and validate phone number
     const formattedPhone = formatPhoneNumber(phoneNumber);
     debug.info("Initiate", "Formatted phone:", formattedPhone);
 
@@ -466,7 +458,7 @@ export const checkPaymentStatus = async (
     return {
       success: false,
       reference,
-      status: 'pending', // Assume pending if check fails
+      status: 'pending',
       error: error.message || 'Status check failed'
     };
   }
