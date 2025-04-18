@@ -1,6 +1,6 @@
-import React, { useState, lazy, Suspense } from "react";
+import React, { useState, Suspense } from "react";
 import { toast } from "sonner";
-import { usePayment } from "@/services/payHeroService"; // Updated import
+import { usePayment } from "@/services/payHeroService"; // Updated to payHeroService
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,9 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-// Lazy-loaded success alert component
-const SuccessAlert = lazy(() => import("@/components/ui/SuccessAlert"));
 
 interface WithdrawDialogProps {
   isOpen: boolean;
@@ -32,14 +29,14 @@ export default function WithdrawDialog({
   maxAmount,
 }: WithdrawDialogProps) {
   const { user } = useAuth();
-  const { initiatePayment, pollTransactionStatus } = usePayment(); // Use hook
+  const { initiatePayment, pollTransactionStatus } = usePayment();
   const [amount, setAmount] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<string>("");
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const handleStatusUpdate = (status: import("@/services/payment").PaymentStatusResponse) => {
+  const handleStatusUpdate = (status: import("@/services/payHeroService").PaymentStatusResponse) => {
     if (!status.success) {
       setCurrentStatus("Error checking status");
       toast.error("Error checking withdrawal status");
@@ -204,9 +201,10 @@ export default function WithdrawDialog({
               <div className="text-sm text-muted-foreground">{currentStatus}</div>
             )}
             {showSuccess && (
-              <Suspense fallback={<Loader2 className="h-4 w-4 animate-spin" />}>
-                <SuccessAlert message="Withdrawal completed successfully!" />
-              </Suspense>
+              <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded">
+                <p className="font-bold">Success</p>
+                <p>Withdrawal completed successfully!</p>
+              </div>
             )}
           </div>
           <Button className="w-full" onClick={handleWithdraw} disabled={isLoading}>
