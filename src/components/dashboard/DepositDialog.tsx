@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { toast } from "sonner"
-import { initiatePayment, pollTrasactionStatus, PaymentStatusResponse } from "@/services/payHeroService"
+import { initiatePayment, pollPaymentStatus, PaymentStatusResponse } from "@/services/payHeroService"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
