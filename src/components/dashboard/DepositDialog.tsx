@@ -1,13 +1,13 @@
-// src/components/dashboard/DepositDialog.tsx
+// src/components/dashboard/WithdrawDialog.tsx
 
 import { useState } from "react"
-import { useAuth } from "@/context/AuthContext"  // Correct path
-import { toast } from "react-hot-toast"
-import { initiatePayment, pollTransactionStatus, PaymentStatusResponse } from "@/lib/payment"
+import { toast } from "sonner"
+import { initiatePayment, pollTransactionStatus, PaymentStatusResponse } from "@/services/payHeroService"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2 } from "lucide-react"
+import { useAuth } from "@/context/AuthContext"
 import {
   Dialog,
   DialogContent,
@@ -82,7 +82,7 @@ export default function DepositDialog({
         >
           {isLoading ? (
             <>
-              <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Processing...
             </>
           ) : (
