@@ -132,23 +132,16 @@ const getAuthToken = async (): Promise<string> => {
  * Format phone number to ensure it has country code
  */
 const formatPhoneNumber = (phoneNumber: string): string => {
-  // Create a lookup map for common transformations
-  const phoneTransforms = {
-    standard: (num: string) => num,
-    add254ToNineDigit: (num: string) => '254' + num,
-    convert0to254: (num: string) => '254' + num.substring(1)
-  };
-
   // Clean input by removing non-digits
   let cleaned = phoneNumber.replace(/\D/g, '');
   
   // Apply transformations based on patterns
   if (cleaned.length === 10 && cleaned.startsWith('0')) {
-    cleaned = phoneTransforms.convert0to254(cleaned);
-    debug.info("PhoneFormat", "Converted 0xx to 254xx");
+    debug.info("PhoneFormat", "Converting 0xx to 254xx");
+    cleaned = '254' + cleaned.substring(1);
   } else if (cleaned.length === 9) {
-    cleaned = phoneTransforms.add254ToNineDigit(cleaned);
-    debug.info("PhoneFormat", "Added 254 prefix to 9-digit number");
+    debug.info("PhoneFormat", "Adding 254 prefix to 9-digit number");
+    cleaned = '254' + cleaned;
   }
 
   // Validate result
