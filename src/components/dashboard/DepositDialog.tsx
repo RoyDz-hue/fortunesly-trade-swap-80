@@ -1,6 +1,6 @@
-import React, { useState, Suspense } from "react";
+import React, { useState, Suspense, useCallback, useMemo } from "react";
 import { toast } from "sonner";
-import { usePayment } from "@/services/payHeroService"; // Updated to payHeroService
+import { usePayment } from "@/services/payHeroService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import type { PaymentStatusResponse } from "@/services/payHeroService";
 
 interface DepositDialogProps {
   isOpen: boolean;
@@ -28,21 +29,27 @@ export default function DepositDialog({
 }: DepositDialogProps) {
   const { user } = useAuth();
   const { initiatePayment, pollTransactionStatus } = usePayment();
+  
+  // Form state
   const [amount, setAmount] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  
+  // UI state
   const [isLoading, setIsLoading] = useState(false);
-  const [currentStatus, setCurrentStatus] = useState<string>("");
+  const [currentStatus, setCurrentStatus] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const handleStatusUpdate = (status: import("@/services/payHeroService").PaymentStatusResponse) => {
+  // Status handler with stable reference (won't change on re-renders)
+  const handleStatusUpdate = useCallback((status: PaymentStatusResponse) => {
     if (!status.success) {
       setCurrentStatus("Error checking status");
       toast.error("Error checking deposit status");
       return;
     }
 
-    switch (status.status) {
-      case "completed":
+    // Use a map object for cleaner status handling
+    const statusHandlers: Record<string, () => void> = {
+      completed: () => {
         setShowSuccess(true);
         toast.success("Deposit completed successfully!", {
           description: `Amount: ${status.amount} KES`,
@@ -54,51 +61,73 @@ export default function DepositDialog({
           setIsLoading(false);
           setShowSuccess(false);
           onSuccess?.();
-          handleClose();
+          resetForm();
+          onClose();
         }, 2000);
-        break;
-      case "failed":
+      },
+      failed: () => {
         toast.error(status.error || "Deposit failed");
         setCurrentStatus("Deposit failed");
         setTimeout(() => {
           setIsLoading(false);
           onError?.(new Error(status.error || "Deposit failed"));
-          handleClose();
+          resetForm();
+          onClose();
         }, 2000);
-        break;
-      case "canceled":
+      },
+      canceled: () => {
         toast.error("Deposit was canceled");
         setCurrentStatus("Deposit canceled");
         setTimeout(() => {
           setIsLoading(false);
           onError?.(new Error("Deposit was canceled"));
-          handleClose();
+          resetForm();
+          onClose();
         }, 2000);
-        break;
-      case "pending":
-        setCurrentStatus("Processing deposit...");
-        break;
-      case "queued":
-        setCurrentStatus("Deposit is queued...");
-        break;
-      default:
-        setCurrentStatus(`Status: ${status.status}`);
-    }
-  };
+      },
+      pending: () => setCurrentStatus("Processing deposit..."),
+      queued: () => setCurrentStatus("Deposit is queued..."),
+    };
 
-  const handleDeposit = async () => {
+    // Execute the handler if it exists, or set generic status
+    const handler = statusHandlers[status.status || ""];
+    if (handler) {
+      handler();
+    } else {
+      setCurrentStatus(`Status: ${status.status}`);
+    }
+  }, [onSuccess, onError, onClose]);
+
+  // Form reset function
+  const resetForm = useCallback(() => {
+    setAmount("");
+    setPhoneNumber("");
+    setCurrentStatus("");
+    setIsLoading(false);
+    setShowSuccess(false);
+  }, []);
+
+  // Form validation
+  const isFormValid = useMemo(() => 
+    !!amount && 
+    Number(amount) > 0 && 
+    !!phoneNumber && 
+    phoneNumber.length >= 9, 
+  [amount, phoneNumber]);
+
+  // Handle deposit action
+  const handleDeposit = useCallback(async () => {
     if (!user) {
       toast.error("Please sign in to make a deposit");
       return;
     }
 
-    if (!amount || Number(amount) <= 0) {
-      toast.error("Please enter a valid amount");
-      return;
-    }
-
-    if (!phoneNumber || phoneNumber.length < 9) {
-      toast.error("Please enter a valid phone number");
+    if (!isFormValid) {
+      if (!amount || Number(amount) <= 0) {
+        toast.error("Please enter a valid amount");
+      } else {
+        toast.error("Please enter a valid phone number");
+      }
       return;
     }
 
@@ -114,7 +143,9 @@ export default function DepositDialog({
 
       setCurrentStatus("Deposit initiated. Processing...");
 
-      await pollTransactionStatus(response.reference, { onStatusUpdate: handleStatusUpdate });
+      await pollTransactionStatus(response.reference, { 
+        onStatusUpdate: handleStatusUpdate 
+      });
     } catch (error: any) {
       console.error("Deposit error:", error);
       setIsLoading(false);
@@ -122,14 +153,16 @@ export default function DepositDialog({
       toast.error(error.message || "Failed to process deposit");
       onError?.(error);
     }
-  };
+  }, [user, isFormValid, amount, phoneNumber, initiatePayment, pollTransactionStatus, handleStatusUpdate, onError]);
 
-  const handleClose = () => {
+  // Handle dialog close
+  const handleClose = useCallback(() => {
     if (isLoading && currentStatus !== "Deposit completed!") {
       toast.promise(
-        new Promise((resolve, reject) => {
+        new Promise<void>((resolve, reject) => {
           if (window.confirm("Are you sure you want to close? The deposit might still be processing.")) {
-            resolve(resetForm());
+            resetForm();
+            resolve();
           } else {
             reject();
           }
@@ -142,17 +175,9 @@ export default function DepositDialog({
       );
     } else {
       resetForm();
+      onClose();
     }
-  };
-
-  const resetForm = () => {
-    setAmount("");
-    setPhoneNumber("");
-    setCurrentStatus("");
-    setIsLoading(false);
-    setShowSuccess(false);
-    onClose();
-  };
+  }, [isLoading, currentStatus, resetForm, onClose]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
