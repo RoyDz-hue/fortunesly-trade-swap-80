@@ -1,1 +1,5 @@
+
 project_id = "bfsodqqylpfotszjlfuk"
+
+[functions.hyper-task]
+verify_jwt = false

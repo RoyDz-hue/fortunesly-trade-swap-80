@@ -27,6 +27,24 @@ export type Database = {
         }
         Relationships: []
       }
+      callback_logs: {
+        Row: {
+          data: Json | null
+          id: number
+          received_at: string | null
+        }
+        Insert: {
+          data?: Json | null
+          id?: number
+          received_at?: string | null
+        }
+        Update: {
+          data?: Json | null
+          id?: number
+          received_at?: string | null
+        }
+        Relationships: []
+      }
       coins: {
         Row: {
           deposit_address: string
@@ -60,6 +78,7 @@ export type Database = {
           created_at: string | null
           currency: string
           id: string
+          last_updated_at: string | null
           original_amount: number | null
           price: number
           quote_currency: string | null
@@ -72,6 +91,7 @@ export type Database = {
           created_at?: string | null
           currency: string
           id?: string
+          last_updated_at?: string | null
           original_amount?: number | null
           price: number
           quote_currency?: string | null
@@ -84,6 +104,7 @@ export type Database = {
           created_at?: string | null
           currency?: string
           id?: string
+          last_updated_at?: string | null
           original_amount?: number | null
           price?: number
           quote_currency?: string | null
@@ -100,6 +121,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      payment_requests: {
+        Row: {
+          amount: number
+          callback_data: Json | null
+          checkout_request_id: string | null
+          created_at: string | null
+          id: string
+          phone_number: string
+          provider_reference: string | null
+          reference: string
+          status: string
+          type: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          callback_data?: Json | null
+          checkout_request_id?: string | null
+          created_at?: string | null
+          id?: string
+          phone_number: string
+          provider_reference?: string | null
+          reference: string
+          status?: string
+          type: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          callback_data?: Json | null
+          checkout_request_id?: string | null
+          created_at?: string | null
+          id?: string
+          phone_number?: string
+          provider_reference?: string | null
+          reference?: string
+          status?: string
+          type?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       trades: {
         Row: {
@@ -333,7 +399,51 @@ export type Database = {
               price_param: number
               original_amount_param: number
             }
-        Returns: string
+        Returns: undefined
+      }
+      execute_market_order: {
+        Args:
+          | {
+              order_id_param: string
+              trader_id_param: string
+              trade_amount_param: number
+            }
+          | {
+              order_id_param: string
+              trader_id_param: string
+              trade_amount_param: number
+              order_owner_id_param: string
+              order_type_param: string
+            }
+          | {
+              trader_id_param: string
+              order_owner_id: string
+              order_type: string
+              trade_amount_param: number
+              currency: string
+              price: number
+              amount: number
+            }
+          | {
+              trader_id_param: string
+              order_owner_id: string
+              order_type: string
+              trade_amount_param: number
+              currency: string
+              price: number
+              total_amount: number
+            }
+          | {
+              trader_id_param: string
+              order_owner_id: string
+              order_type: string
+              trade_amount_param: number
+              currency: string
+              quote_currency: string
+              price: number
+              amount: number
+            }
+        Returns: undefined
       }
       execute_trade: {
         Args: {
@@ -341,6 +451,10 @@ export type Database = {
           executor_id_param: string
           submitted_amount: number
         }
+        Returns: Json
+      }
+      get_payment_status: {
+        Args: { payment_reference: string }
         Returns: Json
       }
       insert_or_update_transaction: {
@@ -353,12 +467,35 @@ export type Database = {
         }
         Returns: undefined
       }
+      log_payment_request: {
+        Args: {
+          user_id: string
+          request_type: string
+          request_amount: number
+          request_phone: string
+          prefix?: string
+        }
+        Returns: Json
+      }
       rollback_transaction: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      update_payment_status: {
+        Args: {
+          p_reference: string
+          p_status: string
+          p_provider_reference?: string
+          p_checkout_request_id?: string
+          p_callback_data?: Json
+        }
+        Returns: Json
+      }
     }
     Enums: {
+      order_status: "pending" | "partially_filled" | "filled" | "canceled"
+      payment_status_type: "pending" | "processing" | "completed" | "failed"
+      transaction_type: "buy" | "sell"
       withdrawal_status: "pending" | "approved" | "rejected" | "forfeited"
     }
     CompositeTypes: {
@@ -475,6 +612,9 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      order_status: ["pending", "partially_filled", "filled", "canceled"],
+      payment_status_type: ["pending", "processing", "completed", "failed"],
+      transaction_type: ["buy", "sell"],
       withdrawal_status: ["pending", "approved", "rejected", "forfeited"],
     },
   },
