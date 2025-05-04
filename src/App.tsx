@@ -24,6 +24,8 @@ import AdminTransactionsPage from "./pages/admin/TransactionsPage";
 import DepositsPage from "./pages/admin/DepositsPage";
 import MarketOrdersPage from "./pages/MarketOrdersPage";
 import MyWithdrawalsPage from "./pages/MyWithdrawalsPage";
+import ReferralPage from "./pages/dashboard/ReferralPage";
+import ReferralsPage from "./pages/admin/ReferralsPage";
 import AuthProvider from "./context/AuthContext";
 import NotFound from "./pages/NotFound";
 import './App.css'
@@ -48,6 +50,7 @@ function App() {
               <Route path="settings" element={<SettingsPage />} />
               <Route path="transactions" element={<TransactionsPage />} />
               <Route path="withdrawals" element={<MyWithdrawalsPage />} />
+              <Route path="referrals" element={<ReferralPage />} />
               {/* Add missing routes for orders and trade inside dashboard */}
               <Route path="orders" element={<OrdersPage />} />
               <Route path="trade" element={<TradePage />} />
@@ -69,6 +72,7 @@ function App() {
               <Route path="withdrawals" element={<WithdrawalsPage />} />
               <Route path="deposits" element={<DepositsPage />} />
               <Route path="transactions" element={<AdminTransactionsPage />} />
+              <Route path="referrals" element={<ReferralsPage />} />
             </Route>
             
             {/* 404 Not Found */}

@@ -6,7 +6,10 @@ export interface User {
   createdAt?: string;
   updatedAt?: string;
   status?: 'active' | 'suspended';
-  avatarUrl?: string; // Adding avatarUrl property
+  avatarUrl?: string;
+  referralCode?: string;
+  referralBalance?: number;
+  referralCount?: number;
 }
 
 export interface Wallet {
@@ -170,4 +173,57 @@ export interface CryptoWithdrawalRequest {
   createdAt: string;
   updatedAt?: string;
   transactionId?: string;
+}
+
+export interface ReferralSettings {
+  id: number;
+  coinsPerReferral: number;
+  level2RatePercent: number;
+  transactionFeePercent: number;
+  minTransferableBalance: number;
+  minToCryptoWallet: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ReferralTransaction {
+  id: string;
+  userId: string;
+  transactionType: string;
+  amount: number;
+  fee?: number;
+  recipientId?: string;
+  recipientAddress?: string;
+  reason?: string;
+  createdBy?: string;
+  createdAt: string;
+  status: string;
+}
+
+export interface ReferralNetwork {
+  user: {
+    id: string;
+    email: string;
+    referralCode: string;
+  };
+  directReferrals: ReferralUser[];
+  indirectReferrals: ReferralUser[];
+}
+
+export interface ReferralUser {
+  id: string;
+  email: string;
+  joinDate: string;
+  coinsEarned: number;
+  referredBy?: string;
+  username?: string;
+}
+
+export interface ReferralStats {
+  referralCode: string;
+  referralBalance: number;
+  directReferrals: number;
+  indirectReferrals: number;
+  totalEarned: number;
+  transferHistory: ReferralTransaction[];
 }

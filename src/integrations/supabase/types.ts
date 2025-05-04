@@ -167,6 +167,103 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_settings: {
+        Row: {
+          coins_per_referral: number
+          created_at: string
+          id: number
+          level2_rate_percent: number
+          min_to_crypto_wallet: number
+          min_transferable_balance: number
+          transaction_fee_percent: number
+          updated_at: string
+        }
+        Insert: {
+          coins_per_referral?: number
+          created_at?: string
+          id?: number
+          level2_rate_percent?: number
+          min_to_crypto_wallet?: number
+          min_transferable_balance?: number
+          transaction_fee_percent?: number
+          updated_at?: string
+        }
+        Update: {
+          coins_per_referral?: number
+          created_at?: string
+          id?: number
+          level2_rate_percent?: number
+          min_to_crypto_wallet?: number
+          min_transferable_balance?: number
+          transaction_fee_percent?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      referral_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          fee: number | null
+          id: string
+          reason: string | null
+          recipient_address: string | null
+          recipient_id: string | null
+          status: string
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          fee?: number | null
+          id?: string
+          reason?: string | null
+          recipient_address?: string | null
+          recipient_id?: string | null
+          status?: string
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          fee?: number | null
+          id?: string
+          reason?: string | null
+          recipient_address?: string | null
+          recipient_id?: string | null
+          status?: string
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_transactions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_transactions_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trades: {
         Row: {
           amount: number
@@ -294,6 +391,10 @@ export type Database = {
           email: string
           id: string
           password: string
+          referral_balance: number
+          referral_code: string | null
+          referral_count: number
+          referred_by: string | null
           username: string
         }
         Insert: {
@@ -302,6 +403,10 @@ export type Database = {
           email: string
           id?: string
           password: string
+          referral_balance?: number
+          referral_code?: string | null
+          referral_count?: number
+          referred_by?: string | null
           username: string
         }
         Update: {
@@ -310,9 +415,21 @@ export type Database = {
           email?: string
           id?: string
           password?: string
+          referral_balance?: number
+          referral_code?: string | null
+          referral_count?: number
+          referred_by?: string | null
           username?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "users_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       withdrawals: {
         Row: {
@@ -357,6 +474,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_adjust_referral_balance: {
+        Args: {
+          target_user_id: string
+          adjustment_amount: number
+          adjustment_reason: string
+          admin_id: string
+        }
+        Returns: Json
+      }
       approve_crypto_deposit: {
         Args: { transaction_id_param: string }
         Returns: Json
@@ -453,6 +579,10 @@ export type Database = {
         }
         Returns: Json
       }
+      generate_referral_code: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_payment_status: {
         Args: { payment_reference: string }
         Returns: Json
@@ -477,9 +607,17 @@ export type Database = {
         }
         Returns: Json
       }
+      process_referral: {
+        Args: { user_id: string; referrer_id: string }
+        Returns: Json
+      }
       rollback_transaction: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      transfer_referral_coins: {
+        Args: { sender_id: string; recipient_email: string; amount: number }
+        Returns: Json
       }
       update_payment_status: {
         Args: {

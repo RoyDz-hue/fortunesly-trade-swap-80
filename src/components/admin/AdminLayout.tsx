@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Users, Database, CreditCard, BarChart3, Settings, LogOut, Menu, X, Home } from "lucide-react";
+import { Users, Database, CreditCard, BarChart3, Settings, LogOut, Menu, X, Home, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -83,7 +83,13 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { path: "/admin/users", label: "Manage Users", icon: <Users size={20} /> },
     { path: "/admin/coins", label: "Manage Coins", icon: <Database size={20} /> },
     { path: "/admin/transactions", label: "Transactions", icon: <CreditCard size={20} /> },
-    { path: "/admin/settings", label: "Settings", icon: <Settings size={20} /> }
+    { path: "/admin/settings", label: "Settings", icon: <Settings size={20} /> },
+    {
+      name: "Referrals",
+      href: "/admin/referrals",
+      icon: <Share2 size={20} />,
+      current: location.pathname === "/admin/referrals",
+    }
   ], []);
 
   const closeMobileMenu = () => {

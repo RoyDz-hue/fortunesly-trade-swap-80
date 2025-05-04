@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Wallet, ArrowLeftRight, ListOrdered, Settings, LogOut, Menu, X, CreditCard, Download, Upload } from "lucide-react";
+import { Home, Wallet, ArrowLeftRight, ListOrdered, Settings, LogOut, Menu, X, CreditCard, Download, Upload, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -159,6 +159,12 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       href: "/dashboard/settings", 
       icon: <Settings size={18} />, 
       label: "Settings"
+    },
+    {
+      name: "Referrals",
+      href: "/dashboard/referrals",
+      icon: <Users size={18} />,
+      current: location.pathname === "/dashboard/referrals",
     },
   ];
 

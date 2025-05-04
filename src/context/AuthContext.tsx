@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,7 +9,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (username: string, email: string, password: string) => Promise<void>;
+  register: (username: string, email: string, password: string, referralCode?: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
   isAdmin: boolean;
@@ -43,12 +44,24 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         if (session && session.user) {
           setSession(session);
+          
+          // Get additional user data from public.users table
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('username, role, referral_code, referral_balance, referral_count')
+            .eq('id', session.user.id)
+            .single();
+            
           setUser({
             id: session.user.id,
             email: session.user.email || '',
-            username: session.user.user_metadata.username || session.user.email?.split('@')[0] || '',
+            username: userData?.username || session.user.user_metadata.username || session.user.email?.split('@')[0] || '',
             role: session.user.email === 'cyntoremix@gmail.com' ? 'admin' : 'user',
+            referralCode: userData?.referral_code,
+            referralBalance: userData?.referral_balance,
+            referralCount: userData?.referral_count
           });
+          
           setIsAuthenticated(true);
         } else {
           setSession(null);
@@ -66,12 +79,24 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         if (session && session.user) {
           setSession(session);
+          
+          // Get additional user data from public.users table
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('username, role, referral_code, referral_balance, referral_count')
+            .eq('id', session.user.id)
+            .single();
+            
           setUser({
             id: session.user.id,
             email: session.user.email || '',
-            username: session.user.user_metadata.username || session.user.email?.split('@')[0] || '',
+            username: userData?.username || session.user.user_metadata.username || session.user.email?.split('@')[0] || '',
             role: session.user.email === 'cyntoremix@gmail.com' ? 'admin' : 'user',
+            referralCode: userData?.referral_code,
+            referralBalance: userData?.referral_balance,
+            referralCount: userData?.referral_count
           });
+          
           setIsAuthenticated(true);
         }
       } catch (error) {
@@ -109,20 +134,58 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const register = async (username: string, email: string, password: string) => {
+  const register = async (username: string, email: string, password: string, referralCode?: string) => {
     try {
       setIsLoading(true);
+      
+      // Validate referral code if provided
+      if (referralCode) {
+        const { data: referrerData, error: referrerError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('referral_code', referralCode)
+          .single();
+        
+        if (referrerError || !referrerData) {
+          throw new Error('Invalid referral code');
+        }
+      }
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             username,
+            referral_code: referralCode,
           },
         },
       });
 
       if (error) throw error;
+      
+      // If a referral code was provided, store the relationship
+      if (referralCode && data.user) {
+        const { data: referrerData } = await supabase
+          .from('users')
+          .select('id')
+          .eq('referral_code', referralCode)
+          .single();
+          
+        if (referrerData) {
+          // Update the user to link to their referrer
+          await supabase
+            .from('users')
+            .update({ referred_by: referrerData.id })
+            .eq('id', data.user.id);
+            
+          // Process the referral in the database
+          await supabase.rpc('process_referral', {
+            user_id: data.user.id,
+            referrer_id: referrerData.id
+          });
+        }
+      }
       
       toast.success('Registration successful! Please check your email for verification.');
       return;

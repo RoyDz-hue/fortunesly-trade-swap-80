@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -13,12 +14,19 @@ const Register = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
   const { register } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const validateReferralCode = (code: string) => {
+    if (!code) return true; // Optional field
+    const codePattern = /^TRAD\d{2}$/;
+    return codePattern.test(code);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,10 +37,15 @@ const Register = () => {
       return;
     }
 
+    if (referralCode && !validateReferralCode(referralCode)) {
+      setError("Invalid referral code format. It should look like TRAD##");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      await register(username, email, password);
+      await register(username, email, password, referralCode);
 
       toast({
         title: "Account created!",
@@ -148,6 +161,26 @@ const Register = () => {
                     className="bg-gray-800 border-gray-700 text-gray-100 focus:ring-fortunesly-primary focus:border-fortunesly-primary"
                   />
                 </div>
+              </div>
+
+              <div>
+                <Label htmlFor="referral-code" className="text-gray-300">
+                  Referral Code <span className="text-gray-500 text-xs">(Optional)</span>
+                </Label>
+                <div className="mt-1">
+                  <Input
+                    id="referral-code"
+                    name="referral-code"
+                    type="text"
+                    value={referralCode}
+                    onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                    placeholder="e.g. TRAD01"
+                    className="bg-gray-800 border-gray-700 text-gray-100 focus:ring-fortunesly-primary focus:border-fortunesly-primary"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Enter a referral code if you were invited by another user
+                </p>
               </div>
 
               <div className="flex items-center">
