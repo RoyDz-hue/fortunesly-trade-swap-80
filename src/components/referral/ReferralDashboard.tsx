@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/context/AuthContext';
@@ -14,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import ReferralTransferForm from './ReferralTransferForm';
 import ReferralNetworkView from './ReferralNetworkView';
-import { Copy, Users, CoinIcon, TrendingUp, Share2, Share } from 'lucide-react';
+import { Copy, Users, Coins, TrendingUp, Share2, Share } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const ReferralDashboard = () => {
@@ -142,7 +141,7 @@ const ReferralDashboard = () => {
         <Card className="bg-gradient-to-br from-yellow-500/10 to-amber-700/20 border-yellow-500/30">
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center">
-              <CoinIcon className="h-4 w-4 mr-1" />
+              <Coins className="h-4 w-4 mr-1" />
               TRD Coin Balance
             </CardDescription>
             <CardTitle className="text-2xl">{stats?.referralBalance || 0}</CardTitle>
