@@ -1,16 +1,14 @@
 
 import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { transferCoins } from '@/services/referralService';
 import { ReferralSettings } from '@/types';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, CoinIcon, SendHorizontal, ArrowRight } from 'lucide-react';
 import SuccessAlert from '@/components/ui/SuccessAlert';
 
 interface ReferralTransferFormProps {
@@ -20,228 +18,166 @@ interface ReferralTransferFormProps {
 }
 
 const ReferralTransferForm: React.FC<ReferralTransferFormProps> = ({ 
-  balance,
+  balance, 
   settings,
   onTransferComplete
 }) => {
-  const [transferType, setTransferType] = useState<string>('user');
+  const [transferType, setTransferType] = useState<'user' | 'wallet'>('user');
   const [recipientEmail, setRecipientEmail] = useState<string>('');
-  const [amount, setAmount] = useState<number | ''>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [amount, setAmount] = useState<number>(settings.minTransferableBalance);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [success, setSuccess] = useState<boolean>(false);
   const { toast } = useToast();
-
-  const calculatedFee = amount !== '' ? Math.round((Number(amount) * settings.transactionFeePercent) / 100) : 0;
-  const recipientAmount = amount !== '' ? Number(amount) - calculatedFee : 0;
-
-  const validateAmount = () => {
-    if (!amount) return 'Amount is required';
-    if (Number(amount) <= 0) return 'Amount must be greater than zero';
-    if (Number(amount) > balance) return 'Insufficient balance';
-    
-    if (transferType === 'user' && Number(amount) < settings.minTransferableBalance) {
-      return `Minimum transfer amount is ${settings.minTransferableBalance} coins`;
-    }
-    
-    if (transferType === 'wallet' && Number(amount) < settings.minToCryptoWallet) {
-      return `Minimum transfer to crypto wallet is ${settings.minToCryptoWallet} coins`;
-    }
-    
-    return null;
-  };
-
-  const handleTransfer = async (e: React.FormEvent) => {
+  
+  const minAmount = transferType === 'user' ? 
+    settings.minTransferableBalance : 
+    settings.minToCryptoWallet;
+  
+  const fee = transferType === 'user' ? 
+    Math.round((amount * settings.transactionFeePercent) / 100) : 
+    0;
+  
+  const totalAmount = amount;
+  const recipientReceives = amount - fee;
+  
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccess(null);
+    setSuccess(false);
     
-    const amountError = validateAmount();
-    if (amountError) {
-      setError(amountError);
+    // Validation
+    if (amount < minAmount) {
+      setError(`Minimum transfer amount is ${minAmount} coins`);
+      return;
+    }
+    
+    if (amount > balance) {
+      setError(`You don't have enough coins. Your balance: ${balance}`);
       return;
     }
     
     if (transferType === 'user' && !recipientEmail) {
-      setError('Recipient email is required');
+      setError('Please enter recipient email');
       return;
     }
-
-    setIsLoading(true);
+    
+    setLoading(true);
     
     try {
       if (transferType === 'user') {
-        const result = await transferCoins(recipientEmail, Number(amount));
-        
-        if (!result.success) {
-          setError(result.error || 'Transfer failed');
-          return;
-        }
-        
-        setSuccess(`Successfully transferred ${amount} coins to ${recipientEmail}. Fee: ${calculatedFee} coins.`);
+        const result = await transferCoins(recipientEmail, amount);
+        setSuccess(true);
         toast({
-          title: "Transfer successful",
-          description: `${recipientAmount} coins sent to ${recipientEmail}`,
-          variant: "success"
+          title: "Transfer successful!",
+          description: `${recipientReceives} coins transferred to ${recipientEmail}`,
         });
-        
-        // Reset form
-        setAmount('');
         setRecipientEmail('');
-        
-        // Refresh parent component data
+        setAmount(minAmount);
         onTransferComplete();
       } else {
-        // Crypto wallet transfer - not implemented yet
-        setError('Crypto wallet transfers are not yet available');
+        // TODO: Implement crypto wallet transfer
+        setError('Crypto wallet transfers are not yet implemented');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
-      toast({
-        title: "Transfer failed",
-        description: err instanceof Error ? err.message : 'An unknown error occurred',
-        variant: "destructive"
-      });
+      console.error('Transfer error:', err);
+      setError(err instanceof Error ? err.message : 'Transfer failed');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
-
+  
   return (
     <Card>
       <CardHeader>
         <CardTitle>Transfer TRD Coins</CardTitle>
-        <CardDescription>
-          Send coins to other users or convert to crypto
-        </CardDescription>
       </CardHeader>
       <CardContent>
-        {success && (
-          <div className="mb-6">
-            <SuccessAlert message={success} />
+        {error && (
+          <div className="bg-red-900/30 p-4 rounded-md flex items-start space-x-2 border border-red-800 mb-4">
+            <AlertCircle className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
+            <span className="text-sm text-red-300">{error}</span>
           </div>
         )}
         
-        {error && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertCircle className="h-4 w-4 mr-2" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+        {success && (
+          <SuccessAlert message="Transfer completed successfully!" />
         )}
         
-        <form onSubmit={handleTransfer}>
-          <div className="grid gap-4">
-            <div className="space-y-1">
-              <Label htmlFor="transfer-type">Transfer To</Label>
-              <Select
-                value={transferType}
-                onValueChange={setTransferType}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select transfer type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">Another User</SelectItem>
-                  <SelectItem value="wallet">My Crypto Wallet</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {transferType === 'user' && (
-              <div className="space-y-1">
-                <Label htmlFor="recipient-email">Recipient Email</Label>
-                <Input
-                  id="recipient-email"
-                  type="email"
-                  value={recipientEmail}
-                  onChange={(e) => setRecipientEmail(e.target.value)}
-                  placeholder="Email address"
-                  required
-                />
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label className="text-base">Transfer Type</Label>
+            <RadioGroup
+              value={transferType}
+              onValueChange={(value) => setTransferType(value as 'user' | 'wallet')}
+              className="flex space-x-4 mt-2"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="user" id="user" />
+                <Label htmlFor="user">To Another User</Label>
               </div>
-            )}
-            
-            <div className="space-y-1">
-              <div className="flex justify-between">
-                <Label htmlFor="amount">Amount</Label>
-                <span className="text-sm text-gray-400">
-                  Balance: <span className="font-medium">{balance}</span>
-                </span>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="wallet" id="wallet" disabled />
+                <Label htmlFor="wallet" className="text-muted-foreground">
+                  To Crypto Wallet (Coming Soon)
+                </Label>
               </div>
+            </RadioGroup>
+          </div>
+          
+          {transferType === 'user' && (
+            <div>
+              <Label htmlFor="recipient-email">Recipient Email</Label>
               <Input
-                id="amount"
-                type="number"
-                min={1}
-                step={1}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value ? Number(e.target.value) : '')}
-                placeholder="Enter amount"
+                id="recipient-email"
+                type="email"
+                value={recipientEmail}
+                onChange={(e) => setRecipientEmail(e.target.value)}
+                placeholder="email@example.com"
                 required
               />
-              {transferType === 'user' && amount !== '' && (
-                <div className="mt-1">
-                  <p className="text-xs text-gray-400">
-                    Fee: {calculatedFee} coins ({settings.transactionFeePercent}%)
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    Recipient will receive: {recipientAmount} coins
-                  </p>
-                </div>
-              )}
             </div>
-            
-            {transferType === 'user' && (
-              <div className="bg-gray-800/50 rounded-md p-4 text-sm">
-                <h4 className="font-medium mb-1 flex items-center">
-                  <CoinIcon className="h-4 w-4 mr-1" /> Transfer Details
-                </h4>
-                <ul className="space-y-1 text-gray-400">
-                  <li>Minimum transfer: {settings.minTransferableBalance} coins</li>
-                  <li>Transaction fee: {settings.transactionFeePercent}%</li>
-                  <li>The recipient will receive the amount minus the fee</li>
-                </ul>
-              </div>
-            )}
-            
-            {transferType === 'wallet' && (
-              <div className="bg-amber-950/20 border border-amber-500/20 rounded-md p-4 text-sm text-amber-300">
-                <h4 className="font-medium mb-1 flex items-center">
-                  <AlertCircle className="h-4 w-4 mr-1" /> Coming Soon
-                </h4>
-                <p className="text-amber-200/70">
-                  Crypto wallet transfers will be available in the next update.
-                </p>
-              </div>
-            )}
-            
-            <Button 
-              type="submit" 
-              className="mt-2"
-              disabled={isLoading || transferType === 'wallet'}
-            >
-              {isLoading ? (
-                "Processing..."
-              ) : (
-                <>
-                  <SendHorizontal className="mr-2 h-4 w-4" /> 
-                  Transfer Coins
-                </>
-              )}
-            </Button>
+          )}
+          
+          <div>
+            <Label htmlFor="amount">Amount</Label>
+            <Input
+              id="amount"
+              type="number"
+              min={minAmount}
+              max={balance}
+              value={amount}
+              onChange={(e) => setAmount(Number(e.target.value))}
+              required
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Minimum: {minAmount} coins.&nbsp;
+              Your balance: {balance} coins.
+            </p>
           </div>
+          
+          {transferType === 'user' && (
+            <div className="rounded-md bg-gray-800 p-3">
+              <Label className="text-sm">Transfer Summary</Label>
+              <div className="grid grid-cols-2 gap-1 mt-2 text-sm">
+                <span className="text-gray-400">You send:</span>
+                <span>{totalAmount} TRD</span>
+                <span className="text-gray-400">Fee ({settings.transactionFeePercent}%):</span>
+                <span>{fee} TRD</span>
+                <span className="text-gray-400">Recipient gets:</span>
+                <span>{recipientReceives} TRD</span>
+              </div>
+            </div>
+          )}
+          
+          <Button 
+            type="submit" 
+            className="w-full"
+            disabled={loading || balance < minAmount}
+          >
+            {loading ? 'Processing...' : 'Transfer Coins'}
+          </Button>
         </form>
-        
-        <Separator className="my-6" />
-        
-        <div className="bg-gray-900/60 rounded-md p-4">
-          <h3 className="font-medium mb-2 flex items-center">
-            <ArrowRight className="h-4 w-4 mr-1" /> How to earn more coins
-          </h3>
-          <p className="text-sm text-gray-400">
-            Invite friends to join using your referral code. You'll earn {settings.coinsPerReferral} coins for each new signup.
-            You'll also earn {settings.level2RatePercent}% when they refer others!
-          </p>
-        </div>
       </CardContent>
     </Card>
   );
