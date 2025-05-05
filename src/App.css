@@ -1,58 +1,38 @@
-#root {
-  max-width: 100%;
-  margin: 0 auto;
-  padding: 1rem; /* Reduced padding for mobile */
-  text-align: center;
-  overflow-x: hidden; /* Prevents horizontal scroll */
+
+:root {
+  --fortunesly-primary: #F7931A; /* Bitcoin orange */
+  --fortunesly-secondary: #4d4d4d;
+  --fortunesly-accent: #FBB03B;
+  --fortunesly-dark: #1e293b;
+  --fortunesly-light: #f8fafc;
 }
 
-/* Add media query for larger screens */
-@media (min-width: 768px) {
-  #root {
-    max-width: 1280px;
-    padding: 2rem;
-  }
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', sans-serif;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.text-fortunesly-primary {
+  color: var(--fortunesly-primary);
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.text-fortunesly-secondary {
+  color: var(--fortunesly-secondary);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+.text-fortunesly-accent {
+  color: var(--fortunesly-accent);
 }
 
-.card {
-  padding: 2em;
+.bg-fortunesly-primary {
+  background-color: var(--fortunesly-primary);
 }
 
-/* Make card responsive on mobile */
-@media (max-width: 640px) {
-  .card {
-    padding: 1em;
-  }
+.hover\:bg-fortunesly-primary\/90:hover {
+  background-color: rgba(247, 147, 26, 0.9);
 }
 
-.read-the-docs {
-  color: #888;
+.hover\:text-fortunesly-accent:hover {
+  color: var(--fortunesly-accent);
 }
