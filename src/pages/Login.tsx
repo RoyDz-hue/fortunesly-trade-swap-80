@@ -15,16 +15,16 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const { login, isAuthenticated, isAdmin, isLoading: authLoading } = useAuth();
+  const { login, isAuthenticated, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
+    if (isAuthenticated) {
       console.log("User authenticated, redirecting to dashboard");
       navigate(isAdmin ? "/admin" : "/dashboard");
     }
-  }, [isAuthenticated, isAdmin, authLoading, navigate]);
+  }, [isAuthenticated, isAdmin, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,7 +135,7 @@ const Login = () => {
                 <Button
                   type="submit"
                   className="w-full bg-fortunesly-primary hover:bg-fortunesly-primary/90"
-                  disabled={isLoading || authLoading}
+                  disabled={isLoading}
                 >
                   {isLoading ? "Signing in..." : "Sign in"}
                 </Button>

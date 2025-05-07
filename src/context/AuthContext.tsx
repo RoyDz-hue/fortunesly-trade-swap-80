@@ -38,6 +38,7 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
         
         if (error) {
           console.error("Session error:", error);
+          setIsLoading(false);
           return;
         }
         
@@ -51,6 +52,7 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
           if (userError) {
             console.error("User data error:", userError);
+            setIsLoading(false);
             return;
           }
 
