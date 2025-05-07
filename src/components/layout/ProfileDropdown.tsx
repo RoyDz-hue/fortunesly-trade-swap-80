@@ -65,10 +65,10 @@ const ProfileDropdown = () => {
         <DropdownMenuSeparator />
         
         <DropdownMenuGroup>
-          {/* Referral information */}
-          <DropdownMenuItem className="cursor-pointer" asChild>
+          {/* Referral information - make more prominent */}
+          <DropdownMenuItem className="cursor-pointer flex items-center font-medium text-fortunesly-primary" asChild>
             <Link to="/dashboard/referrals" className="flex w-full">
-              <Coins className="mr-2 h-4 w-4" />
+              <Coins className="mr-2 h-5 w-5" />
               <span>TRD Balance: {user?.referralBalance || 0}</span>
             </Link>
           </DropdownMenuItem>

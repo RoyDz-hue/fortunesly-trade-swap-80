@@ -19,15 +19,11 @@ const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // This effect will handle redirect after authentication state changes
+  // Immediate redirect when authentication state changes
   useEffect(() => {
     if (isAuthenticated) {
-      console.log("User authenticated, redirecting to dashboard");
-      
-      // Add a small delay to ensure authentication state is fully processed
-      setTimeout(() => {
-        navigate(isAdmin ? "/admin" : "/dashboard");
-      }, 100);
+      console.log("User authenticated, redirecting to dashboard immediately");
+      navigate(isAdmin ? "/admin" : "/dashboard");
     }
   }, [isAuthenticated, isAdmin, navigate]);
 
@@ -40,17 +36,15 @@ const Login = () => {
       await login(email, password);
       toast({
         title: "Login successful!",
-        description: "Redirecting you to dashboard...",
+        description: "Redirecting to dashboard...",
       });
       
-      // Force redirect after successful login to ensure it happens
-      setTimeout(() => {
-        if (isAdmin) {
-          navigate("/admin");
-        } else {
-          navigate("/dashboard");
-        }
-      }, 500); // Give a little time for auth state to update
+      // Force immediate redirect after successful login
+      if (isAdmin) {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (error) {
       console.error("Login error:", error);
       if (error instanceof Error) {
