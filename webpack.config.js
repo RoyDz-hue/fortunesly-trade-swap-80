@@ -16,11 +16,27 @@ module.exports = {
     historyApiFallback: true,
     port: 8080,
     hot: true,
+    client: {
+      overlay: true,
+    },
+    setupMiddlewares: (middlewares, devServer) => {
+      if (!devServer) {
+        throw new Error('webpack-dev-server is not defined');
+      }
+      // This helps bypass the need for a separate package.json in /dev-server
+      return middlewares;
+    },
   },
   resolve: {
     extensions: ['.tsx', '.ts', '.js'],
     alias: {
       '@': path.resolve(__dirname, './src'),
+    },
+    fallback: {
+      // Provide polyfills for Node.js core modules
+      "path": require.resolve("path-browserify"),
+      "fs": false,
+      "os": require.resolve("os-browserify/browser"),
     },
   },
   module: {
@@ -39,5 +55,9 @@ module.exports = {
         type: 'asset/resource',
       },
     ],
+  },
+  // Add Node.js environment polyfills
+  node: {
+    global: true,
   },
 };

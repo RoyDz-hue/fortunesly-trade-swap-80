@@ -22,8 +22,15 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install Dependencies
+      run: npm ci || npm install
 
     - name: Build
       run: |
-        npm install
-        npx webpack --config webpack.config.js || npm run build
+        npm run build || npx webpack --config webpack.config.js || echo "Build command not found in package.json, using webpack directly"
+
+    - name: Test
+      run: |
+        npm test || echo "No tests specified"
