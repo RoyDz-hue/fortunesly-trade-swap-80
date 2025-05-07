@@ -7,6 +7,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string, referralCode?: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -16,6 +17,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   isAuthenticated: false,
   isAdmin: false,
+  isLoading: true,
   login: async () => {},
   register: async () => {},
   logout: async () => {},
@@ -31,17 +33,26 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     // Check for existing session
     const checkUser = async () => {
       try {
-        // For development/demo purposes, you can use mock data
-        // Remove or comment out for production use with real Supabase auth
         console.log("Checking for existing session...");
-        const { data } = await supabase.auth.getSession();
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error("Session error:", error);
+          return;
+        }
         
         if (data.session) {
-          const { data: userData, error } = await supabase
+          console.log("Session found:", data.session.user.email);
+          const { data: userData, error: userError } = await supabase
             .from('users')
             .select('*')
             .eq('id', data.session.user.id)
             .single();
+
+          if (userError) {
+            console.error("User data error:", userError);
+            return;
+          }
 
           if (userData) {
             setUser({
@@ -55,6 +66,8 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
               referralCount: userData.referral_count || 0,
             });
           }
+        } else {
+          console.log("No active session found");
         }
       } catch (error) {
         console.error("Auth check error:", error);
@@ -76,6 +89,11 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
             .select('*')
             .eq('id', session.user.id)
             .single();
+
+          if (error) {
+            console.error("User data fetch error:", error);
+            return;
+          }
 
           if (userData) {
             setUser({
@@ -105,17 +123,21 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
   const login = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log("Attempting login for:", email);
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       
       if (error) {
+        console.error("Login error:", error);
         throw new Error(error.message);
       }
       
+      console.log("Login successful:", data);
       // Auth state listener will update the user state
     } catch (error) {
+      console.error("Login catch error:", error);
       if (error instanceof Error) {
         throw new Error(error.message);
       }
@@ -295,6 +317,7 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
+        console.error("Logout error:", error);
         throw new Error(error.message);
       }
       setUser(null);
@@ -313,12 +336,13 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
         user,
         isAuthenticated,
         isAdmin,
+        isLoading,
         login,
         register,
         logout,
       }}
     >
-      {!isLoading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

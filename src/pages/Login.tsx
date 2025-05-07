@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -37,6 +38,7 @@ const Login = () => {
         description: "loading...",
       });
     } catch (error) {
+      console.error("Login error:", error);
       if (error instanceof Error) {
         setError(error.message);
       } else {
@@ -123,9 +125,9 @@ const Login = () => {
                 </div>
 
                 <div className="text-sm">
-<a href="#" className="font-medium text-fortunesly-primary hover:text-fortunesly-accent">
-  Forgot your password?
-</a>
+                  <a href="#" className="font-medium text-fortunesly-primary hover:text-fortunesly-accent">
+                    Forgot your password?
+                  </a>
                 </div>
               </div>
 

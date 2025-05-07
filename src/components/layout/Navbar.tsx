@@ -14,7 +14,7 @@ const Navbar = () => {
   const { isAuthenticated, logout, user, isAdmin } = useAuth();
 
   return (
-    <nav className="bg-white border-b border-gray-200 fixed w-full z-30">
+    <nav className="bg-gray-900 border-b border-gray-800 fixed w-full z-30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
@@ -26,20 +26,20 @@ const Navbar = () => {
           <div className="flex items-center">
             {isAuthenticated ? (
               <div className="flex items-center space-x-4">
-                <Button asChild variant="ghost">
+                <Button asChild variant="ghost" className="text-white hover:text-gray-300">
                   <Link to={isAdmin ? "/admin" : "/dashboard"}>
                     Dashboard
                   </Link>
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="flex items-center gap-2">
+                    <Button variant="outline" className="flex items-center gap-2 bg-gray-800 text-white border-gray-700 hover:bg-gray-700">
                       <User className="h-4 w-4" />
                       <span>{user?.username}</span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={logout} className="flex items-center gap-2 text-red-500">
+                  <DropdownMenuContent align="end" className="bg-gray-800 border-gray-700">
+                    <DropdownMenuItem onClick={logout} className="flex items-center gap-2 text-red-500 focus:bg-gray-700 focus:text-red-500">
                       <LogOut className="h-4 w-4" />
                       <span>Logout</span>
                     </DropdownMenuItem>
@@ -48,10 +48,10 @@ const Navbar = () => {
               </div>
             ) : (
               <div className="flex items-center space-x-4">
-                <Button asChild variant="outline">
+                <Button asChild variant="outline" className="border-gray-700 text-white hover:bg-gray-800">
                   <Link to="/login">Login</Link>
                 </Button>
-                <Button asChild>
+                <Button asChild className="bg-fortunesly-primary text-fortunesly-dark hover:bg-fortunesly-accent">
                   <Link to="/register">Register</Link>
                 </Button>
               </div>
