@@ -19,13 +19,6 @@ module.exports = {
     client: {
       overlay: true,
     },
-    setupMiddlewares: (middlewares, devServer) => {
-      if (!devServer) {
-        throw new Error('webpack-dev-server is not defined');
-      }
-      // This helps bypass the need for a separate package.json in /dev-server
-      return middlewares;
-    },
   },
   resolve: {
     extensions: ['.tsx', '.ts', '.js'],

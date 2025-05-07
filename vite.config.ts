@@ -10,8 +10,8 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
     fs: {
-      // Allow serving files from one level up from the package root
-      allow: ['..']
+      // Allow serving files from the package root only
+      allow: ['.']
     }
   },
   plugins: [
