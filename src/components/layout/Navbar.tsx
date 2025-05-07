@@ -14,7 +14,7 @@ const Navbar = () => {
   const { isAuthenticated, logout, user, isAdmin } = useAuth();
 
   return (
-    <nav className="bg-gray-900 border-b border-gray-800 fixed w-full z-30">
+    <nav className="bg-[#221F26] border-b border-gray-800 fixed w-full z-30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
@@ -51,7 +51,7 @@ const Navbar = () => {
                 <Button asChild variant="outline" className="border-gray-700 text-white hover:bg-gray-800">
                   <Link to="/login">Login</Link>
                 </Button>
-                <Button asChild className="bg-fortunesly-primary text-fortunesly-dark hover:bg-fortunesly-accent">
+                <Button asChild className="bg-fortunesly-primary text-white hover:bg-fortunesly-accent">
                   <Link to="/register">Register</Link>
                 </Button>
               </div>

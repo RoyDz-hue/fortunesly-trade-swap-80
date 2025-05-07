@@ -4,17 +4,18 @@
 @tailwind utilities;
 
 :root {
-  --fortunesly-primary: #F7931A; /* Bitcoin orange */
+  --fortunesly-primary: #9b87f5; /* Changed from orange to purple */
   --fortunesly-secondary: #4d4d4d;
-  --fortunesly-accent: #FBB03B;
-  --fortunesly-dark: #1e293b;
-  --fortunesly-light: #f8fafc;
+  --fortunesly-accent: #8a74e8; /* Changed accent to a lighter purple */
+  --fortunesly-dark: #221F26; /* Darkened to charcoal */
+  --fortunesly-light: #403E43; /* Changed to darker shade for "light" elements */
 }
 
 @layer base {
   body {
     @apply bg-gray-900 text-gray-100;
     font-family: 'Inter', sans-serif;
+    background-color: #221F26; /* Ensure dark charcoal background */
   }
 }
 
@@ -42,5 +43,10 @@
   
   .hover\:bg-fortunesly-primary\/90:hover {
     background-color: color-mix(in srgb, var(--fortunesly-primary) 90%, transparent);
+  }
+
+  .hero-gradient {
+    background-color: #221F26; /* Dark charcoal background */
+    background-image: linear-gradient(to bottom right, #221F26, #403E43);
   }
 }

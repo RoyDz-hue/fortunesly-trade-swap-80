@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,7 +29,7 @@ const TradingPairsSection = () => {
             name: coin.name,
             symbol: coin.symbol,
             depositAddress: coin.deposit_address,
-            image: coin.image || `https://via.placeholder.com/40/6E59A5/ffffff?text=${coin.symbol}`,
+            image: coin.image || `https://via.placeholder.com/40/9b87f5/ffffff?text=${coin.symbol}`,
           }))
           .filter(coin => coin.symbol !== 'KES');
 
@@ -45,7 +46,7 @@ const TradingPairsSection = () => {
 
   if (isLoading) {
     return (
-      <section className="py-20 bg-black">
+      <section className="py-20 bg-[#221F26]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
@@ -58,7 +59,7 @@ const TradingPairsSection = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="bg-gray-900 rounded-lg shadow-md border border-gray-800 overflow-hidden p-6">
+              <div key={index} className="bg-[#403E43]/20 rounded-lg shadow-md border border-gray-800 overflow-hidden p-6">
                 <div className="flex items-center mb-4">
                   <Skeleton className="w-10 h-10 rounded-full mr-3 bg-gray-800" />
                   <div>
@@ -83,7 +84,7 @@ const TradingPairsSection = () => {
 
   if (tradingCoins.length === 0) {
     return (
-      <section className="py-20 bg-black">
+      <section className="py-20 bg-[#221F26]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
@@ -99,7 +100,7 @@ const TradingPairsSection = () => {
   }
 
   return (
-    <section className="py-20 bg-black">
+    <section className="py-20 bg-[#221F26]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
@@ -112,7 +113,7 @@ const TradingPairsSection = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {tradingCoins.map((coin) => (
-            <div key={coin.id} className="bg-gray-900 rounded-lg shadow-md border border-gray-800 overflow-hidden hover:shadow-lg transition-shadow duration-300">
+            <div key={coin.id} className="bg-[#403E43]/20 rounded-lg shadow-md border border-gray-800 overflow-hidden hover:shadow-lg transition-shadow duration-300">
               <div className="p-6">
                 <div className="flex items-center mb-4">
                   <img 
@@ -121,7 +122,7 @@ const TradingPairsSection = () => {
                     className="w-10 h-10 rounded-full mr-3"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
-                      target.src = `https://via.placeholder.com/40/6E59A5/ffffff?text=${coin.symbol}`;
+                      target.src = `https://via.placeholder.com/40/9b87f5/ffffff?text=${coin.symbol}`;
                     }}
                   />
                   <div>
@@ -131,7 +132,7 @@ const TradingPairsSection = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div className="bg-gray-800 p-3 rounded">
+                  <div className="bg-[#403E43]/40 p-3 rounded">
                     <div className="text-xs text-gray-400">KES Pair</div>
                     <div className="font-medium flex items-center text-white">
                       <span className="mr-2">{coin.symbol}/KES</span>
@@ -143,7 +144,7 @@ const TradingPairsSection = () => {
                     </div>
                   </div>
 
-                  <div className="bg-gray-800 p-3 rounded">
+                  <div className="bg-[#403E43]/40 p-3 rounded">
                     <div className="text-xs text-gray-400">USDT Pair</div>
                     <div className="font-medium flex items-center text-white">
                       <span className="mr-2">{coin.symbol}/USDT</span>
