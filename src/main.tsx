@@ -11,7 +11,15 @@ if (!rootElement) {
   const root = document.createElement("div");
   root.id = "root";
   document.body.appendChild(root);
+  console.log("Root element was created because none was found");
 }
 
 // Create and render root
-createRoot(document.getElementById("root")!).render(<App />);
+const renderTarget = document.getElementById("root");
+
+if (renderTarget) {
+  createRoot(renderTarget).render(<App />);
+  console.log("Application rendered successfully");
+} else {
+  console.error("Could not find root element even after attempting to create it");
+}

@@ -54,6 +54,13 @@ module.exports = {
   node: {
     global: true,
   },
-  // Ensure we use the correct context for finding package.json
-  context: process.cwd(),
+  // Use absolute path for context to ensure package.json is found
+  context: path.resolve(process.cwd()),
+  // Add resolveLoader to help find loaders
+  resolveLoader: {
+    modules: [
+      'node_modules',
+      path.resolve(process.cwd(), 'node_modules')
+    ]
+  }
 };

@@ -10,9 +10,9 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
     fs: {
-      // Allow serving files from one level up to ensure package.json is found
+      // Allow serving files from multiple directories including parent dirs
       strict: false,
-      allow: ['.', '..', './node_modules']
+      allow: ['/', './', '..', '../', '.', '../node_modules', './node_modules']
     }
   },
   plugins: [
@@ -39,6 +39,6 @@ export default defineConfig(({ mode }) => ({
       input: path.resolve(__dirname, 'index.html'),
     }
   },
-  // Explicitly specify the project root to help with package.json location
-  root: process.cwd(),
+  // Use absolute path for project root
+  root: path.resolve(process.cwd()),
 }));
