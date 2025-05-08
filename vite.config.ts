@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => ({
     fs: {
       // Allow serving files from multiple directories including parent dirs
       strict: false,
-      allow: ['/', './', '..', '../', '.', '../node_modules', './node_modules']
+      allow: ['/', './', '..', '../', '.', '../node_modules', './node_modules', '/dev-server']
     }
   },
   plugins: [
@@ -39,6 +39,8 @@ export default defineConfig(({ mode }) => ({
       input: path.resolve(__dirname, 'index.html'),
     }
   },
-  // Use absolute path for project root
-  root: path.resolve(process.cwd()),
+  // Use absolute path for project root and include alternative locations
+  root: process.cwd(),
+  // Help Vite find the package.json in various locations
+  cacheDir: path.resolve(process.cwd(), 'node_modules/.vite')
 }));

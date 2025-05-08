@@ -1,5 +1,33 @@
 
 const path = require('path');
+const fs = require('fs');
+
+// Function to find package.json in various locations
+const findPackageJson = () => {
+  const possibleLocations = [
+    process.cwd(),
+    path.resolve(process.cwd(), '..'),
+    '/dev-server',
+    path.resolve(process.cwd(), '/dev-server')
+  ];
+  
+  for (const location of possibleLocations) {
+    const packagePath = path.join(location, 'package.json');
+    try {
+      if (fs.existsSync(packagePath)) {
+        console.log(`Found package.json at: ${packagePath}`);
+        return location;
+      }
+    } catch (e) {
+      console.log(`Error checking ${packagePath}: ${e.message}`);
+    }
+  }
+  
+  console.log('Using default location for package.json');
+  return process.cwd();
+};
+
+const contextPath = findPackageJson();
 
 module.exports = {
   mode: 'development',
@@ -54,13 +82,13 @@ module.exports = {
   node: {
     global: true,
   },
-  // Use absolute path for context to ensure package.json is found
-  context: path.resolve(process.cwd()),
+  // Use dynamic context finder
+  context: contextPath,
   // Add resolveLoader to help find loaders
   resolveLoader: {
     modules: [
       'node_modules',
-      path.resolve(process.cwd(), 'node_modules')
+      path.resolve(contextPath, 'node_modules')
     ]
   }
 };
