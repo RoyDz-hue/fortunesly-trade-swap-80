@@ -12,6 +12,7 @@ const OrdersPage = lazy(() => import("./OrdersPage"));
 const MyWithdrawalsPage = lazy(() => import("./MyWithdrawalsPage"));
 const SettingsPage = lazy(() => import("./dashboard/SettingsPage"));
 const TransactionsPage = lazy(() => import("./dashboard/TransactionsPage"));
+const ReferralPage = lazy(() => import("./dashboard/ReferralPage"));
 
 // Loading component
 const PageLoader = () => (
@@ -48,6 +49,7 @@ const Dashboard = () => {
           <Route path="/withdrawals" element={<MyWithdrawalsPage />} />
           <Route path="/transactions" element={<TransactionsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/referrals" element={<ReferralPage />} />
         </Routes>
       </Suspense>
     </DashboardLayout>

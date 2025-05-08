@@ -19,11 +19,12 @@ const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Check authentication status when component mounts
+  // Check authentication status when component mounts and when it changes
   useEffect(() => {
     if (isAuthenticated) {
-      console.log("User already authenticated, redirecting");
-      navigate(isAdmin ? "/admin" : "/dashboard");
+      console.log("User authenticated, redirecting", isAdmin ? "to admin" : "to dashboard");
+      // Force navigation to the correct dashboard
+      navigate(isAdmin ? "/admin" : "/dashboard", { replace: true });
     }
   }, [isAuthenticated, isAdmin, navigate]);
 
@@ -42,13 +43,16 @@ const Login = () => {
       console.log("Attempting login with:", email);
       await login(email, password);
       
-      // Login was successful if we reach here
       toast({
         title: "Login successful!",
         description: "Welcome back!",
       });
       
-      // Let the useEffect handle redirection based on authentication state
+      // Force immediate redirect after successful login
+      if (isAuthenticated) {
+        console.log("Redirecting immediately after successful login");
+        navigate(isAdmin ? "/admin" : "/dashboard", { replace: true });
+      }
     } catch (error) {
       console.error("Login error:", error);
       if (error instanceof Error) {
