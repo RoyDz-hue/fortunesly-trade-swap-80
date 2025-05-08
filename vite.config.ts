@@ -3,6 +3,16 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+import fs from 'fs';
+
+// Ensure we can access package.json in multiple locations
+const packageJsonPath = fs.existsSync('./package.json') 
+  ? './package.json'
+  : fs.existsSync('../package.json')
+    ? '../package.json'
+    : '/app/package.json';
+
+console.log('Using package.json from:', packageJsonPath);
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -10,9 +20,19 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
     fs: {
-      // Allow serving files from multiple directories including parent dirs
+      // Allow serving files from multiple directories
       strict: false,
-      allow: ['/', './', '..', '../', '.', '../node_modules', './node_modules', '/dev-server']
+      allow: [
+        '/', 
+        './', 
+        '..', 
+        '../', 
+        '.', 
+        '../node_modules', 
+        './node_modules', 
+        '/app', 
+        '/app/node_modules'
+      ]
     }
   },
   plugins: [

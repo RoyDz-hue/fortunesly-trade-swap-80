@@ -14,28 +14,43 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Coins, User, BadgePercent, BadgeCheck, Settings, LogOut } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 
 const ProfileDropdown = () => {
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
+      console.log("Logging out user");
       await logout();
+      toast({
+        title: "Logged out successfully",
+        description: "You have been logged out of your account",
+      });
       navigate('/');
     } catch (error) {
       console.error('Logout error:', error);
+      toast({
+        title: "Logout failed",
+        description: "There was a problem logging out. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoggingOut(false);
     }
   };
 
   if (!isAuthenticated || !user) {
+    console.log("ProfileDropdown: User not authenticated or no user data");
     return null;
   }
+
+  console.log("ProfileDropdown rendering with user:", user);
 
   const getInitials = () => {
     if (!user) return 'U';

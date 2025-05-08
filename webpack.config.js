@@ -7,8 +7,8 @@ const findPackageJson = () => {
   const possibleLocations = [
     process.cwd(),
     path.resolve(process.cwd(), '..'),
-    '/dev-server',
-    path.resolve(process.cwd(), '/dev-server')
+    '/app',
+    path.resolve(process.cwd(), 'app')
   ];
   
   for (const location of possibleLocations) {
@@ -28,6 +28,7 @@ const findPackageJson = () => {
 };
 
 const contextPath = findPackageJson();
+console.log(`Using context path: ${contextPath}`);
 
 module.exports = {
   mode: 'development',
@@ -82,13 +83,14 @@ module.exports = {
   node: {
     global: true,
   },
-  // Use dynamic context finder
+  // Use found context path
   context: contextPath,
   // Add resolveLoader to help find loaders
   resolveLoader: {
     modules: [
       'node_modules',
-      path.resolve(contextPath, 'node_modules')
+      path.resolve(contextPath, 'node_modules'),
+      path.resolve(__dirname, 'node_modules')
     ]
   }
 };

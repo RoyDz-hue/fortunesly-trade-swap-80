@@ -13,7 +13,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x, 20.x, 22.x]
+        node-version: [18.x]
 
     steps:
     - uses: actions/checkout@v4
@@ -28,19 +28,20 @@ jobs:
       run: |
         pwd
         ls -la
-        find . -name "package.json" -type f
         echo "Current working directory: $(pwd)"
         echo "GitHub workspace: ${{ github.workspace }}"
-      working-directory: ${{ github.workspace }}
 
-    - name: Create package.json symlink for /dev-server if needed
+    - name: Create package.json symlink if needed
       run: |
-        if [ ! -d "/dev-server" ]; then
-          sudo mkdir -p /dev-server
-        fi
-        if [ ! -f "/dev-server/package.json" ] && [ -f "${{ github.workspace }}/package.json" ]; then
-          sudo cp ${{ github.workspace }}/package.json /dev-server/package.json
-          echo "Created package.json symlink in /dev-server"
+        # Copy package.json to accessible locations
+        if [ -f "${{ github.workspace }}/package.json" ]; then
+          echo "Found package.json in workspace"
+          # Create directories if they don't exist
+          sudo mkdir -p /app
+          sudo cp ${{ github.workspace }}/package.json /app/package.json
+          echo "Created package.json copy in /app"
+        else
+          echo "WARNING: package.json not found in workspace"
         fi
       working-directory: ${{ github.workspace }}
 

@@ -21,10 +21,15 @@ const Login = () => {
 
   // Check authentication status when component mounts and when it changes
   useEffect(() => {
+    console.log("Login component - Auth status:", { isAuthenticated, isAdmin });
+    
     if (isAuthenticated) {
       console.log("User authenticated, redirecting", isAdmin ? "to admin" : "to dashboard");
-      // Force navigation to the correct dashboard
-      navigate(isAdmin ? "/admin" : "/dashboard", { replace: true });
+      const redirectPath = isAdmin ? "/admin" : "/dashboard";
+      console.log("Redirecting to:", redirectPath);
+      
+      // Force immediate navigation with replace
+      navigate(redirectPath, { replace: true });
     }
   }, [isAuthenticated, isAdmin, navigate]);
 
@@ -48,11 +53,7 @@ const Login = () => {
         description: "Welcome back!",
       });
       
-      // Force immediate redirect after successful login
-      if (isAuthenticated) {
-        console.log("Redirecting immediately after successful login");
-        navigate(isAdmin ? "/admin" : "/dashboard", { replace: true });
-      }
+      // The useEffect hook will handle the redirect after successful login
     } catch (error) {
       console.error("Login error:", error);
       if (error instanceof Error) {
