@@ -13,23 +13,27 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Coins, User, BadgePercent, BadgeCheck } from 'lucide-react';
+import { Coins, User, BadgePercent, BadgeCheck, Settings, LogOut } from 'lucide-react';
 
 const ProfileDropdown = () => {
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
     try {
+      setIsLoggingOut(true);
       await logout();
       navigate('/');
     } catch (error) {
       console.error('Logout error:', error);
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     return null;
   }
 
@@ -100,7 +104,7 @@ const ProfileDropdown = () => {
           
           <DropdownMenuItem className="cursor-pointer" asChild>
             <Link to="/dashboard/settings" className="flex w-full">
-              <User className="mr-2 h-4 w-4" />
+              <Settings className="mr-2 h-4 w-4" />
               <span>Profile Settings</span>
             </Link>
           </DropdownMenuItem>
@@ -110,9 +114,11 @@ const ProfileDropdown = () => {
         
         <DropdownMenuItem 
           onClick={handleLogout}
+          disabled={isLoggingOut}
           className="cursor-pointer text-red-500 hover:text-red-600 hover:bg-red-500/10"
         >
-          Logout
+          <LogOut className="mr-2 h-4 w-4" />
+          {isLoggingOut ? 'Logging out...' : 'Logout'}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

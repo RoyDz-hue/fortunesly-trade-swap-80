@@ -19,38 +19,42 @@ const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Immediate redirect when authentication state changes
+  // Check authentication status when component mounts
   useEffect(() => {
     if (isAuthenticated) {
-      console.log("User authenticated, redirecting to dashboard immediately");
+      console.log("User already authenticated, redirecting");
       navigate(isAdmin ? "/admin" : "/dashboard");
     }
   }, [isAuthenticated, isAdmin, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email || !password) {
+      setError("Please enter both email and password");
+      return;
+    }
+    
     setError("");
     setIsLoading(true);
 
     try {
+      console.log("Attempting login with:", email);
       await login(email, password);
+      
+      // Login was successful if we reach here
       toast({
         title: "Login successful!",
-        description: "Redirecting to dashboard...",
+        description: "Welcome back!",
       });
       
-      // Force immediate redirect after successful login
-      if (isAdmin) {
-        navigate("/admin");
-      } else {
-        navigate("/dashboard");
-      }
+      // Let the useEffect handle redirection based on authentication state
     } catch (error) {
       console.error("Login error:", error);
       if (error instanceof Error) {
-        setError(error.message);
+        setError(error.message || "Failed to login. Please check your credentials.");
       } else {
-        setError("Failed to login. Please try again.");
+        setError("An unexpected error occurred. Please try again.");
       }
     } finally {
       setIsLoading(false);
