@@ -28,9 +28,13 @@ jobs:
       run: npm ci || npm install
       working-directory: ${{ github.workspace }}
 
+    - name: Check package.json location
+      run: ls -la && pwd && echo "Current directory is $(pwd)"
+      working-directory: ${{ github.workspace }}
+
     - name: Build
       run: |
-        npm run build || npx webpack
+        npm run build || npx webpack --config webpack.config.js
       working-directory: ${{ github.workspace }}
 
     - name: Test

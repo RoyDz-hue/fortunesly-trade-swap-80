@@ -10,9 +10,9 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
     fs: {
-      // Allow serving files from the package root
+      // Allow serving files from one level up to ensure package.json is found
       strict: false,
-      allow: ['.', './node_modules']
+      allow: ['.', '..', './node_modules']
     }
   },
   plugins: [
@@ -31,7 +31,7 @@ export default defineConfig(({ mode }) => ({
   define: {
     'process.env': process.env
   },
-  // Make sure build finds the right entry point
+  // Make sure build finds the right entry point and path
   build: {
     outDir: 'dist',
     emptyOutDir: true,
@@ -40,5 +40,5 @@ export default defineConfig(({ mode }) => ({
     }
   },
   // Explicitly specify the project root to help with package.json location
-  root: path.resolve(__dirname),
+  root: process.cwd(),
 }));
