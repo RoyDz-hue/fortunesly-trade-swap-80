@@ -30,6 +30,7 @@ module.exports = {
       "path": require.resolve("path-browserify"),
       "fs": false,
       "os": require.resolve("os-browserify/browser"),
+      "process": require.resolve("process/browser"),
     },
   },
   module: {
@@ -53,4 +54,6 @@ module.exports = {
   node: {
     global: true,
   },
+  // Ensure we can find the package.json correctly
+  context: path.resolve(__dirname),
 };

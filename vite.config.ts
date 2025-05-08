@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => ({
     fs: {
       // Allow serving files from the package root
       strict: false,
-      allow: ['.']
+      allow: ['.', './node_modules']
     }
   },
   plugins: [
@@ -38,5 +38,7 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       input: path.resolve(__dirname, 'index.html'),
     }
-  }
+  },
+  // Explicitly specify the project root to help with package.json location
+  root: path.resolve(__dirname),
 }));
