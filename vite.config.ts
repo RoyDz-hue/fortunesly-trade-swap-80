@@ -10,7 +10,8 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
     fs: {
-      // Allow serving files from the package root only
+      // Allow serving files from the package root
+      strict: false,
       allow: ['.']
     }
   },
@@ -29,5 +30,13 @@ export default defineConfig(({ mode }) => ({
   // Ensure environment variables are properly passed
   define: {
     'process.env': process.env
+  },
+  // Make sure build finds the right entry point
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+    rollupOptions: {
+      input: path.resolve(__dirname, 'index.html'),
+    }
   }
 }));
