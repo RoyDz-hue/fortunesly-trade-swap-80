@@ -1,8 +1,8 @@
 
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense } from "react";
 
 // Lazy load pages for better performance
 const AdminHome = lazy(() => import("./admin/AdminHome"));
@@ -14,7 +14,6 @@ const TradingPairsPage = lazy(() => import("./admin/TradingPairsPage"));
 const SettingsPage = lazy(() => import("./admin/SettingsPage"));
 const TransactionsPage = lazy(() => import("./admin/TransactionsPage"));
 const MarketPage = lazy(() => import("./MarketPage"));
-const ReferralsPage = lazy(() => import("./admin/ReferralsPage"));
 
 // Loading fallback
 const PageLoader = () => (
@@ -28,35 +27,16 @@ const PageLoader = () => (
 
 // Main Admin Dashboard Component with Routes
 const AdminDashboard = () => {
-  const { isAuthenticated, isAdmin, user } = useAuth();
-  const navigate = useNavigate();
+  const { isAuthenticated, isAdmin } = useAuth();
   
-  useEffect(() => {
-    console.log("AdminDashboard mount - Auth status:", { isAuthenticated, isAdmin, user });
-    
-    if (!isAuthenticated) {
-      console.log("Not authenticated, redirecting to login");
-      navigate("/login");
-      return;
-    }
-    
-    if (!isAdmin) {
-      console.log("Non-admin user detected, redirecting to regular dashboard");
-      navigate("/dashboard");
-      return;
-    }
-
-    console.log("Admin user authenticated, staying on admin dashboard");
-  }, [isAuthenticated, isAdmin, user, navigate]);
-  
-  // Show loader while authentication is being checked
+  // If not authenticated, redirect to login
   if (!isAuthenticated) {
-    return <PageLoader />;
+    return <Navigate to="/login" />;
   }
   
-  // Additional check to ensure only admin users can access this page
+  // If not admin, redirect to user dashboard
   if (!isAdmin) {
-    return <PageLoader />;
+    return <Navigate to="/dashboard" />;
   }
   
   return (
@@ -71,7 +51,6 @@ const AdminDashboard = () => {
           <Route path="/transactions" element={<TransactionsPage />} />
           <Route path="/trading-pairs" element={<TradingPairsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/referrals" element={<ReferralsPage />} />
           <Route path="/market" element={<MarketPage />} />
         </Routes>
       </Suspense>

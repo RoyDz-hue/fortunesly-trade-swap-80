@@ -15,51 +15,34 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const { login, isAuthenticated, isAdmin } = useAuth();
+  const { login, isAuthenticated, isAdmin, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Check authentication status when component mounts and when it changes
   useEffect(() => {
-    console.log("Login component - Auth status:", { isAuthenticated, isAdmin });
-    
-    if (isAuthenticated) {
-      console.log("User authenticated, redirecting", isAdmin ? "to admin" : "to dashboard");
-      const redirectPath = isAdmin ? "/admin" : "/dashboard";
-      console.log("Redirecting to:", redirectPath);
-      
-      // Force immediate navigation with replace
-      navigate(redirectPath, { replace: true });
+    if (!authLoading && isAuthenticated) {
+      console.log("User authenticated, redirecting to dashboard");
+      navigate(isAdmin ? "/admin" : "/dashboard");
     }
-  }, [isAuthenticated, isAdmin, navigate]);
+  }, [isAuthenticated, isAdmin, authLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!email || !password) {
-      setError("Please enter both email and password");
-      return;
-    }
-    
     setError("");
     setIsLoading(true);
 
     try {
-      console.log("Attempting login with:", email);
       await login(email, password);
-      
       toast({
         title: "Login successful!",
-        description: "Welcome back!",
+        description: "loading...",
       });
-      
-      // The useEffect hook will handle the redirect after successful login
     } catch (error) {
       console.error("Login error:", error);
       if (error instanceof Error) {
-        setError(error.message || "Failed to login. Please check your credentials.");
+        setError(error.message);
       } else {
-        setError("An unexpected error occurred. Please try again.");
+        setError("Failed to login. Please try again.");
       }
     } finally {
       setIsLoading(false);
@@ -152,7 +135,7 @@ const Login = () => {
                 <Button
                   type="submit"
                   className="w-full bg-fortunesly-primary hover:bg-fortunesly-primary/90"
-                  disabled={isLoading}
+                  disabled={isLoading || authLoading}
                 >
                   {isLoading ? "Signing in..." : "Sign in"}
                 </Button>

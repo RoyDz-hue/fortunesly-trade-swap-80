@@ -13,7 +13,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x]
+        node-version: [18.x, 20.x, 22.x]
 
     steps:
     - uses: actions/checkout@v4
@@ -24,37 +24,13 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
 
-    - name: Debug environment
-      run: |
-        pwd
-        ls -la
-        echo "Current working directory: $(pwd)"
-        echo "GitHub workspace: ${{ github.workspace }}"
-
-    - name: Create package.json symlink if needed
-      run: |
-        # Copy package.json to accessible locations
-        if [ -f "${{ github.workspace }}/package.json" ]; then
-          echo "Found package.json in workspace"
-          # Create directories if they don't exist
-          sudo mkdir -p /app
-          sudo cp ${{ github.workspace }}/package.json /app/package.json
-          echo "Created package.json copy in /app"
-        else
-          echo "WARNING: package.json not found in workspace"
-        fi
-      working-directory: ${{ github.workspace }}
-
     - name: Install Dependencies
       run: npm ci || npm install
-      working-directory: ${{ github.workspace }}
 
     - name: Build
       run: |
-        npm run build || npx webpack --config webpack.config.js
-      working-directory: ${{ github.workspace }}
+        npm run build || npx webpack
 
     - name: Test
       run: |
         npm test || echo "No tests specified"
-      working-directory: ${{ github.workspace }}

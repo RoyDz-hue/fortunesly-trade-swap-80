@@ -1,34 +1,5 @@
 
 const path = require('path');
-const fs = require('fs');
-
-// Function to find package.json in various locations
-const findPackageJson = () => {
-  const possibleLocations = [
-    process.cwd(),
-    path.resolve(process.cwd(), '..'),
-    '/app',
-    path.resolve(process.cwd(), 'app')
-  ];
-  
-  for (const location of possibleLocations) {
-    const packagePath = path.join(location, 'package.json');
-    try {
-      if (fs.existsSync(packagePath)) {
-        console.log(`Found package.json at: ${packagePath}`);
-        return location;
-      }
-    } catch (e) {
-      console.log(`Error checking ${packagePath}: ${e.message}`);
-    }
-  }
-  
-  console.log('Using default location for package.json');
-  return process.cwd();
-};
-
-const contextPath = findPackageJson();
-console.log(`Using context path: ${contextPath}`);
 
 module.exports = {
   mode: 'development',
@@ -36,7 +7,7 @@ module.exports = {
   output: {
     filename: 'bundle.js',
     path: path.resolve(__dirname, 'dist'),
-    publicPath: './',
+    publicPath: '/',
   },
   devServer: {
     static: {
@@ -59,7 +30,6 @@ module.exports = {
       "path": require.resolve("path-browserify"),
       "fs": false,
       "os": require.resolve("os-browserify/browser"),
-      "process": require.resolve("process/browser"),
     },
   },
   module: {
@@ -83,14 +53,4 @@ module.exports = {
   node: {
     global: true,
   },
-  // Use found context path
-  context: contextPath,
-  // Add resolveLoader to help find loaders
-  resolveLoader: {
-    modules: [
-      'node_modules',
-      path.resolve(contextPath, 'node_modules'),
-      path.resolve(__dirname, 'node_modules')
-    ]
-  }
 };

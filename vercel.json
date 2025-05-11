@@ -1,21 +1,5 @@
-
 {
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "framework": "vite",
-  "installCommand": "npm install",
-  "devCommand": "npm run dev",
-  "regions": ["iad1"],
-  "env": {
-    "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
-    "NODE_OPTIONS": "--max-old-space-size=4096"
-  },
-  "build": {
-    "env": {
-      "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
-    }
-  }
+  ]
 }
